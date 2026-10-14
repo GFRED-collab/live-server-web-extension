@@ -22,11 +22,12 @@ fi
 
 # Documents is synchronised by iCloud on this Mac. Its large Next.js compiler
 # file can be offloaded between launches, which prevents the local server from
-# starting. Restore the matching compiler from Next's local cache when needed.
+# starting. Restore the matching Intel compiler from Next's local cache when
+# needed (Apple silicon Macs use a different compiler package).
 SWC_TARGET="$PROJECT_DIR/node_modules/@next/swc-darwin-x64/next-swc.darwin-x64.node"
 SWC_CACHE="/Users/gurshwinfredericks/Library/Caches/next-swc/swc-darwin-x64-16.3.0.tgz"
 
-if [[ ! -s "$SWC_TARGET" ]]; then
+if [[ "$(uname -m)" == "x86_64" && ! -s "$SWC_TARGET" ]]; then
   if [[ ! -f "$SWC_CACHE" ]]; then
     echo "The local Next.js compiler is unavailable. Connect to the internet, run npm install in this folder once, then launch again."
     read "?Press Return to close..."

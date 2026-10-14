@@ -159,7 +159,6 @@ export default function HomePage() {
   const [records, setRecords] = useState(starterRows);
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
-  const [fileName, setFileName] = useState('');
   const [customFields, setCustomFields] = useState<string[]>([]);
   const [columnOrder, setColumnOrder] = useState(requiredColumns);
   const [draggedField, setDraggedField] = useState<string | null>(null);
@@ -183,7 +182,6 @@ export default function HomePage() {
   const [resetEmail, setResetEmail] = useState('');
   const [resetNotice, setResetNotice] = useState('');
 
-  const totalHours = useMemo(() => records.reduce((total, record) => total + (record.hoursOut ? 1 : 0), 0), [records]);
   const reportFields = columnOrder;
   const editingAccount = accounts.find((account) => account.id === editingAccountId);
   const accessAccount = accounts.find((account) => account.id === accessAccountId);
@@ -520,7 +518,6 @@ export default function HomePage() {
       }
       setRecords((current) => [...current, ...imported]);
       setUploads((current) => [...current, { id: reportId, clientName: clientName.trim(), fileName: file.name, userIds: importUserIds, rowIds: imported.map((row) => row.id), uploadedAt: new Date().toLocaleString() }]);
-      setFileName(file.name);
       setClientName('');
       const missingColumns = reportFields.filter((column) => !recognisedColumns.includes(column));
       setNotice(`${imported.length} record${imported.length === 1 ? '' : 's'} imported for ${clientName.trim()}${missingColumns.length ? `; ${missingColumns.length} missing column${missingColumns.length === 1 ? '' : 's'} left blank.` : '.'}`);
