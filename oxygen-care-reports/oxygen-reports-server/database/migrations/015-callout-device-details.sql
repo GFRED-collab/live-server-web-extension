@@ -1,0 +1,2 @@
+ALTER TABLE callouts ADD COLUMN IF NOT EXISTS device_name text NOT NULL DEFAULT '';
+ALTER TABLE callouts ADD COLUMN IF NOT EXISTS serial_number text NOT NULL DEFAULT '';

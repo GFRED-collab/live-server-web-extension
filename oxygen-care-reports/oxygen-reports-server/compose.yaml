@@ -1,0 +1,38 @@
+services:
+  database:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: oxygen_care_reports
+      POSTGRES_USER: oxygen_care
+      POSTGRES_PASSWORD: change_this_local_password
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - oxygen-care-reports-db:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oxygen_care -d oxygen_care_reports"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    init: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 256
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://oxygen_care:change_this_local_password@database:5432/oxygen_care_reports
+      APP_URL: http://localhost:3002
+      NEXT_PUBLIC_APP_URL: http://localhost:3002
+      SESSION_SECRET: replace_before_any_external_deployment
+    ports:
+      - "3002:3000"
+
+volumes:
+  oxygen-care-reports-db:

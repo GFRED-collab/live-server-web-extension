@@ -1,0 +1,19 @@
+.client-rows { display:grid; }
+.client-rows article { display:grid; grid-template-columns:minmax(150px,1.2fr) minmax(120px,1fr) minmax(160px,1.4fr) minmax(120px,1fr) auto; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid #d8e7e9; }
+.client-rows h3,.client-rows p { margin:0; font-size:13px; }
+.client-rows h3,.client-rows p,.client-rows small { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.client-rows .client-links { display:flex; gap:6px; }
+.contract-import-tools { padding:18px; margin-bottom:20px; background:#fff; border-radius:12px; border:1px solid #d8e7e9; }
+.contract-import-tools>.import-card,.contract-import-tools>.schema-card { box-shadow:none; margin:12px 0; }
+.admin-entry-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; padding:20px; }
+.admin-entry-form label { display:grid; gap:6px; }
+.admin-entry-form .wide { grid-column:1/-1; }
+.admin-entry-form>fieldset { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; border:0; padding:0; min-width:0; }
+.admin-entry-form>fieldset>p,.admin-entry-form>fieldset>label:last-of-type { grid-column:1/-1; }
+.admin-entry-form input,.admin-entry-form select,.admin-entry-form textarea { width:100%; min-width:0; padding:10px; border:1px solid #bdd3d8; border-radius:6px; font:inherit; }
+.admin-entry-form textarea { min-height:70px; }
+.admin-entry-list { overflow-x:auto; }
+.admin-entry-list table { width:100%; border-collapse:collapse; }
+.admin-entry-list td,.admin-entry-list th { padding:10px; text-align:left; border-bottom:1px solid #d8e7e9; }
+.admin-entry-list button { margin:3px; }
+@media(max-width:850px) { .client-rows { overflow-x:auto; } .client-rows article { min-width:760px; } .admin-entry-form,.admin-entry-form>fieldset { grid-template-columns:1fr; } }

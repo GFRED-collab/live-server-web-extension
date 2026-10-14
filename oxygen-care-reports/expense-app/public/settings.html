@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Settings · Oxygen Care</title>
+  <style>
+    body { margin: 0; background: #effbff; color: #183f4b; font: 16px system-ui; }
+    .app { max-width: 760px; min-height: 100vh; margin: auto; padding: 22px; background: #fff; box-sizing: border-box; }
+    .bar { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 2px solid #277b91; }
+    .logo { width: 145px; }
+    .card { margin-top: 20px; padding: 18px; border: 1px solid #cfeaf2; border-radius: 16px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .label { color: #277b91; font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+    .meta { color: #63818a; font-size: 13px; line-height: 1.45; }
+    input { box-sizing: border-box; width: 100%; margin: 8px 0; padding: 10px; border: 1px solid #9bcbd9; border-radius: 8px; font: inherit; }
+    input[type="checkbox"] { width: auto; margin-right: 8px; }
+    .company-paid-option { display: block; margin-bottom: 10px; }
+    input:disabled { color: #63818a; border-color: #dcebf0; background: #f4f8f9; }
+    button, a { padding: 9px 11px; color: #277b91; font-weight: 750; cursor: pointer; text-decoration: none; border: 1px solid #cfeaf2; border-radius: 8px; background: #fff; }
+    .primary { color: #fff; border-color: #277b91; background: #277b91; }
+    .hidden { display: none; }
+    .list { margin-top: 10px; padding: 0; list-style: none; }
+    .list li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e8f2f5; }
+    .delete { color: #a5412e; border-color: #f0c9c1; }
+    @media (max-width: 600px) { .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="bar">
+      <img class="logo" src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care">
+      <a id="back" href="/">Back</a>
+    </header>
+
+    <section class="card">
+      <h1>Departments, categories &amp; mileage</h1>
+      <p class="meta">The mileage rate is the Euro amount paid per kilometre. Mileage entries are calculated automatically using this rate.</p>
+      <div class="grid">
+        <form id="rateForm">
+          <div class="label">MILEAGE / FUEL RATE (€ PER KM)</div>
+          <input name="mileageRate" type="number" min="0" max="100" step="0.0001" required disabled>
+          <div>
+            <button id="editRate" type="button">Edit rate</button>
+            <button id="saveRate" class="primary hidden" type="submit">Save rate</button>
+            <button id="cancelRate" class="hidden" type="button">Cancel</button>
+          </div>
+        </form>
+
+        <div>
+          <div class="label">CURRENT RATE</div>
+          <p id="rateSummary" class="meta">Loading…</p>
+        </div>
+
+        <form id="departmentForm">
+          <div class="label">ADD DEPARTMENT</div>
+          <input name="name" maxlength="80" required placeholder="e.g. Customer Care" autocomplete="off">
+          <button class="primary" type="submit">Add department</button>
+        </form>
+
+        <form id="categoryForm">
+          <div class="label">ADD EXPENSE CATEGORY</div>
+          <input name="name" maxlength="60" required placeholder="e.g. Training" autocomplete="off">
+          <label class="company-paid-option"><input name="companyPaid" type="checkbox">Company paid</label>
+          <button class="primary" type="submit">Add category</button>
+        </form>
+      </div>
+      <p id="status" class="meta" aria-live="polite"></p>
+    </section>
+
+    <section class="card">
+      <div class="grid">
+        <div><div class="label">DEPARTMENTS</div><ul id="departments" class="list"></ul></div>
+        <div><div class="label">EXPENSE CATEGORIES</div><ul id="categories" class="list"></ul></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/http.js"></script>
+  <script>
+    const $ = selector => document.querySelector(selector);
+    let savedRate = 0;
+    const api = window.oxygenApi;
+
+    const euro = value => new Intl.NumberFormat(undefined, {
+      style: 'currency', currency: 'EUR', minimumFractionDigits: 2, maximumFractionDigits: 4
+    }).format(Number(value) || 0);
+
+    function status(message, bad = false) {
+      $('#status').style.color = bad ? '#a5412e' : '#176958';
+      $('#status').textContent = message;
+    }
+
+    function list(id, values, kind, companyPaidCategories = []) {
+      $(id).replaceChildren(...values.map(value => {
+        const item = document.createElement('li');
+        const name = document.createElement('span');
+        name.textContent = value + (kind === 'category' ? (companyPaidCategories.includes(value) ? ' · Company paid' : ' · Expense') : '');
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'delete';
+        remove.textContent = 'Delete';
+        remove.addEventListener('click', () => removeListItem(kind, value));
+        item.append(name, remove);
+        return item;
+      }));
+    }
+
+    function setRateEditing(editing) {
+      const input = $('#rateForm input[name="mileageRate"]');
+      input.disabled = !editing;
+      $('#editRate').classList.toggle('hidden', editing);
+      $('#saveRate').classList.toggle('hidden', !editing);
+      $('#cancelRate').classList.toggle('hidden', !editing);
+      if (editing) input.focus();
+    }
+
+    async function render() {
+      const me = await api('/api/auth/me');
+      if (me.user.role !== 'super') throw Error('Super User access is required.');
+      const settings = await api('/api/settings');
+      savedRate = settings.mileageRate ?? 0;
+      list('#departments', settings.departments || [], 'department');
+      list('#categories', settings.categories || [], 'category', settings.companyPaidCategories || ['Fuel Card']);
+      $('#rateForm input[name="mileageRate"]').value = savedRate;
+      $('#rateSummary').textContent = `${euro(savedRate)} per KM`;
+      setRateEditing(false);
+    }
+
+    async function addListItem(form, url, label) {
+      const input = form.querySelector('input[name="name"]');
+      const name = input.value.trim();
+      if (!name) {
+        status(`Enter a ${label.toLowerCase()} name.`, true);
+        input.focus();
+        return;
+      }
+      try {
+        await api(url, { method: 'POST', body: JSON.stringify({ name, ...(label === 'Category' ? { companyPaid: form.querySelector('input[name="companyPaid"]').checked } : {}) }) });
+        form.reset();
+        await render();
+        status(`${label} added.`);
+      } catch (error) {
+        status(error.message, true);
+      }
+    }
+
+    async function removeListItem(kind, name) {
+      if (!confirm(`Delete ${kind} “${name}”? This cannot be undone.`)) return;
+      try {
+        const path = kind === 'department' ? '/api/settings/departments' : '/api/settings/categories';
+        await api(`${path}?name=${encodeURIComponent(name)}`, { method: 'DELETE' });
+        await render();
+        status(`${kind[0].toUpperCase()}${kind.slice(1)} deleted.`);
+      } catch (error) {
+        status(error.message, true);
+      }
+    }
+
+    $('#editRate').addEventListener('click', () => setRateEditing(true));
+    $('#cancelRate').addEventListener('click', () => {
+      $('#rateForm input[name="mileageRate"]').value = savedRate;
+      setRateEditing(false);
+    });
+    $('#rateForm').addEventListener('submit', async event => {
+      event.preventDefault();
+      const input = event.currentTarget.querySelector('input[name="mileageRate"]');
+      if (input.disabled) return;
+      try {
+        const result = await api('/api/settings/categories', {
+          method: 'POST', body: JSON.stringify({ mileageRate: input.value })
+        });
+        savedRate = result.mileageRate;
+        $('#rateSummary').textContent = `${euro(savedRate)} per KM`;
+        status(`Mileage rate saved: ${euro(savedRate)} per KM.`);
+        setRateEditing(false);
+      } catch (error) {
+        status(error.message, true);
+      }
+    });
+    $('#departmentForm').addEventListener('submit', event => {
+      event.preventDefault();
+      addListItem(event.currentTarget, '/api/settings/departments', 'Department');
+    });
+    $('#categoryForm').addEventListener('submit', event => {
+      event.preventDefault();
+      addListItem(event.currentTarget, '/api/settings/categories', 'Category');
+    });
+    $('#back').addEventListener('click', event => {
+      event.preventDefault();
+      const requested = new URLSearchParams(location.search).get('returnTo');
+      const allowed = new Set(['home', 'users', 'profile']);
+      const returnTo = allowed.has(requested) ? requested : 'home';
+      location.replace(returnTo === 'home' ? '/' : `/?view=${encodeURIComponent(returnTo)}`);
+    });
+
+    render().catch(error => status(error.message, true));
+  </script>
+</body>
+</html>

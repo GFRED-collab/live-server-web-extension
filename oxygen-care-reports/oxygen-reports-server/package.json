@@ -1,0 +1,34 @@
+{
+  "name": "oxygen-care-reports-server",
+  "private": true,
+  "version": "0.1.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "lint": "tsc --noEmit",
+    "test": "node scripts/check-untrusted-input.cjs && node scripts/check-hardening.cjs && node scripts/check-reports-enhancements.cjs && node scripts/check-admin-entries.cjs && node scripts/check-fieldwork.cjs && node scripts/check-regressions.cjs && node scripts/check-release-cleanup.cjs && node scripts/check-service-status.cjs && node scripts/check-service-attachments.cjs && node scripts/check-customer-portal.cjs && node scripts/check-import-duplicates.cjs",
+    "clean": "node scripts/clean-generated.mjs",
+    "check": "npm run clean && npm run lint && npm run build",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:bootstrap-super-user": "node scripts/bootstrap-super-user.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.0.0",
+    "bcryptjs": "^2.4.3",
+    "jose": "^5.0.0",
+    "next": "^16.3.0",
+    "pg": "^8.12.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.0",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -1,0 +1,67 @@
+.contracts-layout [hidden] { display:none!important; }
+.contract-workspace-nav,.contract-detail-nav { display:flex; gap:8px; flex-wrap:wrap; }
+.contract-workspace-nav { margin:0 20px 20px; padding:7px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+.contract-workspace-nav button,.contract-detail-nav button { border:1px solid transparent; border-radius:8px; padding:11px 17px; background:transparent; color:var(--ink); font:inherit; font-size:14px; font-weight:750; cursor:pointer; }
+.contract-workspace-nav button[aria-pressed=true] { color:#fff; background:var(--brand); }
+.contract-workspace-nav button { border-color:#a7b9b7; background:#f4f8f7; box-shadow:0 2px 3px rgb(16 50 45 / 12%); }
+.contract-workspace-nav button:hover:not(:disabled) { border-color:var(--brand); }
+.contract-workspace-nav button:disabled { opacity:.5; cursor:not-allowed; box-shadow:none; }
+.contract-detail-nav { border-bottom:1px solid var(--line); padding-bottom:12px; }
+.contract-detail-nav button { border-color:#c3dbe2; background:white; }
+.contract-detail-nav button[aria-pressed=true] { border-color:var(--brand); color:var(--brand); background:#e9f7fa; }
+.contract-workspace-nav button:focus-visible,.contract-detail-nav button:focus-visible { outline:2px solid var(--brand); outline-offset:3px; }
+.contracts-layout { padding-top:0; }
+.contract-browser { display:grid; gap:13px; max-height:calc(100vh - 50px); overflow:auto; }
+.contract-browser select { width:100%; padding:10px; }
+.contract-browser>div { margin-top:0; }
+.contract-browser button.active { box-shadow:inset 3px 0 var(--brand); }
+.contract-empty { padding:36px; border:1px dashed #a4c5cf; border-radius:16px; background:#fff; align-self:start; }
+.contract-empty h2 { margin-top:0; }
+.contract-empty p { color:var(--muted); line-height:1.6; max-width:500px; }
+.contract-create-view { display:block; max-width:950px; margin:0 auto; }
+.contract-create-view .access-card { margin-top:0; }
+.contract-content .directory { margin-top:0; }
+.contract-content .contract-actions { grid-template-columns:1fr; }
+.contract-overview-actions { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.contract-overview-actions button { display:grid; gap:6px; padding:20px; text-align:left; border:1px solid #c3dbe2; border-radius:12px; color:var(--ink); background:white; cursor:pointer; font:inherit; }
+.contract-overview-actions strong { font-size:30px; color:var(--brand); }
+.contract-tools-view { margin:0 20px; }
+.contract-tools-view .contract-import-tools { margin-top:0; }
+.contract-tools-view .contract-import-tools>h2 { display:none; }
+.contract-tools-view .upload-stack>label:not(.upload-control) { display:grid; gap:7px; font-size:12px; font-weight:750; }
+.contract-tools-view .upload-stack>label>input:not([type=file]) { width:100%; padding:11px; }
+.contract-content .contract-actions form { grid-template-columns:repeat(2,minmax(0,1fr)); gap:14px; }
+.contract-content .contract-actions form h3,.contract-content .contract-actions form>button { grid-column:1/-1; }
+.contract-content .contract-actions button { padding:11px; border:0; border-radius:9px; background:var(--brand); color:white; font-weight:750; cursor:pointer; }
+.contract-content .visit-list article { grid-template-columns:150px minmax(0,1fr); }
+.contract-content .visit-list article>div,.contract-content .visit-list article>span { grid-column:2; }
+@media(max-width:950px){ .contract-browser { max-height:none; } }
+@media(max-width:650px){
+ .contract-workspace-nav,.contract-tools-view { margin-left:10px; margin-right:10px; }
+ .contract-workspace-nav button,.contract-detail-nav button { padding:10px 12px; }
+ .contract-overview-actions,.contract-content .contract-actions form,.contract-content .visit-list article { grid-template-columns:1fr; }
+ .contract-content .visit-list article>div,.contract-content .visit-list article>span { grid-column:auto; }
+ .contract-hero { grid-template-columns:1fr; }
+}
+.service-visit-picker { display:grid; gap:4px; min-width:0; font-size:12px; }
+.service-visit-picker select { max-width:100%; padding:9px; border:1px solid #9ebdc3; border-radius:8px; background:white; color:#173f4a; }
+/* Contract panels must fit their available width, including beside the sidebar. */
+@media screen {
+ .contracts-layout :is(.contract-content,label,fieldset,form),.contract-import-tools :is(div,label,fieldset,form) { min-width:0; }
+ .contracts-layout :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea),.contract-import-tools :is(input:not([type=checkbox]):not([type=radio]):not([type=file]),select,textarea) { width:100%; min-width:0; max-width:100%; box-sizing:border-box; }
+ .contract-content .contract-client-details { grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr)); }
+ .contract-client-details :is(div,span),.contract-hero,.contract-browser button,.contract-device-grid article>div { min-width:0; overflow-wrap:anywhere; }
+ .contract-import-tools .import-card { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start; }
+ .contract-import-tools .schema-card:not(.report-layout-card) { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); align-items:start; }
+ .contract-import-tools .upload-stack,.contract-import-tools .field-form { min-width:0; width:100%; }
+ .contract-import-tools .field-form label { min-width:0; flex:1; }
+ .contract-import-tools .report-users label { overflow-wrap:anywhere; }
+ .contract-import-tools .report-users input[type=checkbox] { flex:0 0 auto; }
+ .contracts-layout .report-users label { display:flex; align-items:center; gap:8px; overflow-wrap:anywhere; }
+ .contracts-layout input[type=checkbox],.contract-import-tools input[type=checkbox] { width:18px; height:18px; min-width:18px; padding:0; flex:0 0 18px; }
+ .service-visit-picker { flex:1 1 240px; max-width:100%; }
+}
+@media screen and (max-width:1100px) {
+ .contract-import-tools .import-card,.contract-import-tools .schema-card:not(.report-layout-card) { grid-template-columns:minmax(0,1fr); }
+ .contract-import-tools .field-form { flex-wrap:wrap; }
+}
