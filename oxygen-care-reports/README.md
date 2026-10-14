@@ -13,5 +13,3 @@ Each application has its own `README.md`, `package.json`, environment example, a
 Live application data and secrets were deliberately not imported. Use each application's `.env.example` to create a local `.env` when needed.
 
 The Reports demo and server package remain separate for now. The next development phase is to connect the demo workflows in `oxygen-reports-app` to the database and server facilities in `oxygen-reports-server`.
-# Oxygen-Care-2026
-# Oxygen-Care-2026

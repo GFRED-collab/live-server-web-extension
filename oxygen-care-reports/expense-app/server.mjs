@@ -718,14 +718,16 @@ function parseTesseractReceipt(text) {
 }
 async function tesseractText(bytes, pageSegmentationMode = "6") {
   return new Promise((resolve, reject) => {
-    const process = spawn("tesseract", ["stdin", "stdout", "-l", "eng", "--psm", pageSegmentationMode], { stdio: ["pipe", "pipe", "pipe"], windowsHide: true });
-    let output = "", errors = "", timedOut = false;
-    const timer = setTimeout(() => { timedOut = true; process.kill("SIGKILL"); }, Math.min(upstreamTimeoutMs, 30_000));
-    process.stdout.setEncoding("utf8"); process.stderr.setEncoding("utf8");
-    process.stdout.on("data", chunk => { output += chunk; }); process.stderr.on("data", chunk => { errors += chunk; });
-    process.on("error", error => { clearTimeout(timer); reject(new Error(error.code === "ENOENT" ? "Tesseract OCR is not installed on this server." : "Tesseract OCR could not start.")); });
-    process.on("close", code => { clearTimeout(timer); if (timedOut) return reject(new Error("Tesseract OCR timed out.")); if (code !== 0) return reject(new Error("Tesseract OCR could not read this receipt.")); resolve(output); });
-    process.stdin.end(bytes);
+    const child = spawn("tesseract", ["stdin", "stdout", "-l", "eng", "--psm", pageSegmentationMode], { stdio: ["pipe", "pipe", "ignore"], windowsHide: true });
+    let output = "", timedOut = false, tooLarge = false;
+    const timer = setTimeout(() => { timedOut = true; child.kill("SIGKILL"); }, Math.min(upstreamTimeoutMs, 30_000));
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", chunk => { output += chunk; if (output.length > 1024 * 1024) { tooLarge = true; child.kill("SIGKILL"); } });
+    // Tesseract can exit before reading all of stdin; an unhandled EPIPE here would crash the whole server.
+    child.stdin.on("error", () => {});
+    child.on("error", error => { clearTimeout(timer); reject(new Error(error.code === "ENOENT" ? "Tesseract OCR is not installed on this server." : "Tesseract OCR could not start.")); });
+    child.on("close", code => { clearTimeout(timer); if (timedOut) return reject(new Error("Tesseract OCR timed out.")); if (tooLarge || code !== 0) return reject(new Error("Tesseract OCR could not read this receipt.")); resolve(output); });
+    child.stdin.end(bytes);
   });
 }
 async function localOcrVariants(bytes) {
