@@ -1,10 +1,10 @@
 # Oxygen Care Expenses
 
-A runnable, security-corrected replacement for the PDF prototype. It has no third-party runtime dependencies.
+A runnable, security-corrected replacement for the PDF prototype. Its only third-party runtime dependency is `sharp`, used to prepare receipt images.
 
 ## Run locally
 
-1. Use Node 18 or newer.
+1. Use Node 20.9 or newer (required by `sharp`); production should follow the Node.js version note in the checklist below.
 2. Bootstrap the first Super User: `export SUPERUSER_EMAIL='admin@example.com'` and `export SUPERUSER_PASSWORD='a-unique-password-with-at-least-12-characters'`. This is the only role permitted to create regular users.
 3. Local receipt OCR uses Tesseract (`OCR_PROVIDER=tesseract`). Cloud receipt processing is disabled by default. Azure requires explicit `OCR_ALLOW_CLOUD=true` plus a server-only HTTPS endpoint and key; enabling it permits receipt images to leave the server, including as fallback after local OCR failure. PDFs remain manual attachments and are never sent to OCR. Never commit real credentials. See [security maintenance](SECURITY_MAINTENANCE.md) for deployment and privacy verification.
 4. Start the app from a terminal with `npm start`.
