@@ -1,11 +1,103 @@
-.appointment-list{display:grid;gap:10px;margin-top:16px}
-.appointment-list article{display:flex;justify-content:space-between;align-items:center;gap:16px;border-bottom:1px solid var(--line);padding:12px 0}
-.appointment-list p{margin:4px 0 0;color:var(--muted)}
-@media(max-width:800px){.appointment-list article{align-items:flex-start;flex-direction:column}.appointment-list button{width:100%}}
-.client-links{display:flex;gap:8px;margin-top:14px}.client-links button{border:1px solid var(--line);border-radius:8px;padding:7px 9px;background:#f5fbfd;color:var(--brand);cursor:pointer}
-@media(max-width:800px){.app-sidebar{position:sticky;top:0;z-index:30;padding:10px}.sidebar-brand{padding:0 4px 10px}.app-sidebar nav{display:flex;overflow-x:auto;padding-bottom:4px}.app-sidebar nav button{flex:0 0 auto;white-space:nowrap}.workspace-header{align-items:flex-start;gap:10px}.calendar-grid{min-width:680px}.calendar-card{overflow-x:auto}}
-.appointment-modal-backdrop{position:fixed;inset:0;z-index:100;display:grid;place-items:center;padding:20px;background:rgba(8,35,42,.58);backdrop-filter:blur(3px)}
-.appointment-modal{width:min(560px,100%);max-height:calc(100vh - 40px);margin:0;overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.28)}
-.workspace-header .account-chip button{display:none}
-.engineer-personal-stock{grid-template-columns:1fr;margin-top:0}
-@media(max-width:600px){.appointment-modal-backdrop{align-items:end;padding:10px}.appointment-modal{max-height:90vh;border-radius:18px 18px 10px 10px}}
+.appointment-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 16px;
+}
+.appointment-list article {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 0;
+}
+.appointment-list p {
+  margin: 4px 0 0;
+  color: var(--muted);
+}
+@media (max-width: 800px) {
+  .appointment-list article {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .appointment-list button {
+    width: 100%;
+  }
+}
+.client-links {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+.client-links button {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: #f5fbfd;
+  color: var(--brand);
+  cursor: pointer;
+}
+@media (max-width: 800px) {
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    padding: 10px;
+  }
+  .sidebar-brand {
+    padding: 0 4px 10px;
+  }
+  .app-sidebar nav {
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+  .app-sidebar nav button {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+  .workspace-header {
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .calendar-grid {
+    min-width: 680px;
+  }
+  .calendar-card {
+    overflow-x: auto;
+  }
+}
+.appointment-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(8, 35, 42, 0.58);
+  backdrop-filter: blur(3px);
+}
+.appointment-modal {
+  width: min(560px, 100%);
+  max-height: calc(100vh - 40px);
+  margin: 0;
+  overflow: auto;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+.workspace-header .account-chip button {
+  display: none;
+}
+.engineer-personal-stock {
+  grid-template-columns: 1fr;
+  margin-top: 0;
+}
+@media (max-width: 600px) {
+  .appointment-modal-backdrop {
+    align-items: end;
+    padding: 10px;
+  }
+  .appointment-modal {
+    max-height: 90vh;
+    border-radius: 18px 18px 10px 10px;
+  }
+}

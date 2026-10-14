@@ -1,35 +1,155 @@
-const assert=require('node:assert/strict');
-const {loadTs}=require('./test-load-ts.cjs');
-const {reviewImport}=loadTs('lib/import-duplicates.ts');
-const rows=[{serialNumber:' SN1 ',assetNumber:'A1'},{serialNumber:'sn1'},{assetNumber:'a1'},{serialNumber:'SN2',assetNumber:'A1'},{assetNumber:'A3'},{assetNumber:'a3'},{}];
-assert.deepEqual(Array.from(reviewImport(rows,[]).accepted),[0,3,4]);
-assert.equal(reviewImport([{serialNumber:'S1',assetNumber:'A1'}],[{assetNumber:'a1'}]).warnings.length,1);
-const visit='11111111-1111-4111-8111-111111111111';let status='draft',existing=[],registry=[],queries=[],role='super_user',fail=false;
-const db={release(){},async query(sql,params){queries.push({sql,params});
- if(fail&&sql.startsWith('INSERT INTO service_visit_devices'))throw Error('Simulated failure');
- if(sql.startsWith('SELECT v.status'))return{rowCount:1,rows:[{status,contract_id:'contract',client_id:'client',client_name:'Clinic',service_date:'2026-10-14'}]};
- if(sql.includes('UNION ALL SELECT rr'))return{rows:existing};
- if(sql.includes('LEFT JOIN contract_devices cd'))return{rows:registry};
- if(sql.includes('FROM custom_fields'))return{rows:[{name:'Service status',source_key:'Serviced',kind:'text'}]};
- if(sql==='SELECT name FROM service_status_options')return{rows:[{name:'Not serviced'},{name:'Serviced'}]};
- if(sql.startsWith('INSERT'))return{rows:[{id:'id-'+queries.length}],rowCount:1};
- return{rows:[],rowCount:1};}};
-const api=loadTs('app/api/reports/route.ts',name=>{
- if(name.endsWith('/auth'))return{requireUser:async roles=>roles.includes(role)?{user:{id:visit,role}}:{response:Response.json({error:'Forbidden'},{status:403})}};
- if(name.endsWith('/db'))return{getDb:()=>({connect:async()=>db})};
- if(name.endsWith('/audit'))return{writeAudit:async()=>{}};
+const assert = require('node:assert/strict');
+const { loadTs } = require('./test-load-ts.cjs');
+const { reviewImport } = loadTs('lib/import-duplicates.ts');
+const rows = [
+  { serialNumber: ' SN1 ', assetNumber: 'A1' },
+  { serialNumber: 'sn1' },
+  { assetNumber: 'a1' },
+  { serialNumber: 'SN2', assetNumber: 'A1' },
+  { assetNumber: 'A3' },
+  { assetNumber: 'a3' },
+  {}
+];
+assert.deepEqual(Array.from(reviewImport(rows, []).accepted), [0, 3, 4]);
+assert.equal(
+  reviewImport([{ serialNumber: 'S1', assetNumber: 'A1' }], [{ assetNumber: 'a1' }]).warnings
+    .length,
+  1
+);
+const visit = '11111111-1111-4111-8111-111111111111';
+let status = 'draft',
+  existing = [],
+  registry = [],
+  queries = [],
+  role = 'super_user',
+  fail = false;
+const db = {
+  release() {},
+  async query(sql, params) {
+    queries.push({ sql, params });
+    if (fail && sql.startsWith('INSERT INTO service_visit_devices'))
+      throw Error('Simulated failure');
+    if (sql.startsWith('SELECT v.status'))
+      return {
+        rowCount: 1,
+        rows: [
+          {
+            status,
+            contract_id: 'contract',
+            client_id: 'client',
+            client_name: 'Clinic',
+            service_date: '2026-10-14'
+          }
+        ]
+      };
+    if (sql.includes('UNION ALL SELECT rr')) return { rows: existing };
+    if (sql.includes('LEFT JOIN contract_devices cd')) return { rows: registry };
+    if (sql.includes('FROM custom_fields'))
+      return { rows: [{ name: 'Service status', source_key: 'Serviced', kind: 'text' }] };
+    if (sql === 'SELECT name FROM service_status_options')
+      return { rows: [{ name: 'Not serviced' }, { name: 'Serviced' }] };
+    if (sql.startsWith('INSERT')) return { rows: [{ id: 'id-' + queries.length }], rowCount: 1 };
+    return { rows: [], rowCount: 1 };
+  }
+};
+const api = loadTs('app/api/reports/route.ts', name => {
+  if (name.endsWith('/auth'))
+    return {
+      requireUser: async roles =>
+        roles.includes(role)
+          ? { user: { id: visit, role } }
+          : { response: Response.json({ error: 'Forbidden' }, { status: 403 }) }
+    };
+  if (name.endsWith('/db')) return { getDb: () => ({ connect: async () => db }) };
+  if (name.endsWith('/audit')) return { writeAudit: async () => {} };
 });
-const request=extra=>new Request('https://reports.example/api/reports',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({serviceVisitId:visit,clientName:'Clinic',originalFilename:'report.csv',rows,...extra})});
-(async()=>{
- const preview=await api.POST(request({preview:true}));assert.equal(preview.status,200);assert.equal((await preview.json()).accepted,3);assert.ok(!queries.some(q=>q.sql.startsWith('INSERT')));
- existing=[{serialNumber:'sn1',assetNumber:'a1'}];queries=[];const result=await (await api.POST(request({}))).json();assert.equal(result.imported,2);assert.equal(result.skipped,5);assert.equal(queries.filter(q=>q.sql.startsWith('INSERT INTO service_visit_devices')).length,2);assert.ok(queries.some(q=>q.sql.includes('FOR UPDATE OF v')));assert.ok(queries.every(q=>!q.sql.includes('DO UPDATE')));
- queries=[];assert.equal((await (await api.POST(request({rows:[{serialNumber:'SN1'}]}))).json()).imported,0);assert.ok(!queries.some(q=>q.sql.startsWith('INSERT')));
- existing=[];assert.equal((await (await api.POST(request({rows:[{serialNumber:'SN1'}]}))).json()).imported,1,'Later visit allows same machine');
- status='finalized';assert.equal((await api.POST(request({preview:true}))).status,400);status='draft';assert.equal((await api.POST(request({clientName:'Other'}))).status,400);assert.equal((await api.POST(request({serviceVisitId:''}))).status,400);
- fail=true;queries=[];assert.equal((await api.POST(request({rows:[{serialNumber:'SN1'}]}))).status,400);assert.ok(queries.some(q=>q.sql==='ROLLBACK'));fail=false;
- registry=[{id:'old',serialNumber:'SN1',status:'decommissioned'}];assert.equal((await (await api.POST(request({preview:true,rows:[{serialNumber:'SN1'}]}))).json()).accepted,0);
- registry=[{id:'a',serialNumber:'S1',assetNumber:'A',status:'active'},{id:'b',serialNumber:'S2',assetNumber:'a',status:'active'}];const ambiguous=await (await api.POST(request({preview:true,rows:[{assetNumber:' A '}]}))).json();assert.equal(ambiguous.accepted,0);assert.match(ambiguous.warnings[0].reason,/Ambiguous/);registry=[];
- queries=[];assert.equal((await api.POST(request({preview:true,rows:[{serialNumber:'SN1',values:{'Service status':'Unknown status'}}]}))).status,400);assert.ok(!queries.some(q=>q.sql.startsWith('INSERT')));
- role='engineer';queries=[];assert.equal((await api.POST(request({preview:true}))).status,403);assert.equal(queries.length,0);
- console.log('PASS normalized serial/asset duplicates, same-visit skipping, later visits, non-mutating preview, locked commit, no empty reports/overwrites, finalized/client/role guards and rollback (database simulated).');
-})().catch(e=>{console.error(e);process.exitCode=1});
+const request = extra =>
+  new Request('https://reports.example/api/reports', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      serviceVisitId: visit,
+      clientName: 'Clinic',
+      originalFilename: 'report.csv',
+      rows,
+      ...extra
+    })
+  });
+(async () => {
+  const preview = await api.POST(request({ preview: true }));
+  assert.equal(preview.status, 200);
+  assert.equal((await preview.json()).accepted, 3);
+  assert.ok(!queries.some(q => q.sql.startsWith('INSERT')));
+  existing = [{ serialNumber: 'sn1', assetNumber: 'a1' }];
+  queries = [];
+  const result = await (await api.POST(request({}))).json();
+  assert.equal(result.imported, 2);
+  assert.equal(result.skipped, 5);
+  assert.equal(
+    queries.filter(q => q.sql.startsWith('INSERT INTO service_visit_devices')).length,
+    2
+  );
+  assert.ok(queries.some(q => q.sql.includes('FOR UPDATE OF v')));
+  assert.ok(queries.every(q => !q.sql.includes('DO UPDATE')));
+  queries = [];
+  assert.equal(
+    (await (await api.POST(request({ rows: [{ serialNumber: 'SN1' }] }))).json()).imported,
+    0
+  );
+  assert.ok(!queries.some(q => q.sql.startsWith('INSERT')));
+  existing = [];
+  assert.equal(
+    (await (await api.POST(request({ rows: [{ serialNumber: 'SN1' }] }))).json()).imported,
+    1,
+    'Later visit allows same machine'
+  );
+  status = 'finalized';
+  assert.equal((await api.POST(request({ preview: true }))).status, 400);
+  status = 'draft';
+  assert.equal((await api.POST(request({ clientName: 'Other' }))).status, 400);
+  assert.equal((await api.POST(request({ serviceVisitId: '' }))).status, 400);
+  fail = true;
+  queries = [];
+  assert.equal((await api.POST(request({ rows: [{ serialNumber: 'SN1' }] }))).status, 400);
+  assert.ok(queries.some(q => q.sql === 'ROLLBACK'));
+  fail = false;
+  registry = [{ id: 'old', serialNumber: 'SN1', status: 'decommissioned' }];
+  assert.equal(
+    (await (await api.POST(request({ preview: true, rows: [{ serialNumber: 'SN1' }] }))).json())
+      .accepted,
+    0
+  );
+  registry = [
+    { id: 'a', serialNumber: 'S1', assetNumber: 'A', status: 'active' },
+    { id: 'b', serialNumber: 'S2', assetNumber: 'a', status: 'active' }
+  ];
+  const ambiguous = await (
+    await api.POST(request({ preview: true, rows: [{ assetNumber: ' A ' }] }))
+  ).json();
+  assert.equal(ambiguous.accepted, 0);
+  assert.match(ambiguous.warnings[0].reason, /Ambiguous/);
+  registry = [];
+  queries = [];
+  assert.equal(
+    (
+      await api.POST(
+        request({
+          preview: true,
+          rows: [{ serialNumber: 'SN1', values: { 'Service status': 'Unknown status' } }]
+        })
+      )
+    ).status,
+    400
+  );
+  assert.ok(!queries.some(q => q.sql.startsWith('INSERT')));
+  role = 'engineer';
+  queries = [];
+  assert.equal((await api.POST(request({ preview: true }))).status, 403);
+  assert.equal(queries.length, 0);
+  console.log(
+    'PASS normalized serial/asset duplicates, same-visit skipping, later visits, non-mutating preview, locked commit, no empty reports/overwrites, finalized/client/role guards and rollback (database simulated).'
+  );
+})().catch(e => {
+  console.error(e);
+  process.exitCode = 1;
+});

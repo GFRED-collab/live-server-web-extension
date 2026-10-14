@@ -1,6 +1,51 @@
-import {requireUser} from '../../../lib/auth';
-import {getDb} from '../../../lib/db';
-import {jsonObject,errorResponse} from '../../../lib/http';
-import {writeAudit} from '../../../lib/audit';
-export async function GET(){const auth=await requireUser();if(auth.response)return auth.response;try{const result=await getDb().query('SELECT name FROM service_status_options ORDER BY position,name');return Response.json({options:result.rows.map(row=>row.name)});}catch(error){return errorResponse(error);}}
-export async function POST(request:Request){const auth=await requireUser(['super_user']);if(auth.response)return auth.response;try{const body=await jsonObject(request),name=String(body.name||'').trim().replace(/\s+/g,' ');if(!name||name.length>80)throw Error('Enter a service status up to 80 characters.');const client=await getDb().connect();try{await client.query('BEGIN');await client.query('LOCK TABLE service_status_options IN SHARE ROW EXCLUSIVE MODE');const duplicate=await client.query('SELECT name FROM service_status_options WHERE lower(name)=lower($1)',[name]);if(duplicate.rowCount)throw Error('That service status already exists.');await client.query('INSERT INTO service_status_options(name,position) VALUES($1,COALESCE((SELECT max(position)+1 FROM service_status_options),0))',[name]);await writeAudit(client,auth.user!.id,'created','service_status_option',null,{name});await client.query('COMMIT');return Response.json({ok:true},{status:201});}catch(error){await client.query('ROLLBACK');throw error;}finally{client.release();}}catch(error){return errorResponse(error);}}
+import { requireUser } from '../../../lib/auth';
+import { getDb } from '../../../lib/db';
+import { jsonObject, errorResponse } from '../../../lib/http';
+import { writeAudit } from '../../../lib/audit';
+export async function GET() {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
+  try {
+    const result = await getDb().query(
+      'SELECT name FROM service_status_options ORDER BY position,name'
+    );
+    return Response.json({ options: result.rows.map(row => row.name) });
+  } catch (error) {
+    return errorResponse(error);
+  }
+}
+export async function POST(request: Request) {
+  const auth = await requireUser(['super_user']);
+  if (auth.response) return auth.response;
+  try {
+    const body = await jsonObject(request),
+      name = String(body.name || '')
+        .trim()
+        .replace(/\s+/g, ' ');
+    if (!name || name.length > 80) throw Error('Enter a service status up to 80 characters.');
+    const client = await getDb().connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('LOCK TABLE service_status_options IN SHARE ROW EXCLUSIVE MODE');
+      const duplicate = await client.query(
+        'SELECT name FROM service_status_options WHERE lower(name)=lower($1)',
+        [name]
+      );
+      if (duplicate.rowCount) throw Error('That service status already exists.');
+      await client.query(
+        'INSERT INTO service_status_options(name,position) VALUES($1,COALESCE((SELECT max(position)+1 FROM service_status_options),0))',
+        [name]
+      );
+      await writeAudit(client, auth.user!.id, 'created', 'service_status_option', null, { name });
+      await client.query('COMMIT');
+      return Response.json({ ok: true }, { status: 201 });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

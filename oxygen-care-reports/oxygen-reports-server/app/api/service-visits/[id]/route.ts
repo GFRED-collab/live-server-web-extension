@@ -2,14 +2,106 @@ import { writeAudit } from '../../../../lib/audit';
 import { requireUser } from '../../../../lib/auth';
 import { getDb } from '../../../../lib/db';
 import { errorResponse, jsonObject } from '../../../../lib/http';
-type Context={params:Promise<{id:string}>};
-async function hasAccess(id:string,user:{id:string;role:string}){const result=await getDb().query(`SELECT 1 FROM service_visits sv JOIN contracts ct ON ct.id=sv.contract_id WHERE sv.id=$1 AND ($2='super_user' OR EXISTS(SELECT 1 FROM contract_assignments ca WHERE ca.contract_id=ct.id AND ca.user_id=$3))`,[id,user.role,user.id]);return Boolean(result.rowCount)}
+type Context = { params: Promise<{ id: string }> };
+async function hasAccess(id: string, user: { id: string; role: string }) {
+  const result = await getDb().query(
+    `SELECT 1 FROM service_visits sv JOIN contracts ct ON ct.id=sv.contract_id WHERE sv.id=$1 AND ($2='super_user' OR EXISTS(SELECT 1 FROM contract_assignments ca WHERE ca.contract_id=ct.id AND ca.user_id=$3))`,
+    [id, user.role, user.id]
+  );
+  return Boolean(result.rowCount);
+}
 
-export async function GET(_:Request,context:Context){const auth=await requireUser();if(auth.response)return auth.response;const{id}=await context.params;if(!await hasAccess(id,auth.user!))return Response.json({error:'Service visit not found.'},{status:404});const db=getDb();const [visit,devices,signatures,availableParts]=await Promise.all([
-  db.query(`SELECT sv.id,sv.contract_id AS "contractId",sv.service_date::text AS "serviceDate",sv.title,sv.location,sv.summary,sv.recommendations,sv.status,sv.finalized_at AS "finalizedAt",ct.name AS "contractName",ct.contract_number AS "contractNumber",c.name AS "clientName",c.contact_name AS "contactName",c.email,c.phone,c.address FROM service_visits sv JOIN contracts ct ON ct.id=sv.contract_id JOIN clients c ON c.id=ct.client_id WHERE sv.id=$1`,[id]),
-  db.query(`SELECT d.id AS "deviceId",d.device_name AS "deviceName",d.serial_number AS "serialNumber",d.asset_number AS "assetNumber",d.lot_number AS "lotNumber",d.status,svd.id AS "recordId",COALESCE(svd.service_status,'Not serviced') AS "serviceStatus",COALESCE(svd.hours_in,'') AS "hoursIn",COALESCE(svd.hours_out,'') AS "hoursOut",COALESCE(svd.serviced,false) AS serviced,COALESCE(svd.comments,'') AS comments,COALESCE(svd.values,'{}'::jsonb) AS values,COALESCE(jsonb_agg(jsonb_build_object('id',fp.id,'partId',fp.part_id,'partNumber',fp.part_number,'partName',fp.part_name,'quantity',fp.quantity,'notes',fp.notes)) FILTER(WHERE fp.id IS NOT NULL),'[]') AS parts FROM service_visits sv JOIN contract_devices cd ON cd.contract_id=sv.contract_id JOIN devices d ON d.id=cd.device_id LEFT JOIN service_visit_devices svd ON svd.service_visit_id=sv.id AND svd.device_id=d.id LEFT JOIN fitted_parts fp ON fp.service_visit_device_id=svd.id WHERE sv.id=$1 AND cd.added_on<=sv.service_date AND (cd.removed_on IS NULL OR cd.removed_on>=sv.service_date) GROUP BY d.id,svd.id ORDER BY d.device_name,d.serial_number`,[id]),
-  db.query(`SELECT id,signer_role AS "signerRole",signer_name AS "signerName",signature_data AS "signatureData",signed_at AS "signedAt" FROM service_visit_signatures WHERE service_visit_id=$1`,[id]),
-  db.query(`SELECT id,part_number AS "partNumber",name,warehouse_quantity AS "warehouseQuantity" FROM spare_parts ORDER BY part_number`),
-]);if(!visit.rowCount)return Response.json({error:'Service visit not found.'},{status:404});return Response.json({visit:visit.rows[0],devices:devices.rows,signatures:signatures.rows,availableParts:availableParts.rows});}
+export async function GET(_: Request, context: Context) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
+  const { id } = await context.params;
+  if (!(await hasAccess(id, auth.user!)))
+    return Response.json({ error: 'Service visit not found.' }, { status: 404 });
+  const db = getDb();
+  const [visit, devices, signatures, availableParts] = await Promise.all([
+    db.query(
+      `SELECT sv.id,sv.contract_id AS "contractId",sv.service_date::text AS "serviceDate",sv.title,sv.location,sv.summary,sv.recommendations,sv.status,sv.finalized_at AS "finalizedAt",ct.name AS "contractName",ct.contract_number AS "contractNumber",c.name AS "clientName",c.contact_name AS "contactName",c.email,c.phone,c.address FROM service_visits sv JOIN contracts ct ON ct.id=sv.contract_id JOIN clients c ON c.id=ct.client_id WHERE sv.id=$1`,
+      [id]
+    ),
+    db.query(
+      `SELECT d.id AS "deviceId",d.device_name AS "deviceName",d.serial_number AS "serialNumber",d.asset_number AS "assetNumber",d.lot_number AS "lotNumber",d.status,svd.id AS "recordId",COALESCE(svd.service_status,'Not serviced') AS "serviceStatus",COALESCE(svd.hours_in,'') AS "hoursIn",COALESCE(svd.hours_out,'') AS "hoursOut",COALESCE(svd.serviced,false) AS serviced,COALESCE(svd.comments,'') AS comments,COALESCE(svd.values,'{}'::jsonb) AS values,COALESCE(jsonb_agg(jsonb_build_object('id',fp.id,'partId',fp.part_id,'partNumber',fp.part_number,'partName',fp.part_name,'quantity',fp.quantity,'notes',fp.notes)) FILTER(WHERE fp.id IS NOT NULL),'[]') AS parts FROM service_visits sv JOIN contract_devices cd ON cd.contract_id=sv.contract_id JOIN devices d ON d.id=cd.device_id LEFT JOIN service_visit_devices svd ON svd.service_visit_id=sv.id AND svd.device_id=d.id LEFT JOIN fitted_parts fp ON fp.service_visit_device_id=svd.id WHERE sv.id=$1 AND cd.added_on<=sv.service_date AND (cd.removed_on IS NULL OR cd.removed_on>=sv.service_date) GROUP BY d.id,svd.id ORDER BY d.device_name,d.serial_number`,
+      [id]
+    ),
+    db.query(
+      `SELECT id,signer_role AS "signerRole",signer_name AS "signerName",signature_data AS "signatureData",signed_at AS "signedAt" FROM service_visit_signatures WHERE service_visit_id=$1`,
+      [id]
+    ),
+    db.query(
+      `SELECT id,part_number AS "partNumber",name,warehouse_quantity AS "warehouseQuantity" FROM spare_parts ORDER BY part_number`
+    )
+  ]);
+  if (!visit.rowCount) return Response.json({ error: 'Service visit not found.' }, { status: 404 });
+  return Response.json({
+    visit: visit.rows[0],
+    devices: devices.rows,
+    signatures: signatures.rows,
+    availableParts: availableParts.rows
+  });
+}
 
-export async function PATCH(request:Request,context:Context){const auth=await requireUser();if(auth.response)return auth.response;try{const{id}=await context.params;if(!await hasAccess(id,auth.user!))return Response.json({error:'Service visit not found.'},{status:404});const body=await jsonObject(request),finalize=Boolean(body.finalize),db=getDb(),client=await db.connect();try{await client.query('BEGIN');const locked=await client.query('SELECT status FROM service_visits WHERE id=$1 FOR UPDATE',[id]);if(!locked.rowCount)throw Error('Service visit not found.');if(locked.rows[0].status!=='draft')throw Error('Finalized service visits cannot be edited.');if(finalize){const checks=await client.query(`SELECT (SELECT count(*) FROM service_visit_signatures WHERE service_visit_id=$1) AS signatures,(SELECT count(*) FROM service_visit_devices WHERE service_visit_id=$1) AS records`,[id]);if(Number(checks.rows[0].signatures)<2)throw Error('Engineer and client signatures are required before finalizing.');if(Number(checks.rows[0].records)<1)throw Error('Record at least one serviced device before finalizing.');await client.query(`UPDATE service_visits SET status='finalized',finalized_at=now() WHERE id=$1`,[id]);}else{await client.query(`UPDATE service_visits SET service_date=$2::date,title=$3,location=$4,summary=$5,recommendations=$6 WHERE id=$1 AND status='draft'`,[id,String(body.serviceDate||''),String(body.title||'').trim(),String(body.location||'').trim(),String(body.summary||'').trim(),String(body.recommendations||'').trim()]);}await writeAudit(client,auth.user!.id,'updated','service_visit',id,{finalized:finalize});await client.query('COMMIT');return Response.json({ok:true});}catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}}catch(error){return errorResponse(error)}}
+export async function PATCH(request: Request, context: Context) {
+  const auth = await requireUser();
+  if (auth.response) return auth.response;
+  try {
+    const { id } = await context.params;
+    if (!(await hasAccess(id, auth.user!)))
+      return Response.json({ error: 'Service visit not found.' }, { status: 404 });
+    const body = await jsonObject(request),
+      finalize = Boolean(body.finalize),
+      db = getDb(),
+      client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      const locked = await client.query(
+        'SELECT status FROM service_visits WHERE id=$1 FOR UPDATE',
+        [id]
+      );
+      if (!locked.rowCount) throw Error('Service visit not found.');
+      if (locked.rows[0].status !== 'draft')
+        throw Error('Finalized service visits cannot be edited.');
+      if (finalize) {
+        const checks = await client.query(
+          `SELECT (SELECT count(*) FROM service_visit_signatures WHERE service_visit_id=$1) AS signatures,(SELECT count(*) FROM service_visit_devices WHERE service_visit_id=$1) AS records`,
+          [id]
+        );
+        if (Number(checks.rows[0].signatures) < 2)
+          throw Error('Engineer and client signatures are required before finalizing.');
+        if (Number(checks.rows[0].records) < 1)
+          throw Error('Record at least one serviced device before finalizing.');
+        await client.query(
+          `UPDATE service_visits SET status='finalized',finalized_at=now() WHERE id=$1`,
+          [id]
+        );
+      } else {
+        await client.query(
+          `UPDATE service_visits SET service_date=$2::date,title=$3,location=$4,summary=$5,recommendations=$6 WHERE id=$1 AND status='draft'`,
+          [
+            id,
+            String(body.serviceDate || ''),
+            String(body.title || '').trim(),
+            String(body.location || '').trim(),
+            String(body.summary || '').trim(),
+            String(body.recommendations || '').trim()
+          ]
+        );
+      }
+      await writeAudit(client, auth.user!.id, 'updated', 'service_visit', id, {
+        finalized: finalize
+      });
+      await client.query('COMMIT');
+      return Response.json({ ok: true });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

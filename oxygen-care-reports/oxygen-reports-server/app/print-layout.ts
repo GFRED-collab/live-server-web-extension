@@ -2,8 +2,15 @@
 export function brandPrintWindow(popup: Window) {
   popup.opener = null;
   const doc = popup.document;
-  const referrer=doc.createElement('meta');referrer.name='referrer';referrer.content='no-referrer';doc.head.append(referrer);
-  const policy=doc.createElement('meta');policy.httpEquiv='Content-Security-Policy';policy.content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'";doc.head.append(policy);
+  const referrer = doc.createElement('meta');
+  referrer.name = 'referrer';
+  referrer.content = 'no-referrer';
+  doc.head.append(referrer);
+  const policy = doc.createElement('meta');
+  policy.httpEquiv = 'Content-Security-Policy';
+  policy.content =
+    "default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'";
+  doc.head.append(policy);
   doc.documentElement.lang = 'en';
   if (doc.querySelector('.oxygen-print-brand')) return;
   const style = doc.createElement('style');
@@ -29,24 +36,58 @@ export function brandPrintWindow(popup: Window) {
   doc.head.append(style);
   // Replace old print controls with one toolbar shared by every form.
   doc.querySelectorAll('button').forEach(button => button.remove());
-  const brand = doc.createElement('div'); brand.className = 'oxygen-print-brand';
-  const logo = doc.createElement('img'); logo.alt = 'Oxygen Care — support for life';
+  const brand = doc.createElement('div');
+  brand.className = 'oxygen-print-brand';
+  const logo = doc.createElement('img');
+  logo.alt = 'Oxygen Care — support for life';
   // Embed the logo so the print document is self-contained, including Save PDF.
-  const logoReady = fetch('/oxygen-care-logo-sidebar.png').then(response => {
-    if (!response.ok) throw new Error('Logo could not be loaded.');
-    return response.blob();
-  }).then(blob => new Promise<string>((resolve,reject) => {
-    const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(blob);
-  })).then(source => { logo.src = source; return logo.decode(); });
-  const date = doc.createElement('span'); date.textContent = 'Oxygen Care Reports\nPrepared: ' + new Date().toLocaleDateString('en-IE');
-  brand.append(logo,date); doc.body.prepend(brand);
-  const toolbar = doc.createElement('div'); toolbar.className = 'oxygen-print-tools';
-  const print = doc.createElement('button'); print.textContent = 'Print / Save PDF';
+  const logoReady = fetch('/oxygen-care-logo-sidebar.png')
+    .then(response => {
+      if (!response.ok) throw new Error('Logo could not be loaded.');
+      return response.blob();
+    })
+    .then(
+      blob =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(String(reader.result));
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        })
+    )
+    .then(source => {
+      logo.src = source;
+      return logo.decode();
+    });
+  const date = doc.createElement('span');
+  date.textContent = 'Oxygen Care Reports\nPrepared: ' + new Date().toLocaleDateString('en-IE');
+  brand.append(logo, date);
+  doc.body.prepend(brand);
+  const toolbar = doc.createElement('div');
+  toolbar.className = 'oxygen-print-tools';
+  const print = doc.createElement('button');
+  print.textContent = 'Print / Save PDF';
   print.disabled = true;
-  void logoReady.then(() => { print.disabled = false; }).catch(() => { print.textContent = 'Logo unavailable — reopen preview'; });
-  print.onclick = async () => { await logoReady; await Promise.all(Array.from(doc.images).map(img => img.decode().catch(() => undefined))); popup.focus(); popup.print(); };
-  const close = doc.createElement('button'); close.textContent = 'Close'; close.onclick = () => popup.close();
-  toolbar.append(print,close); brand.before(toolbar);
-  const footer = doc.createElement('footer'); footer.className = 'oxygen-print-footer'; footer.textContent = 'Oxygen Care · ' + doc.title;
+  void logoReady
+    .then(() => {
+      print.disabled = false;
+    })
+    .catch(() => {
+      print.textContent = 'Logo unavailable — reopen preview';
+    });
+  print.onclick = async () => {
+    await logoReady;
+    await Promise.all(Array.from(doc.images).map(img => img.decode().catch(() => undefined)));
+    popup.focus();
+    popup.print();
+  };
+  const close = doc.createElement('button');
+  close.textContent = 'Close';
+  close.onclick = () => popup.close();
+  toolbar.append(print, close);
+  brand.before(toolbar);
+  const footer = doc.createElement('footer');
+  footer.className = 'oxygen-print-footer';
+  footer.textContent = 'Oxygen Care · ' + doc.title;
   doc.body.append(footer);
 }

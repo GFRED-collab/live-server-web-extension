@@ -1,20 +1,185 @@
-export type EntryField = {name:string;label:string;required?:boolean;type?:'text'|'date'|'time'|'number'|'textarea'|'datetime-local';options?:string[];max?:number;min?:number};
-export type EntryDefinition = {label:string;fields:EntryField[]};
-const field=(name:string,label:string,required=false,type:EntryField['type']='text'):EntryField=>({name,label,required,type,max:type==='textarea'?10000:300});
-const status=(options:string[]):EntryField=>({name:'status',label:'Status',options,required:true});
-export const entryDefinitions:Record<string,EntryDefinition>={
- callouts:{label:'Call-outs',fields:[field('client_name','Client',true),field('location','Location'),field('device_name','Device'),field('serial_number','Serial number'),field('description','Details',true,'textarea'),{name:'priority',label:'Priority',options:['normal','urgent']},status(['open','acknowledged','closed'])]},
- clients:{label:'Clients',fields:[field('name','Client name',true),field('contact_name','Contact'),field('email','Email'),field('phone','Phone'),field('address','Address',false,'textarea'),field('notes','Notes',false,'textarea')]},
- repair_entries:{label:'Repair entries',fields:[field('client_name','Client'),field('device_name','Device',true),field('manufacturer','Manufacturer'),field('model','Model'),field('serial_number','Serial number'),field('asset_number','Asset number'),field('received_date','Received date',true,'date'),field('completed_date','Completed date',false,'date'),field('engineer_name','Engineer'),field('reported_fault','Reported fault',true,'textarea'),field('condition_received','Condition received',false,'textarea'),field('work_carried_out','Work carried out',false,'textarea'),field('parts_used','Parts used',false,'textarea'),field('follow_up_work','Follow-up work',false,'textarea'),status(['received','diagnosing','awaiting_parts','in_progress','follow_up','completed','returned']),{name:'priority',label:'Priority',options:['low','normal','high','urgent']}]},
- appointments:{label:'Appointments',fields:[field('title','Title',true),field('appointment_date','Start date',true,'date'),field('end_date','End date',true,'date'),field('start_time','Time',false,'time'),field('client_name','Client'),field('location','Location'),field('notes','Notes',false,'textarea')]},
- contracts:{label:'Contracts',fields:[field('name','Name',true),field('contract_number','Contract number'),status(['active','paused','closed']),field('start_date','Start date',false,'date'),field('end_date','End date',false,'date'),field('notes','Notes',false,'textarea')]},
- devices:{label:'Devices',fields:[field('device_name','Device name',true),field('serial_number','Serial number'),field('lot_number','Lot number'),field('asset_number','Asset number'),field('notes','Notes',false,'textarea')]},
- reports:{label:'Uploaded reports',fields:[field('client_name','Client',true),field('original_filename','File name',true)]},
- report_rows:{label:'Report rows',fields:[field('device_name','Device'),field('serial_number','Serial number'),field('lot_number','Lot number'),field('asset_number','Asset number'),field('comments','Comments',false,'textarea')]},
- dockets:{label:'Completion dockets',fields:[field('started_at','Time started',false,'datetime-local'),field('ended_at','Time ended',false,'datetime-local'),field('client_name','Client',true),field('location','Location'),field('device_name','Device'),field('serial_number','Serial number'),field('work_description','Work completed',true,'textarea'),field('engineer_name','Engineer',true),field('signer_name','Customer name',true)]},
- service_visit_devices:{label:'Device service records',fields:[field('service_status','Service status',true),field('comments','Comments',false,'textarea')]},
- fitted_parts:{label:'Parts fitted to devices',fields:[field('part_number','Part number'),field('part_name','Part name'),{name:'quantity',label:'Quantity',type:'number',required:true,min:1},field('notes','Notes',false,'textarea')]},
- service_visits:{label:'Service visits',fields:[field('title','Title',true),field('service_date','Service date',true,'date'),field('location','Location'),field('summary','Summary',false,'textarea'),field('recommendations','Recommendations',false,'textarea')]},
- spare_parts:{label:'Stock parts',fields:[field('part_number','Part number',true),field('name','Part name',true),field('location','Location'),{name:'warehouse_quantity',label:'Warehouse quantity',type:'number',required:true,min:0}]},
- stock_movements:{label:'Stock movements',fields:[{name:'quantity',label:'Quantity',type:'number',required:true,min:1},field('detail','Description',false,'textarea')]},
+export type EntryField = {
+  name: string;
+  label: string;
+  required?: boolean;
+  type?: 'text' | 'date' | 'time' | 'number' | 'textarea' | 'datetime-local';
+  options?: string[];
+  max?: number;
+  min?: number;
+};
+export type EntryDefinition = { label: string; fields: EntryField[] };
+const field = (
+  name: string,
+  label: string,
+  required = false,
+  type: EntryField['type'] = 'text'
+): EntryField => ({ name, label, required, type, max: type === 'textarea' ? 10000 : 300 });
+const status = (options: string[]): EntryField => ({
+  name: 'status',
+  label: 'Status',
+  options,
+  required: true
+});
+export const entryDefinitions: Record<string, EntryDefinition> = {
+  callouts: {
+    label: 'Call-outs',
+    fields: [
+      field('client_name', 'Client', true),
+      field('location', 'Location'),
+      field('device_name', 'Device'),
+      field('serial_number', 'Serial number'),
+      field('description', 'Details', true, 'textarea'),
+      { name: 'priority', label: 'Priority', options: ['normal', 'urgent'] },
+      status(['open', 'acknowledged', 'closed'])
+    ]
+  },
+  clients: {
+    label: 'Clients',
+    fields: [
+      field('name', 'Client name', true),
+      field('contact_name', 'Contact'),
+      field('email', 'Email'),
+      field('phone', 'Phone'),
+      field('address', 'Address', false, 'textarea'),
+      field('notes', 'Notes', false, 'textarea')
+    ]
+  },
+  repair_entries: {
+    label: 'Repair entries',
+    fields: [
+      field('client_name', 'Client'),
+      field('device_name', 'Device', true),
+      field('manufacturer', 'Manufacturer'),
+      field('model', 'Model'),
+      field('serial_number', 'Serial number'),
+      field('asset_number', 'Asset number'),
+      field('received_date', 'Received date', true, 'date'),
+      field('completed_date', 'Completed date', false, 'date'),
+      field('engineer_name', 'Engineer'),
+      field('reported_fault', 'Reported fault', true, 'textarea'),
+      field('condition_received', 'Condition received', false, 'textarea'),
+      field('work_carried_out', 'Work carried out', false, 'textarea'),
+      field('parts_used', 'Parts used', false, 'textarea'),
+      field('follow_up_work', 'Follow-up work', false, 'textarea'),
+      status([
+        'received',
+        'diagnosing',
+        'awaiting_parts',
+        'in_progress',
+        'follow_up',
+        'completed',
+        'returned'
+      ]),
+      { name: 'priority', label: 'Priority', options: ['low', 'normal', 'high', 'urgent'] }
+    ]
+  },
+  appointments: {
+    label: 'Appointments',
+    fields: [
+      field('title', 'Title', true),
+      field('appointment_date', 'Start date', true, 'date'),
+      field('end_date', 'End date', true, 'date'),
+      field('start_time', 'Time', false, 'time'),
+      field('client_name', 'Client'),
+      field('location', 'Location'),
+      field('notes', 'Notes', false, 'textarea')
+    ]
+  },
+  contracts: {
+    label: 'Contracts',
+    fields: [
+      field('name', 'Name', true),
+      field('contract_number', 'Contract number'),
+      status(['active', 'paused', 'closed']),
+      field('start_date', 'Start date', false, 'date'),
+      field('end_date', 'End date', false, 'date'),
+      field('notes', 'Notes', false, 'textarea')
+    ]
+  },
+  devices: {
+    label: 'Devices',
+    fields: [
+      field('device_name', 'Device name', true),
+      field('serial_number', 'Serial number'),
+      field('lot_number', 'Lot number'),
+      field('asset_number', 'Asset number'),
+      field('notes', 'Notes', false, 'textarea')
+    ]
+  },
+  reports: {
+    label: 'Uploaded reports',
+    fields: [field('client_name', 'Client', true), field('original_filename', 'File name', true)]
+  },
+  report_rows: {
+    label: 'Report rows',
+    fields: [
+      field('device_name', 'Device'),
+      field('serial_number', 'Serial number'),
+      field('lot_number', 'Lot number'),
+      field('asset_number', 'Asset number'),
+      field('comments', 'Comments', false, 'textarea')
+    ]
+  },
+  dockets: {
+    label: 'Completion dockets',
+    fields: [
+      field('started_at', 'Time started', false, 'datetime-local'),
+      field('ended_at', 'Time ended', false, 'datetime-local'),
+      field('client_name', 'Client', true),
+      field('location', 'Location'),
+      field('device_name', 'Device'),
+      field('serial_number', 'Serial number'),
+      field('work_description', 'Work completed', true, 'textarea'),
+      field('engineer_name', 'Engineer', true),
+      field('signer_name', 'Customer name', true)
+    ]
+  },
+  service_visit_devices: {
+    label: 'Device service records',
+    fields: [
+      field('service_status', 'Service status', true),
+      field('comments', 'Comments', false, 'textarea')
+    ]
+  },
+  fitted_parts: {
+    label: 'Parts fitted to devices',
+    fields: [
+      field('part_number', 'Part number'),
+      field('part_name', 'Part name'),
+      { name: 'quantity', label: 'Quantity', type: 'number', required: true, min: 1 },
+      field('notes', 'Notes', false, 'textarea')
+    ]
+  },
+  service_visits: {
+    label: 'Service visits',
+    fields: [
+      field('title', 'Title', true),
+      field('service_date', 'Service date', true, 'date'),
+      field('location', 'Location'),
+      field('summary', 'Summary', false, 'textarea'),
+      field('recommendations', 'Recommendations', false, 'textarea')
+    ]
+  },
+  spare_parts: {
+    label: 'Stock parts',
+    fields: [
+      field('part_number', 'Part number', true),
+      field('name', 'Part name', true),
+      field('location', 'Location'),
+      {
+        name: 'warehouse_quantity',
+        label: 'Warehouse quantity',
+        type: 'number',
+        required: true,
+        min: 0
+      }
+    ]
+  },
+  stock_movements: {
+    label: 'Stock movements',
+    fields: [
+      { name: 'quantity', label: 'Quantity', type: 'number', required: true, min: 1 },
+      field('detail', 'Description', false, 'textarea')
+    ]
+  }
 };

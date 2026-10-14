@@ -1,17 +1,94 @@
-.report-dialog { width:min(560px,94vw); max-height:90vh; overflow:auto; border:1px solid #bdd3d8; border-radius:14px; padding:24px; color:#173f4a; }
-.report-dialog::backdrop { background:#143c4a88; }
-.report-dialog form,.report-dialog label { display:grid; gap:10px; }
-.report-dialog input,.report-dialog select { padding:10px; border:1px solid #bdd3d8; border-radius:8px; font:inherit; }
-.report-dialog button { padding:9px 14px; margin:5px; cursor:pointer; }
-.csv-preview { width:min(1100px,94vw); }
-.csv-scroll { overflow:auto; max-height:60vh; }
-.csv-scroll table { border-collapse:collapse; width:100%; }
-.csv-scroll th,.csv-scroll td { padding:8px; border-bottom:1px solid #d8e7e9; text-align:left; min-width:110px; max-width:300px; white-space:pre-wrap; overflow-wrap:anywhere; }
-.csv-scroll thead { position:sticky; top:0; background:#eef7f7; }
-.csv-actions { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-.machine-history-link { padding:6px 10px; border:1px solid #bdd3d8; border-radius:7px; color:#173f4a; background:#eef7f7; cursor:pointer; }
-.machine-history-row { cursor:pointer; }
-.machine-history-row:hover { background:#f3fafa; }
-.login-only { min-height:100vh; display:grid; place-items:center; padding:24px; background:#102f38; }
-.login-only .login-card { width:min(420px,100%); background:white; border-radius:16px; padding:32px; }
-.login-only img { display:block; width:min(320px,100%); height:auto; margin:0 auto 28px; }
+.report-dialog {
+  width: min(560px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  border: 1px solid #bdd3d8;
+  border-radius: 14px;
+  padding: 24px;
+  color: #173f4a;
+}
+.report-dialog::backdrop {
+  background: #143c4a88;
+}
+.report-dialog form,
+.report-dialog label {
+  display: grid;
+  gap: 10px;
+}
+.report-dialog input,
+.report-dialog select {
+  padding: 10px;
+  border: 1px solid #bdd3d8;
+  border-radius: 8px;
+  font: inherit;
+}
+.report-dialog button {
+  padding: 9px 14px;
+  margin: 5px;
+  cursor: pointer;
+}
+.csv-preview {
+  width: min(1100px, 94vw);
+}
+.csv-scroll {
+  overflow: auto;
+  max-height: 60vh;
+}
+.csv-scroll table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.csv-scroll th,
+.csv-scroll td {
+  padding: 8px;
+  border-bottom: 1px solid #d8e7e9;
+  text-align: left;
+  min-width: 110px;
+  max-width: 300px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.csv-scroll thead {
+  position: sticky;
+  top: 0;
+  background: #eef7f7;
+}
+.csv-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.machine-history-link {
+  padding: 6px 10px;
+  border: 1px solid #bdd3d8;
+  border-radius: 7px;
+  color: #173f4a;
+  background: #eef7f7;
+  cursor: pointer;
+}
+.machine-history-row {
+  cursor: pointer;
+}
+.machine-history-row:hover {
+  background: #f3fafa;
+}
+.login-only {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #102f38;
+}
+.login-only .login-card {
+  width: min(420px, 100%);
+  background: white;
+  border-radius: 16px;
+  padding: 32px;
+}
+.login-only img {
+  display: block;
+  width: min(320px, 100%);
+  height: auto;
+  margin: 0 auto 28px;
+}

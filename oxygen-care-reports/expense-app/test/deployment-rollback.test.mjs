@@ -3,10 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 const source = readFileSync(new URL('../scripts/remote-update.sh', import.meta.url), 'utf8');
-const rollback = source.slice(source.indexOf('rollback() {'), source.indexOf('\ntrap rollback ERR'));
+const rollback = source.slice(
+  source.indexOf('rollback() {'),
+  source.indexOf('\ntrap rollback ERR')
+);
 function simulate(ready) {
   // Shadow every external command: never contact services or touch release/data files.
-  return spawnSync('/bin/bash', ['-c', `
+  return spawnSync(
+    '/bin/bash',
+    [
+      '-c',
+      `
     set -Eeuo pipefail
     APP_NAME=expense-test
     APP_DIR=/test/release
@@ -20,7 +27,10 @@ function simulate(ready) {
     tar() { printf 'tar %s\\n' "$*"; }
     ${rollback}
     rollback
-  `], { encoding: 'utf8' });
+  `
+    ],
+    { encoding: 'utf8' }
+  );
 }
 test('rollback stops the service, restores code only, then restarts', () => {
   const result = simulate(1);

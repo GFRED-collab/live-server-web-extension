@@ -22,20 +22,35 @@ test('maintenance cleanup removes redundant history and quarantines only orphan 
 
   try {
     await mkdir(receipts, { recursive: true });
-    await writeFile(join(data, 'expenses.json'), JSON.stringify([{ id: 'one', receiptFile: referenced, reviewHistory: [{ status: 'approved' }] }]));
+    await writeFile(
+      join(data, 'expenses.json'),
+      JSON.stringify([
+        { id: 'one', receiptFile: referenced, reviewHistory: [{ status: 'approved' }] }
+      ])
+    );
     await Promise.all([
       writeFile(join(receipts, referenced), 'referenced'),
       writeFile(join(receipts, orphaned), 'orphaned'),
       writeFile(join(receipts, unrelated), 'unrelated')
     ]);
 
-    const { stdout } = await run(process.execPath, [join(appDir, 'scripts', 'maintenance-cleanup.mjs'), deployed, quarantine]);
+    const { stdout } = await run(process.execPath, [
+      join(appDir, 'scripts', 'maintenance-cleanup.mjs'),
+      deployed,
+      quarantine
+    ]);
     assert.deepEqual(JSON.parse(stdout), { historiesRemoved: 1, receiptsQuarantined: 1 });
-    assert.deepEqual(JSON.parse(await readFile(join(data, 'expenses.json'), 'utf8')), [{ id: 'one', receiptFile: referenced }]);
+    assert.deepEqual(JSON.parse(await readFile(join(data, 'expenses.json'), 'utf8')), [
+      { id: 'one', receiptFile: referenced }
+    ]);
     assert.deepEqual((await readdir(receipts)).sort(), [referenced, unrelated].sort());
     assert.deepEqual(await readdir(quarantine), [orphaned]);
 
-    const second = await run(process.execPath, [join(appDir, 'scripts', 'maintenance-cleanup.mjs'), deployed, quarantine]);
+    const second = await run(process.execPath, [
+      join(appDir, 'scripts', 'maintenance-cleanup.mjs'),
+      deployed,
+      quarantine
+    ]);
     assert.deepEqual(JSON.parse(second.stdout), { historiesRemoved: 0, receiptsQuarantined: 0 });
   } finally {
     await rm(root, { recursive: true, force: true });

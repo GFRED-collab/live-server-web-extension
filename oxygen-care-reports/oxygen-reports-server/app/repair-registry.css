@@ -1,3 +1,233 @@
-.repair-page{max-width:none}.repair-layout{display:grid;grid-template-columns:minmax(520px,1.15fr) minmax(340px,.85fr);gap:20px}.repair-form,.repair-register,.repair-detail{border:1px solid var(--line);border-radius:18px;padding:24px;background:#fff;box-shadow:0 8px 24px #173f4a0a}.repair-section-heading{display:flex;align-items:flex-start;justify-content:space-between;gap:18px}.repair-section-heading h2,.repair-register h2,.repair-detail h2{margin:0}.repair-section-heading>span{border-radius:999px;padding:7px 10px;background:#eaf7f5;color:#176958;font-size:11px;font-weight:750}.repair-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:20px}.repair-form-grid label,.repair-tools label{display:grid;gap:6px;color:var(--muted);font-size:10px;font-weight:800;letter-spacing:.08em}.repair-form-grid input,.repair-form-grid select,.repair-form-grid textarea,.repair-tools input,.repair-tools select{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 11px;background:#fff;color:var(--ink);font:inherit;letter-spacing:0}.repair-form-grid textarea{resize:vertical;line-height:1.45}.repair-form-grid .wide{grid-column:1/-1}.repair-form-grid .follow-up-field textarea{border-color:#e9b24c;background:#fffaf0}.repair-form>.primary{max-width:300px}.repair-tools{display:grid;grid-template-columns:1fr 150px;gap:10px}.repair-list{margin-top:22px}.repair-list>.directory-heading{margin-bottom:12px}.repair-list>button{display:grid;width:100%;grid-template-columns:82px 1fr auto;gap:3px 10px;margin-top:7px;border:1px solid #dcecf0;border-radius:11px;padding:12px;background:#fff;color:var(--ink);text-align:left;cursor:pointer}.repair-list>button:hover,.repair-list>button.active{border-color:#65aabd;background:#f1fafc;box-shadow:inset 3px 0 #277b91}.repair-list>button strong{align-self:center}.repair-list>button>span:not(.repair-priority),.repair-list>button small{grid-column:2}.repair-list>button small{color:var(--muted)}.repair-list>button em{grid-column:3;grid-row:1/4;align-self:center;color:var(--brand);font-size:11px;font-style:normal;font-weight:800}.repair-priority{grid-row:1/4;align-self:center;border-radius:999px;padding:5px 7px;background:#eaf3f5;color:#56727a;font-size:9px;font-weight:900;text-align:center;text-transform:uppercase}.repair-priority.high{background:#fff0d6;color:#96610a}.repair-priority.urgent{background:#fde8e6;color:#a13f37}.repair-priority.low{background:#e8f6ed;color:#33704a}.repair-detail{margin-top:20px}.repair-detail .repair-form-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.repair-detail form>button{margin-top:18px;border:0;border-radius:10px;padding:12px 16px;background:var(--brand);color:#fff;font-weight:800;cursor:pointer}@media(max-width:1100px){.repair-layout{grid-template-columns:1fr}.repair-detail .repair-form-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:650px){.repair-form-grid,.repair-detail .repair-form-grid,.repair-tools{grid-template-columns:1fr}.repair-form-grid .wide{grid-column:auto}.repair-section-heading{flex-direction:column}.repair-list>button{grid-template-columns:72px 1fr}.repair-list>button em{grid-column:2;grid-row:auto}.repair-page{padding:16px}}
+.repair-page {
+  max-width: none;
+}
+.repair-layout {
+  display: grid;
+  grid-template-columns: minmax(520px, 1.15fr) minmax(340px, 0.85fr);
+  gap: 20px;
+}
+.repair-form,
+.repair-register,
+.repair-detail {
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 24px;
+  background: #fff;
+  box-shadow: 0 8px 24px #173f4a0a;
+}
+.repair-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+.repair-section-heading h2,
+.repair-register h2,
+.repair-detail h2 {
+  margin: 0;
+}
+.repair-section-heading > span {
+  border-radius: 999px;
+  padding: 7px 10px;
+  background: #eaf7f5;
+  color: #176958;
+  font-size: 11px;
+  font-weight: 750;
+}
+.repair-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+.repair-form-grid label,
+.repair-tools label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.repair-form-grid input,
+.repair-form-grid select,
+.repair-form-grid textarea,
+.repair-tools input,
+.repair-tools select {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 10px 11px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  letter-spacing: 0;
+}
+.repair-form-grid textarea {
+  resize: vertical;
+  line-height: 1.45;
+}
+.repair-form-grid .wide {
+  grid-column: 1/-1;
+}
+.repair-form-grid .follow-up-field textarea {
+  border-color: #e9b24c;
+  background: #fffaf0;
+}
+.repair-form > .primary {
+  max-width: 300px;
+}
+.repair-tools {
+  display: grid;
+  grid-template-columns: 1fr 150px;
+  gap: 10px;
+}
+.repair-list {
+  margin-top: 22px;
+}
+.repair-list > .directory-heading {
+  margin-bottom: 12px;
+}
+.repair-list > button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 82px 1fr auto;
+  gap: 3px 10px;
+  margin-top: 7px;
+  border: 1px solid #dcecf0;
+  border-radius: 11px;
+  padding: 12px;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.repair-list > button:hover,
+.repair-list > button.active {
+  border-color: #65aabd;
+  background: #f1fafc;
+  box-shadow: inset 3px 0 #277b91;
+}
+.repair-list > button strong {
+  align-self: center;
+}
+.repair-list > button > span:not(.repair-priority),
+.repair-list > button small {
+  grid-column: 2;
+}
+.repair-list > button small {
+  color: var(--muted);
+}
+.repair-list > button em {
+  grid-column: 3;
+  grid-row: 1/4;
+  align-self: center;
+  color: var(--brand);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 800;
+}
+.repair-priority {
+  grid-row: 1/4;
+  align-self: center;
+  border-radius: 999px;
+  padding: 5px 7px;
+  background: #eaf3f5;
+  color: #56727a;
+  font-size: 9px;
+  font-weight: 900;
+  text-align: center;
+  text-transform: uppercase;
+}
+.repair-priority.high {
+  background: #fff0d6;
+  color: #96610a;
+}
+.repair-priority.urgent {
+  background: #fde8e6;
+  color: #a13f37;
+}
+.repair-priority.low {
+  background: #e8f6ed;
+  color: #33704a;
+}
+.repair-detail {
+  margin-top: 20px;
+}
+.repair-detail .repair-form-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.repair-detail form > button {
+  margin-top: 18px;
+  border: 0;
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+@media (max-width: 1100px) {
+  .repair-layout {
+    grid-template-columns: 1fr;
+  }
+  .repair-detail .repair-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .repair-form-grid,
+  .repair-detail .repair-form-grid,
+  .repair-tools {
+    grid-template-columns: 1fr;
+  }
+  .repair-form-grid .wide {
+    grid-column: auto;
+  }
+  .repair-section-heading {
+    flex-direction: column;
+  }
+  .repair-list > button {
+    grid-template-columns: 72px 1fr;
+  }
+  .repair-list > button em {
+    grid-column: 2;
+    grid-row: auto;
+  }
+  .repair-page {
+    padding: 16px;
+  }
+}
 
-.repair-dialog{width:min(1000px,94vw);max-height:90vh;border:1px solid #cfeaf2;border-radius:18px;padding:0;color:var(--ink);box-shadow:0 24px 80px #08283266}.repair-dialog::backdrop{background:#08283299}.repair-dialog .repair-detail{margin:0;border:0}.repair-editor-actions{display:flex;justify-content:flex-end;flex-wrap:wrap;gap:10px;margin-bottom:20px}.repair-editor-actions button{padding:10px 14px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--brand);cursor:pointer;font-weight:700}
+.repair-dialog {
+  width: min(1000px, 94vw);
+  max-height: 90vh;
+  border: 1px solid #cfeaf2;
+  border-radius: 18px;
+  padding: 0;
+  color: var(--ink);
+  box-shadow: 0 24px 80px #08283266;
+}
+.repair-dialog::backdrop {
+  background: #08283299;
+}
+.repair-dialog .repair-detail {
+  margin: 0;
+  border: 0;
+}
+.repair-editor-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.repair-editor-actions button {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--brand);
+  cursor: pointer;
+  font-weight: 700;
+}

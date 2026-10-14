@@ -1,13 +1,164 @@
-.callout-bubble{display:inline-flex;align-items:center;justify-content:center;margin-left:8px;min-width:22px;padding:3px 7px;border-radius:999px;background:#cf2838;color:white;font-size:12px;font-weight:800}.fieldwork-form,.fieldwork-list{background:white;border:1px solid var(--line);border-radius:16px;padding:24px;margin-bottom:20px}.fieldwork-form fieldset{border:0;padding:0;margin:0}.fieldwork-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.fieldwork-grid label{display:grid;gap:7px;font-size:13px}.fieldwork-grid input,.fieldwork-grid select,.fieldwork-grid textarea{width:100%;padding:11px;border:1px solid var(--line);border-radius:8px;font:inherit}.fieldwork-grid .wide{grid-column:1/-1}.fieldwork-form canvas{display:block;width:100%;max-width:700px;height:180px;border:1px solid var(--line);border-radius:8px;touch-action:none;background:#fff}.fieldwork-form button:not(.primary),.fieldwork-list button{padding:10px 14px;border:1px solid var(--line);background:#f4fafb;color:var(--ink);border-radius:8px;cursor:pointer;margin:5px}.fieldwork-form .primary{max-width:340px}.fieldwork-list article{display:flex;justify-content:space-between;gap:16px;padding:16px 0;border-bottom:1px solid var(--line)}.fieldwork-list h3{margin:0}.fieldwork-list p{white-space:pre-wrap;overflow-wrap:anywhere}.fieldwork-list small{color:var(--muted)}@media(max-width:650px){.fieldwork-grid{grid-template-columns:1fr}.fieldwork-list article{flex-direction:column}}
-.docket-signoff { width:min(760px,94vw); max-height:90vh; overflow:auto; border:1px solid #bcd3d7; border-radius:14px; padding:24px; color:#173f4a; }
-.docket-signoff::backdrop { background:#143c4a88; }
-.docket-signoff form,.docket-signoff label { display:grid; gap:10px; }
-.docket-signoff input { padding:10px; border:1px solid #bcd3d7; border-radius:8px; }
-.docket-signoff canvas { width:100%; height:180px; border:1px solid #bcd3d7; touch-action:none; }
-.docket-signoff button { margin:5px; padding:10px; }
-.record-lookup { display:grid; gap:10px; align-content:start; min-width:0; padding:14px; border:1px solid #9ebdc3; border-radius:10px; background:#f4fafb; }
-.record-lookup select { min-width:0; }
-.fieldwork-tabs { display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap; }
-.fieldwork-tabs button { padding:11px 20px; border:1px solid #9ebdc3; border-radius:9px; background:white; color:var(--ink); cursor:pointer; }
-.fieldwork-tabs button[aria-current="page"] { background:#176779; color:white; border-color:#176779; }
-.fieldwork-form[hidden],.fieldwork-list[hidden] { display:none!important; }
+.callout-bubble {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 8px;
+  min-width: 22px;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #cf2838;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+.fieldwork-form,
+.fieldwork-list {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.fieldwork-form fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.fieldwork-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.fieldwork-grid label {
+  display: grid;
+  gap: 7px;
+  font-size: 13px;
+}
+.fieldwork-grid input,
+.fieldwork-grid select,
+.fieldwork-grid textarea {
+  width: 100%;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+}
+.fieldwork-grid .wide {
+  grid-column: 1/-1;
+}
+.fieldwork-form canvas {
+  display: block;
+  width: 100%;
+  max-width: 700px;
+  height: 180px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  touch-action: none;
+  background: #fff;
+}
+.fieldwork-form button:not(.primary),
+.fieldwork-list button {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  background: #f4fafb;
+  color: var(--ink);
+  border-radius: 8px;
+  cursor: pointer;
+  margin: 5px;
+}
+.fieldwork-form .primary {
+  max-width: 340px;
+}
+.fieldwork-list article {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+}
+.fieldwork-list h3 {
+  margin: 0;
+}
+.fieldwork-list p {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.fieldwork-list small {
+  color: var(--muted);
+}
+@media (max-width: 650px) {
+  .fieldwork-grid {
+    grid-template-columns: 1fr;
+  }
+  .fieldwork-list article {
+    flex-direction: column;
+  }
+}
+.docket-signoff {
+  width: min(760px, 94vw);
+  max-height: 90vh;
+  overflow: auto;
+  border: 1px solid #bcd3d7;
+  border-radius: 14px;
+  padding: 24px;
+  color: #173f4a;
+}
+.docket-signoff::backdrop {
+  background: #143c4a88;
+}
+.docket-signoff form,
+.docket-signoff label {
+  display: grid;
+  gap: 10px;
+}
+.docket-signoff input {
+  padding: 10px;
+  border: 1px solid #bcd3d7;
+  border-radius: 8px;
+}
+.docket-signoff canvas {
+  width: 100%;
+  height: 180px;
+  border: 1px solid #bcd3d7;
+  touch-action: none;
+}
+.docket-signoff button {
+  margin: 5px;
+  padding: 10px;
+}
+.record-lookup {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #9ebdc3;
+  border-radius: 10px;
+  background: #f4fafb;
+}
+.record-lookup select {
+  min-width: 0;
+}
+.fieldwork-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.fieldwork-tabs button {
+  padding: 11px 20px;
+  border: 1px solid #9ebdc3;
+  border-radius: 9px;
+  background: white;
+  color: var(--ink);
+  cursor: pointer;
+}
+.fieldwork-tabs button[aria-current='page'] {
+  background: #176779;
+  color: white;
+  border-color: #176779;
+}
+.fieldwork-form[hidden],
+.fieldwork-list[hidden] {
+  display: none !important;
+}

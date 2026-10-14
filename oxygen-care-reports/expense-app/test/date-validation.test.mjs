@@ -3,8 +3,11 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 const source = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
-const start = source.indexOf('function todayLocal('), end = source.indexOf('function publicExpense(', start);
-const { todayLocal, dateValidationError } = vm.runInNewContext(source.slice(start, end) + ';({todayLocal,dateValidationError})');
+const start = source.indexOf('function todayLocal('),
+  end = source.indexOf('function publicExpense(', start);
+const { todayLocal, dateValidationError } = vm.runInNewContext(
+  source.slice(start, end) + ';({todayLocal,dateValidationError})'
+);
 test('Irish calendar date handles midnight independently of server timezone', () => {
   assert.equal(todayLocal(new Date('2026-10-09T23:28:00Z')), '2026-10-10');
   assert.equal(dateValidationError('2026-10-10', todayLocal(new Date('2026-10-09T23:28:00Z'))), '');
