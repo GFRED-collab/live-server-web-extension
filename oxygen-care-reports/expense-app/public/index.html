@@ -1,40 +1,62 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#277b91">
-  <title>Oxygen Care Expenses</title>
-  <link rel="stylesheet" href="/app.css">
-  <link rel="stylesheet" href="/calendar.css">
-</head>
-<body>
-  <main class="app" id="app" hidden>
-    <header class="bar">
-      <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care">
-      <div class="account"><span id="identity"></span><button class="secondary" id="logout" type="button">Log out</button></div>
-    </header>
-    <nav class="workspace" id="workspace" hidden></nav>
-    <div class="content" id="content"></div>
-  </main>
-  <section class="login-screen" id="loadingScreen" aria-live="polite" hidden>
-    <div class="login-card">
-      <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care">
-      <p>Loading secure workspace…</p>
-    </div>
-  </section>
-  <section class="login-screen" id="loginScreen" hidden>
-    <div class="login-card">
-      <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care">
-      <h1>Sign in</h1><p>Access the expenses workspace.</p>
-      <form id="loginForm">
-        <label>Email<input id="loginEmail" type="email" maxlength="254" required autocomplete="username"></label>
-        <label>Password<span class="password-input"><input id="loginPassword" type="password" maxlength="128" required autocomplete="current-password"><button id="revealPassword" type="button">Show</button></span></label>
-        <p class="error" id="loginError" role="alert"></p><button class="primary" type="submit">Sign in</button>
-      </form>
-    </div>
-  </section>
-  <script src="/http.js"></script>
-  <script src="/app.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+    <meta name="theme-color" content="#277b91" />
+    <title>Oxygen Care Expenses</title>
+    <link rel="stylesheet" href="/app.css" />
+    <link rel="stylesheet" href="/calendar.css" />
+  </head>
+  <body>
+    <main class="app" id="app" hidden>
+      <header class="bar">
+        <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care" />
+        <div class="account">
+          <span id="identity"></span
+          ><button class="secondary" id="logout" type="button">Log out</button>
+        </div>
+      </header>
+      <nav class="workspace" id="workspace" hidden></nav>
+      <div class="content" id="content"></div>
+    </main>
+    <section class="login-screen" id="loadingScreen" aria-live="polite" hidden>
+      <div class="login-card">
+        <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care" />
+        <p>Loading secure workspace…</p>
+      </div>
+    </section>
+    <section class="login-screen" id="loginScreen" hidden>
+      <div class="login-card">
+        <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care" />
+        <h1>Sign in</h1>
+        <p>Access the expenses workspace.</p>
+        <form id="loginForm">
+          <label
+            >Email<input
+              id="loginEmail"
+              type="email"
+              maxlength="254"
+              required
+              autocomplete="username"
+          /></label>
+          <label
+            >Password<span class="password-input"
+              ><input
+                id="loginPassword"
+                type="password"
+                maxlength="128"
+                required
+                autocomplete="current-password"
+              /><button id="revealPassword" type="button">Show</button></span
+            ></label
+          >
+          <p class="error" id="loginError" role="alert"></p>
+          <button class="primary" type="submit">Sign in</button>
+        </form>
+      </div>
+    </section>
+    <script src="/http.js"></script>
+    <script src="/app.js"></script>
+  </body>
 </html>

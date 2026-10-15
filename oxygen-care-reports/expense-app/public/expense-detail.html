@@ -1,90 +1,357 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Expense details · Oxygen Care</title>
-  <style>
-    :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#effbff;color:#183f4b;font:16px system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}.app{max-width:760px;min-height:100vh;margin:auto;background:#fff;padding:20px}.bar{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #cfeaf2;padding-bottom:14px}.bar img{width:136px;max-width:48%}.card{border:1px solid #cfeaf2;border-radius:16px;padding:20px;margin-top:18px}.label{font-size:12px;font-weight:800;letter-spacing:.08em;color:#63818a}h1{margin:6px 0 18px;font-size:28px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.field{padding:12px;border-radius:10px;background:#f7fcfd}.field strong,.field span{display:block}.field strong{font-size:12px;letter-spacing:.04em;color:#63818a}.field span{margin-top:4px;overflow-wrap:anywhere}.wide{grid-column:1/-1}.status{display:inline-block;border-radius:999px;padding:5px 10px;background:#e6f6fb;color:#277b91;font-size:13px;font-weight:800}.status.approved{background:#e1f5ee;color:#277351}.status.declined,.status.question{background:#fff0eb;color:#a44b2e}a,button{display:inline-block;padding:9px 12px;border:1px solid #cfeaf2;border-radius:8px;color:#277b91;background:#fff;font:inherit;font-weight:700;text-decoration:none;cursor:pointer;margin-right:7px}.error{color:#a44b2e}@media(max-width:520px){.grid{grid-template-columns:1fr}.wide{grid-column:auto}}@media print{.bar a,button{display:none}.app{max-width:none}.card{border:0}}
-    @media print{.receipt-actions{display:none!important}}
-  </style>
-</head>
-<body>
-  <main class="app">
-    <header class="bar"><img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care"><a id="back" href="/">Back</a></header>
-    <section id="content" class="card">Loading expense details…</section>
-  </main>
-  <script src="/http.js"></script>
-  <script>
-    const query = new URLSearchParams(location.search);
-    const userId = query.get('userId');
-    const expenseId = query.get('expenseId');
-    const review = query.get('review');
-    const content = document.querySelector('#content');
-    const back = document.querySelector('#back');
-    const money = (amount, currency = 'EUR') => new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'EUR' }).format(Number(amount) || 0);
-    const statusText = status => ({ approved: 'Approved', declined: 'Declined', question: 'Questioned', pending: 'Pending' })[status] || status || 'Pending';
-    function exportExpense(expense) { const quote = value => `"${String(value ?? '').replaceAll('"', '""')}"`; const csv = ['Date','Merchant','Category','Amount','Currency','Note','Review status','Review message','Kilometres','Rate per KM'].map(quote).join(',') + '\r\n' + [expense.date,expense.merchant,expense.category,expense.amount,expense.currency || 'EUR',expense.note || '',expense.reviewStatus || 'pending',expense.reviewNote || '',expense.kilometres || '',expense.mileageRate || ''].map(quote).join(','); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); link.download = `oxygen-care-expense-${expense.date || 'record'}.csv`; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); }
-    const api = window.oxygenApi;
-    function backUrl() {
-      const returnTo = query.get('returnTo') || 'home';
-      if (returnTo === 'reports') {
-        const requested = query.get('reportReturn') || '/reports.html?tab=expenses';
-        try { const target = new URL(requested, location.origin); if (target.origin === location.origin && target.pathname === '/reports.html') return `${target.pathname}${target.search}`; } catch {}
-        return '/reports.html?tab=expenses';
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Expense details · Oxygen Care</title>
+    <style>
+      :root {
+        color-scheme: light;
       }
-      if (returnTo === 'batch') {
-        const requested = query.get('batchReturn') || '/batch-approve.html';
-        try { const target = new URL(requested, location.origin); if (target.origin === location.origin && target.pathname === '/batch-approve.html') return `${target.pathname}${target.search}`; } catch {}
-        return '/batch-approve.html';
+      * {
+        box-sizing: border-box;
       }
-      if (['head', 'super'].includes(review) && userId) {
-        const expectedPath = review === 'head' ? '/review-head.html' : '/review.html';
-        const requested = query.get('reviewReturn');
-        try { const target = new URL(requested, location.origin); if (target.origin === location.origin && target.pathname === expectedPath && target.searchParams.get('userId') === userId) return `${target.pathname}${target.search}`; } catch {}
-        return `${expectedPath}?${new URLSearchParams({ userId, returnTo })}`;
+      body {
+        margin: 0;
+        background: #effbff;
+        color: #183f4b;
+        font:
+          16px system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
       }
-      return returnTo === 'home' ? '/' : `/?view=${encodeURIComponent(returnTo)}`;
-    }
-    back.addEventListener('click', event => { event.preventDefault(); location.replace(backUrl()); });
-    function field(label, value, wide = false) { const item = document.createElement('div'); item.className = `field${wide ? ' wide' : ''}`; const title = document.createElement('strong'); title.textContent = label; const text = document.createElement('span'); text.textContent = value || '—'; item.append(title, text); return item; }
-    function render(expense, owner) {
-      const status = expense.reviewStatus || 'pending';
-      content.replaceChildren();
-      const label = document.createElement('div'); label.className = 'label'; label.textContent = 'EXPENSE DETAILS';
-      const heading = document.createElement('h1'); heading.textContent = expense.merchant || 'Expense';
-      const employee = document.createElement('p'); employee.textContent = `Employee: ${owner.fullName || owner.email}`;
-      const grid = document.createElement('div'); grid.className = 'grid';
-      grid.append(field('DATE', expense.date), field('AMOUNT', money(expense.amount, expense.currency)), field('CATEGORY', expense.category), field('REVIEW STATUS', statusText(status)));
-      if (expense.kilometres) { grid.append(field('KILOMETRES', `${expense.kilometres} KM`), field('RATE', `${money(expense.mileageRate, expense.currency)} per KM`)); if (expense.expenseType === 'mileage' && expense.odometerOpening !== undefined) grid.append(field('OPENING ODOMETER', `${expense.odometerOpening} KM`), field('CLOSING ODOMETER', `${expense.odometerClosing} KM`)); }
-      grid.append(field('NOTE', expense.note || 'No note supplied.', true));
-      if (expense.reviewNote) grid.append(field('REVIEW MESSAGE', expense.reviewNote, true));
-      content.append(label, heading, employee, grid);
-      const badge = document.createElement('span'); badge.className = `status ${status}`; badge.textContent = statusText(status); content.append(document.createElement('p'), badge);
-      if (expense.hasReceipt) { const receipt = document.createElement('a'), receiptActions = document.createElement('p'), returnTo = `${location.pathname}${location.search}`; receiptActions.className = 'receipt-actions'; receipt.href = `/api/expenses/${encodeURIComponent(expense.id)}/receipt/view?returnTo=${encodeURIComponent(returnTo)}`; receipt.textContent = 'View receipt'; receiptActions.append(receipt); content.append(receiptActions); }
-      const actions = document.createElement('p'), csv = document.createElement('button'), print = document.createElement('button'); csv.type = print.type = 'button'; csv.textContent = 'Download CSV'; print.textContent = 'Print / Save PDF'; csv.onclick = () => exportExpense(expense); print.onclick = () => window.print(); actions.append(csv, print); content.append(actions);
-    }
-    async function load() {
-      try {
-        if (!userId || !expenseId || !['head', 'super'].includes(review)) throw Error('The requested expense is incomplete.');
-        const me = await api('/api/auth/me');
-        if (!['department_head', 'super'].includes(me.user.role)) throw Error('Review access is required.');
-        if (review === 'head' && me.user.role !== 'department_head') throw Error('Department Head access is required.');
-        let owner, expense;
-        if (me.user.role === 'super') {
-          const report = await api('/api/reports/expenses');
-          expense = report.expenses.find(item => item.id === expenseId && item.user.id === userId);
-          owner = expense?.user;
-        } else {
-          const [people, records] = await Promise.all([api('/api/users'), api(`/api/expenses?userId=${encodeURIComponent(userId)}`)]);
-          owner = people.users.find(user => user.id === userId);
-          expense = records.expenses.find(item => item.id === expenseId);
+      .app {
+        max-width: 760px;
+        min-height: 100vh;
+        margin: auto;
+        background: #fff;
+        padding: 20px;
+      }
+      .bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #cfeaf2;
+        padding-bottom: 14px;
+      }
+      .bar img {
+        width: 136px;
+        max-width: 48%;
+      }
+      .card {
+        border: 1px solid #cfeaf2;
+        border-radius: 16px;
+        padding: 20px;
+        margin-top: 18px;
+      }
+      .label {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #63818a;
+      }
+      h1 {
+        margin: 6px 0 18px;
+        font-size: 28px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .field {
+        padding: 12px;
+        border-radius: 10px;
+        background: #f7fcfd;
+      }
+      .field strong,
+      .field span {
+        display: block;
+      }
+      .field strong {
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        color: #63818a;
+      }
+      .field span {
+        margin-top: 4px;
+        overflow-wrap: anywhere;
+      }
+      .wide {
+        grid-column: 1/-1;
+      }
+      .status {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 5px 10px;
+        background: #e6f6fb;
+        color: #277b91;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .status.approved {
+        background: #e1f5ee;
+        color: #277351;
+      }
+      .status.declined,
+      .status.question {
+        background: #fff0eb;
+        color: #a44b2e;
+      }
+      a,
+      button {
+        display: inline-block;
+        padding: 9px 12px;
+        border: 1px solid #cfeaf2;
+        border-radius: 8px;
+        color: #277b91;
+        background: #fff;
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        margin-right: 7px;
+      }
+      .error {
+        color: #a44b2e;
+      }
+      @media (max-width: 520px) {
+        .grid {
+          grid-template-columns: 1fr;
         }
-        if (!owner || !expense) throw Error('This expense is no longer available.');
-        render(expense, owner);
-      } catch (error) { content.textContent = error.message; content.classList.add('error'); }
-    }
-    load();
-  </script>
-</body>
+        .wide {
+          grid-column: auto;
+        }
+      }
+      @media print {
+        .bar a,
+        button {
+          display: none;
+        }
+        .app {
+          max-width: none;
+        }
+        .card {
+          border: 0;
+        }
+      }
+      @media print {
+        .receipt-actions {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="bar">
+        <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care" /><a id="back" href="/"
+          >Back</a
+        >
+      </header>
+      <section id="content" class="card">Loading expense details…</section>
+    </main>
+    <script src="/http.js"></script>
+    <script>
+      const query = new URLSearchParams(location.search);
+      const userId = query.get('userId');
+      const expenseId = query.get('expenseId');
+      const review = query.get('review');
+      const content = document.querySelector('#content');
+      const back = document.querySelector('#back');
+      const money = (amount, currency = 'EUR') =>
+        new Intl.NumberFormat(undefined, { style: 'currency', currency: currency || 'EUR' }).format(
+          Number(amount) || 0
+        );
+      const statusText = status =>
+        ({
+          approved: 'Approved',
+          declined: 'Declined',
+          question: 'Questioned',
+          pending: 'Pending'
+        })[status] ||
+        status ||
+        'Pending';
+      function exportExpense(expense) {
+        const quote = value => `"${String(value ?? '').replaceAll('"', '""')}"`;
+        const csv =
+          [
+            'Date',
+            'Merchant',
+            'Category',
+            'Amount',
+            'Currency',
+            'Note',
+            'Review status',
+            'Review message',
+            'Kilometres',
+            'Rate per KM'
+          ]
+            .map(quote)
+            .join(',') +
+          '\r\n' +
+          [
+            expense.date,
+            expense.merchant,
+            expense.category,
+            expense.amount,
+            expense.currency || 'EUR',
+            expense.note || '',
+            expense.reviewStatus || 'pending',
+            expense.reviewNote || '',
+            expense.kilometres || '',
+            expense.mileageRate || ''
+          ]
+            .map(quote)
+            .join(',');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        link.download = `oxygen-care-expense-${expense.date || 'record'}.csv`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }
+      const api = window.oxygenApi;
+      function backUrl() {
+        const returnTo = query.get('returnTo') || 'home';
+        if (returnTo === 'reports') {
+          const requested = query.get('reportReturn') || '/reports.html?tab=expenses';
+          try {
+            const target = new URL(requested, location.origin);
+            if (target.origin === location.origin && target.pathname === '/reports.html')
+              return `${target.pathname}${target.search}`;
+          } catch {}
+          return '/reports.html?tab=expenses';
+        }
+        if (returnTo === 'batch') {
+          const requested = query.get('batchReturn') || '/batch-approve.html';
+          try {
+            const target = new URL(requested, location.origin);
+            if (target.origin === location.origin && target.pathname === '/batch-approve.html')
+              return `${target.pathname}${target.search}`;
+          } catch {}
+          return '/batch-approve.html';
+        }
+        if (['head', 'super'].includes(review) && userId) {
+          const expectedPath = review === 'head' ? '/review-head.html' : '/review.html';
+          const requested = query.get('reviewReturn');
+          try {
+            const target = new URL(requested, location.origin);
+            if (
+              target.origin === location.origin &&
+              target.pathname === expectedPath &&
+              target.searchParams.get('userId') === userId
+            )
+              return `${target.pathname}${target.search}`;
+          } catch {}
+          return `${expectedPath}?${new URLSearchParams({ userId, returnTo })}`;
+        }
+        return returnTo === 'home' ? '/' : `/?view=${encodeURIComponent(returnTo)}`;
+      }
+      back.addEventListener('click', event => {
+        event.preventDefault();
+        location.replace(backUrl());
+      });
+      function field(label, value, wide = false) {
+        const item = document.createElement('div');
+        item.className = `field${wide ? ' wide' : ''}`;
+        const title = document.createElement('strong');
+        title.textContent = label;
+        const text = document.createElement('span');
+        text.textContent = value || '—';
+        item.append(title, text);
+        return item;
+      }
+      function render(expense, owner) {
+        const status = expense.reviewStatus || 'pending';
+        content.replaceChildren();
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = 'EXPENSE DETAILS';
+        const heading = document.createElement('h1');
+        heading.textContent = expense.merchant || 'Expense';
+        const employee = document.createElement('p');
+        employee.textContent = `Employee: ${owner.fullName || owner.email}`;
+        const grid = document.createElement('div');
+        grid.className = 'grid';
+        grid.append(
+          field('DATE', expense.date),
+          field('AMOUNT', money(expense.amount, expense.currency)),
+          field('CATEGORY', expense.category),
+          field('REVIEW STATUS', statusText(status))
+        );
+        if (expense.kilometres) {
+          grid.append(
+            field('KILOMETRES', `${expense.kilometres} KM`),
+            field('RATE', `${money(expense.mileageRate, expense.currency)} per KM`)
+          );
+          if (expense.expenseType === 'mileage' && expense.odometerOpening !== undefined)
+            grid.append(
+              field('OPENING ODOMETER', `${expense.odometerOpening} KM`),
+              field('CLOSING ODOMETER', `${expense.odometerClosing} KM`)
+            );
+        }
+        grid.append(field('NOTE', expense.note || 'No note supplied.', true));
+        if (expense.reviewNote) grid.append(field('REVIEW MESSAGE', expense.reviewNote, true));
+        content.append(label, heading, employee, grid);
+        const badge = document.createElement('span');
+        badge.className = `status ${status}`;
+        badge.textContent = statusText(status);
+        content.append(document.createElement('p'), badge);
+        if (expense.hasReceipt) {
+          const receipt = document.createElement('a'),
+            receiptActions = document.createElement('p'),
+            returnTo = `${location.pathname}${location.search}`;
+          receiptActions.className = 'receipt-actions';
+          receipt.href = `/api/expenses/${encodeURIComponent(expense.id)}/receipt/view?returnTo=${encodeURIComponent(returnTo)}`;
+          receipt.textContent = 'View receipt';
+          receiptActions.append(receipt);
+          content.append(receiptActions);
+        }
+        const actions = document.createElement('p'),
+          csv = document.createElement('button'),
+          print = document.createElement('button');
+        csv.type = print.type = 'button';
+        csv.textContent = 'Download CSV';
+        print.textContent = 'Print / Save PDF';
+        csv.onclick = () => exportExpense(expense);
+        print.onclick = () => window.print();
+        actions.append(csv, print);
+        content.append(actions);
+      }
+      async function load() {
+        try {
+          if (!userId || !expenseId || !['head', 'super'].includes(review))
+            throw Error('The requested expense is incomplete.');
+          const me = await api('/api/auth/me');
+          if (!['department_head', 'super'].includes(me.user.role))
+            throw Error('Review access is required.');
+          if (review === 'head' && me.user.role !== 'department_head')
+            throw Error('Department Head access is required.');
+          let owner, expense;
+          if (me.user.role === 'super') {
+            const report = await api('/api/reports/expenses');
+            expense = report.expenses.find(
+              item => item.id === expenseId && item.user.id === userId
+            );
+            owner = expense?.user;
+          } else {
+            const [people, records] = await Promise.all([
+              api('/api/users'),
+              api(`/api/expenses?userId=${encodeURIComponent(userId)}`)
+            ]);
+            owner = people.users.find(user => user.id === userId);
+            expense = records.expenses.find(item => item.id === expenseId);
+          }
+          if (!owner || !expense) throw Error('This expense is no longer available.');
+          render(expense, owner);
+        } catch (error) {
+          content.textContent = error.message;
+          content.classList.add('error');
+        }
+      }
+      load();
+    </script>
+  </body>
 </html>

@@ -1,2 +1,68 @@
-import { writeAudit } from '../../../../lib/audit'; import { requireUser } from '../../../../lib/auth'; import { getDb } from '../../../../lib/db'; import { errorResponse, jsonObject } from '../../../../lib/http';
-export async function POST(request:Request){const auth=await requireUser(['super_user','warehouse_user','engineer']);if(auth.response)return auth.response;try{const body=await jsonObject(request),partId=String(body.partId||''),engineerId=auth.user!.role==='engineer'?auth.user!.id:String(body.engineerId||''),movement=String(body.movement||''),quantity=Number(body.quantity),detail=String(body.detail||'').trim();if(!['assigned','fitted'].includes(movement)||!Number.isInteger(quantity)||quantity<1)throw Error('A valid movement and positive whole quantity are required.');if(movement==='assigned'&&!['super_user','warehouse_user'].includes(auth.user!.role))return Response.json({error:'Only Warehouse or Super Users can assign stock.'},{status:403});const db=getDb(),client=await db.connect();try{await client.query('BEGIN');if(movement==='assigned'){const reduced=await client.query(`UPDATE spare_parts SET warehouse_quantity=warehouse_quantity-$2 WHERE id=$1 AND warehouse_quantity >= $2`,[partId,quantity]);if(!reduced.rowCount)throw Error('Not enough warehouse stock.');await client.query(`INSERT INTO engineer_stock(engineer_id,part_id,quantity) VALUES($1,$2,$3) ON CONFLICT(engineer_id,part_id) DO UPDATE SET quantity=engineer_stock.quantity+EXCLUDED.quantity,updated_at=now()`,[engineerId,partId,quantity]);}else{const reduced=await client.query(`UPDATE engineer_stock SET quantity=quantity-$3,updated_at=now() WHERE engineer_id=$1 AND part_id=$2 AND quantity >= $3`,[engineerId,partId,quantity]);if(!reduced.rowCount)throw Error('Not enough engineer stock.');}const created=(await client.query(`INSERT INTO stock_movements(part_id,engineer_id,actor_id,movement,quantity,detail) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,[partId,engineerId,auth.user!.id,movement,quantity,detail])).rows[0];await writeAudit(client,auth.user!.id,movement==='assigned'?'assigned':'fitted','stock_movement',created.id,{partId,engineerId,quantity,detail});await client.query('COMMIT');return Response.json({id:created.id},{status:201});}catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}}catch(error){return errorResponse(error)}}
+import { writeAudit } from '../../../../lib/audit';
+import { requireUser } from '../../../../lib/auth';
+import { getDb } from '../../../../lib/db';
+import { errorResponse, jsonObject } from '../../../../lib/http';
+export async function POST(request: Request) {
+  const auth = await requireUser(['super_user', 'warehouse_user', 'engineer']);
+  if (auth.response) return auth.response;
+  try {
+    const body = await jsonObject(request),
+      partId = String(body.partId || ''),
+      engineerId = auth.user!.role === 'engineer' ? auth.user!.id : String(body.engineerId || ''),
+      movement = String(body.movement || ''),
+      quantity = Number(body.quantity),
+      detail = String(body.detail || '').trim();
+    if (!['assigned', 'fitted'].includes(movement) || !Number.isInteger(quantity) || quantity < 1)
+      throw Error('A valid movement and positive whole quantity are required.');
+    if (movement === 'assigned' && !['super_user', 'warehouse_user'].includes(auth.user!.role))
+      return Response.json(
+        { error: 'Only Warehouse or Super Users can assign stock.' },
+        { status: 403 }
+      );
+    const db = getDb(),
+      client = await db.connect();
+    try {
+      await client.query('BEGIN');
+      if (movement === 'assigned') {
+        const reduced = await client.query(
+          `UPDATE spare_parts SET warehouse_quantity=warehouse_quantity-$2 WHERE id=$1 AND warehouse_quantity >= $2`,
+          [partId, quantity]
+        );
+        if (!reduced.rowCount) throw Error('Not enough warehouse stock.');
+        await client.query(
+          `INSERT INTO engineer_stock(engineer_id,part_id,quantity) VALUES($1,$2,$3) ON CONFLICT(engineer_id,part_id) DO UPDATE SET quantity=engineer_stock.quantity+EXCLUDED.quantity,updated_at=now()`,
+          [engineerId, partId, quantity]
+        );
+      } else {
+        const reduced = await client.query(
+          `UPDATE engineer_stock SET quantity=quantity-$3,updated_at=now() WHERE engineer_id=$1 AND part_id=$2 AND quantity >= $3`,
+          [engineerId, partId, quantity]
+        );
+        if (!reduced.rowCount) throw Error('Not enough engineer stock.');
+      }
+      const created = (
+        await client.query(
+          `INSERT INTO stock_movements(part_id,engineer_id,actor_id,movement,quantity,detail) VALUES($1,$2,$3,$4,$5,$6) RETURNING id`,
+          [partId, engineerId, auth.user!.id, movement, quantity, detail]
+        )
+      ).rows[0];
+      await writeAudit(
+        client,
+        auth.user!.id,
+        movement === 'assigned' ? 'assigned' : 'fitted',
+        'stock_movement',
+        created.id,
+        { partId, engineerId, quantity, detail }
+      );
+      await client.query('COMMIT');
+      return Response.json({ id: created.id }, { status: 201 });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    return errorResponse(error);
+  }
+}

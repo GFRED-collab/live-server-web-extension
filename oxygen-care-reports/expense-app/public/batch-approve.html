@@ -1,23 +1,438 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Batch Approval · Oxygen Care</title><style>
-:root{--ink:#183f4b;--muted:#63818a;--line:#cfeaf2;--brand:#277b91;--danger:#a5412e}*{box-sizing:border-box}body{margin:0;background:#effbff;color:var(--ink);font:16px system-ui,-apple-system,Segoe UI,sans-serif}.app{max-width:900px;min-height:100vh;margin:auto;padding:20px;background:#fff}.bar{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:14px}.bar img{width:136px}.bar a,button{padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--brand);font:inherit;font-weight:750;text-decoration:none;cursor:pointer}.card{border:1px solid var(--line);border-radius:16px;padding:16px;margin-top:18px}.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.field{display:block;color:var(--muted);font-size:12px;font-weight:800;letter-spacing:.05em}.field input,.field select{display:block;width:100%;margin-top:6px;padding:9px;border:1px solid var(--line);border-radius:8px;background:#fff;font:inherit}.actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:14px 0}.primary{background:var(--brand);border-color:var(--brand);color:#fff}.primary:disabled{opacity:.55;cursor:not-allowed}.expense{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:start;padding:13px 0;border-bottom:1px solid #e8f2f5}.expense-link{cursor:pointer;border-radius:8px}.expense-link:hover,.expense-link:focus{background:#f2fafc;outline:none}.expense:last-child{border:0}.expense input{width:20px;height:20px}.merchant{font-weight:800}.meta{color:var(--muted);font-size:13px;line-height:1.45}.amount{font-weight:850;white-space:nowrap}.receipt{display:inline-block;margin-top:5px;color:var(--brand);font-weight:700}.notice{padding:12px;border-radius:10px;background:#fff4ef;color:#93422e;font-size:13px}.notice.success{background:#eaf7f5;color:#176958}@media(max-width:650px){.app{padding:14px}.filters{grid-template-columns:1fr 1fr}.expense{grid-template-columns:auto minmax(0,1fr)}.amount{grid-column:2}}@media(max-width:420px){.filters{grid-template-columns:1fr}}
-</style></head><body><main class="app"><header class="bar"><img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care"><a id="back" href="/">Back</a></header><section class="card"><h1>Batch approve expenses</h1><div class="filters"><label class="field">FROM<input id="from" type="date"></label><label class="field">TO<input id="to" type="date"></label><label class="field">EMPLOYEE<select id="user"><option value="">All employees</option></select></label><label class="field">CATEGORY<select id="category"><option value="All">All categories</option></select></label></div><div class="actions"><label><input id="selectAll" type="checkbox"> Select all filtered pending expenses</label><button id="approve" class="primary" type="button" disabled>Approve selected</button></div><div id="summary" class="meta">Loading pending expenses…</div><div id="status"></div><div id="expenses"></div></section></main><script src="/http.js"></script><script>
-(() => {
-  'use strict';
-  const $=selector=>document.querySelector(selector),api=window.oxygenApi,money=value=>new Intl.NumberFormat(undefined,{style:'currency',currency:'EUR'}).format(Number(value)||0);
-  let records=[],visible=[],reviewerRole='';const selected=new Set;
-  const filterIds=['from','to','user','category'];
-  function persistFilters(){const url=new URL(location.href);for(const id of filterIds){const value=$('#'+id).value,defaultValue=id==='category'?'All':'';if(value&&value!==defaultValue)url.searchParams.set(id,value);else url.searchParams.delete(id)}history.replaceState(history.state,'',`${url.pathname}${url.search}`)}
-  function restoreFilters(){const query=new URLSearchParams(location.search);for(const id of ['from','to']){const value=query.get(id)||'';if(/^\d{4}-\d{2}-\d{2}$/.test(value))$('#'+id).value=value}for(const id of ['user','category']){const value=query.get(id);if(value&&[...$('#'+id).options].some(option=>option.value===value))$('#'+id).value=value}}
-  function draw(){
-const from=$('#from').value,to=$('#to').value,user=$('#user').value,category=$('#category').value;visible=records.filter(item=>(!from||item.date>=from)&&(!to||item.date<=to)&&(!user||item.user.id===user)&&(category==='All'||item.category===category));const visibleIds=new Set(visible.map(item=>item.id));for(const id of selected)if(!visibleIds.has(id))selected.delete(id);$('#selectAll').checked=visible.length>0&&visible.every(item=>selected.has(item.id));$('#selectAll').indeterminate=selected.size>0&&selected.size<visible.length;$('#approve').disabled=!selected.size;$('#approve').textContent=selected.size?`Approve selected (${selected.size})`:'Approve selected';$('#summary').textContent=`${visible.length} pending expense${visible.length===1?'':'s'} · Expenses: ${money(visible.filter(item=>!item.companyPaid).reduce((sum,item)=>sum+Number(item.amount||0),0))} · Company paid: ${money(visible.filter(item=>item.companyPaid).reduce((sum,item)=>sum+Number(item.amount||0),0))}`;const root=$('#expenses');root.replaceChildren(...visible.map(item=>{const row=document.createElement('div'),check=document.createElement('input'),body=document.createElement('div'),merchant=document.createElement('div'),meta=document.createElement('div'),amount=document.createElement('div');row.className='expense expense-link';row.tabIndex=0;row.setAttribute('role','button');row.setAttribute('aria-label',`Open ${item.merchant} expense for ${item.user.fullName||item.user.email}`);
-check.type='checkbox';check.checked=selected.has(item.id);check.setAttribute('aria-label',`Select ${item.merchant} expense for ${item.user.fullName||item.user.email}`);check.onchange=()=>{if(check.checked)selected.add(item.id);else selected.delete(item.id);draw()};merchant.className='merchant';merchant.textContent=`${item.date} · ${item.merchant}`;meta.className='meta';meta.textContent=`${item.user.fullName||item.user.email} · ${item.category}${item.note?` · ${item.note}`:''}`;body.append(merchant,meta);if(item.hasReceipt){const receipt=document.createElement('a'),returnTo=`${location.pathname}${location.search}`;receipt.className='receipt';receipt.href=`/api/expenses/${encodeURIComponent(item.id)}/receipt/view?returnTo=${encodeURIComponent(returnTo)}`;receipt.textContent='View receipt';body.append(receipt)}amount.className='amount';amount.textContent=money(item.amount);const open=event=>{if(event?.target?.closest('input,a,button'))return;const params=new URLSearchParams({userId:item.user.id,expenseId:item.id,review:reviewerRole==='super'?'super':'head',returnTo:'batch',batchReturn:`${location.pathname}${location.search}`});location.assign(`/expense-detail.html?${params}`)};row.onclick=open;row.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open(event)}};row.append(check,body,amount);
-return row}));if(!visible.length){const empty=document.createElement('p');empty.className='notice';empty.textContent='No pending expenses match these filters.';root.append(empty)}}
-  async function load(){try{
-const me=await api('/api/auth/me');if(!['super','department_head'].includes(me.user.role))throw Error('Expense review access is required.');reviewerRole=me.user.role;let people;if(me.user.role==='super'){const data=await api('/api/reports/expenses');people=data.users;records=data.expenses}else{people=(await api('/api/users')).users;const results=await Promise.all(people.map(async user=>(await api(`/api/expenses?userId=${encodeURIComponent(user.id)}`)).expenses.map(expense=>({...expense,user}))));records=results.flat()}records=records.filter(item=>(item.reviewStatus||'pending')==='pending').sort((a,b)=>String(b.date).localeCompare(String(a.date)));$('#user').replaceChildren(new Option('All employees',''));$('#category').replaceChildren(new Option('All categories','All'));for(const person of people)$('#user').add(new Option(person.fullName||person.email,person.id));for(const category of [...new Set(records.map(item=>item.category).filter(Boolean))].sort())$('#category').add(new Option(category,category));restoreFilters();draw()}catch(error){$('#summary').textContent='';$('#status').replaceChildren(Object.assign(document.createElement('p'),{className:'notice',textContent:error.message}))}}
-  for(const id of filterIds)$('#'+id).onchange=()=>{persistFilters();draw()};
-  $('#selectAll').onchange=()=>{if($('#selectAll').checked)visible.forEach(item=>selected.add(item.id));else visible.forEach(item=>selected.delete(item.id));draw()};
-  $('#approve').onclick=async()=>{const ids=[...selected],total=visible.filter(item=>selected.has(item.id)).reduce((sum,item)=>sum+Number(item.amount||0),0);if(!ids.length||!confirm(`Approve ${ids.length} selected expense${ids.length===1?'':'s'} totalling ${money(total)} in recorded spend (including company paid)?`))return;$('#approve').disabled=true;try{const result=await api('/api/expenses/batch-approve',{method:'POST',body:JSON.stringify({expenseIds:ids})});selected.clear();$('#status').replaceChildren(Object.assign(document.createElement('p'),{className:'notice success',textContent:`${result.approved} expense${result.approved===1?'':'s'} approved.`}));await load()}catch(error){$('#status').replaceChildren(Object.assign(document.createElement('p'),{className:'notice',textContent:error.message}));await load()}};
-  $('#back').onclick=event=>{event.preventDefault();location.replace('/')};load();
-})();
-</script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Batch Approval · Oxygen Care</title>
+    <style>
+      :root {
+        --ink: #183f4b;
+        --muted: #63818a;
+        --line: #cfeaf2;
+        --brand: #277b91;
+        --danger: #a5412e;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #effbff;
+        color: var(--ink);
+        font:
+          16px system-ui,
+          -apple-system,
+          Segoe UI,
+          sans-serif;
+      }
+      .app {
+        max-width: 900px;
+        min-height: 100vh;
+        margin: auto;
+        padding: 20px;
+        background: #fff;
+      }
+      .bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 14px;
+      }
+      .bar img {
+        width: 136px;
+      }
+      .bar a,
+      button {
+        padding: 9px 11px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fff;
+        color: var(--brand);
+        font: inherit;
+        font-weight: 750;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+        margin-top: 18px;
+      }
+      .filters {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .field {
+        display: block;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+      }
+      .field input,
+      .field select {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font: inherit;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin: 14px 0;
+      }
+      .primary {
+        background: var(--brand);
+        border-color: var(--brand);
+        color: #fff;
+      }
+      .primary:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      .expense {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: start;
+        padding: 13px 0;
+        border-bottom: 1px solid #e8f2f5;
+      }
+      .expense-link {
+        cursor: pointer;
+        border-radius: 8px;
+      }
+      .expense-link:hover,
+      .expense-link:focus {
+        background: #f2fafc;
+        outline: none;
+      }
+      .expense:last-child {
+        border: 0;
+      }
+      .expense input {
+        width: 20px;
+        height: 20px;
+      }
+      .merchant {
+        font-weight: 800;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+      .amount {
+        font-weight: 850;
+        white-space: nowrap;
+      }
+      .receipt {
+        display: inline-block;
+        margin-top: 5px;
+        color: var(--brand);
+        font-weight: 700;
+      }
+      .notice {
+        padding: 12px;
+        border-radius: 10px;
+        background: #fff4ef;
+        color: #93422e;
+        font-size: 13px;
+      }
+      .notice.success {
+        background: #eaf7f5;
+        color: #176958;
+      }
+      @media (max-width: 650px) {
+        .app {
+          padding: 14px;
+        }
+        .filters {
+          grid-template-columns: 1fr 1fr;
+        }
+        .expense {
+          grid-template-columns: auto minmax(0, 1fr);
+        }
+        .amount {
+          grid-column: 2;
+        }
+      }
+      @media (max-width: 420px) {
+        .filters {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="bar">
+        <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care" /><a id="back" href="/"
+          >Back</a
+        >
+      </header>
+      <section class="card">
+        <h1>Batch approve expenses</h1>
+        <div class="filters">
+          <label class="field">FROM<input id="from" type="date" /></label
+          ><label class="field">TO<input id="to" type="date" /></label
+          ><label class="field"
+            >EMPLOYEE<select id="user">
+              <option value="">All employees</option>
+            </select></label
+          ><label class="field"
+            >CATEGORY<select id="category">
+              <option value="All">All categories</option>
+            </select></label
+          >
+        </div>
+        <div class="actions">
+          <label
+            ><input id="selectAll" type="checkbox" /> Select all filtered pending expenses</label
+          ><button id="approve" class="primary" type="button" disabled>Approve selected</button>
+        </div>
+        <div id="summary" class="meta">Loading pending expenses…</div>
+        <div id="status"></div>
+        <div id="expenses"></div>
+      </section>
+    </main>
+    <script src="/http.js"></script>
+    <script>
+      (() => {
+        'use strict';
+        const $ = selector => document.querySelector(selector),
+          api = window.oxygenApi,
+          money = value =>
+            new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(
+              Number(value) || 0
+            );
+        let records = [],
+          visible = [],
+          reviewerRole = '';
+        const selected = new Set();
+        const filterIds = ['from', 'to', 'user', 'category'];
+        function persistFilters() {
+          const url = new URL(location.href);
+          for (const id of filterIds) {
+            const value = $('#' + id).value,
+              defaultValue = id === 'category' ? 'All' : '';
+            if (value && value !== defaultValue) url.searchParams.set(id, value);
+            else url.searchParams.delete(id);
+          }
+          history.replaceState(history.state, '', `${url.pathname}${url.search}`);
+        }
+        function restoreFilters() {
+          const query = new URLSearchParams(location.search);
+          for (const id of ['from', 'to']) {
+            const value = query.get(id) || '';
+            if (/^\d{4}-\d{2}-\d{2}$/.test(value)) $('#' + id).value = value;
+          }
+          for (const id of ['user', 'category']) {
+            const value = query.get(id);
+            if (value && [...$('#' + id).options].some(option => option.value === value))
+              $('#' + id).value = value;
+          }
+        }
+        function draw() {
+          const from = $('#from').value,
+            to = $('#to').value,
+            user = $('#user').value,
+            category = $('#category').value;
+          visible = records.filter(
+            item =>
+              (!from || item.date >= from) &&
+              (!to || item.date <= to) &&
+              (!user || item.user.id === user) &&
+              (category === 'All' || item.category === category)
+          );
+          const visibleIds = new Set(visible.map(item => item.id));
+          for (const id of selected) if (!visibleIds.has(id)) selected.delete(id);
+          $('#selectAll').checked =
+            visible.length > 0 && visible.every(item => selected.has(item.id));
+          $('#selectAll').indeterminate = selected.size > 0 && selected.size < visible.length;
+          $('#approve').disabled = !selected.size;
+          $('#approve').textContent = selected.size
+            ? `Approve selected (${selected.size})`
+            : 'Approve selected';
+          $('#summary').textContent =
+            `${visible.length} pending expense${visible.length === 1 ? '' : 's'} · Expenses: ${money(visible.filter(item => !item.companyPaid).reduce((sum, item) => sum + Number(item.amount || 0), 0))} · Company paid: ${money(visible.filter(item => item.companyPaid).reduce((sum, item) => sum + Number(item.amount || 0), 0))}`;
+          const root = $('#expenses');
+          root.replaceChildren(
+            ...visible.map(item => {
+              const row = document.createElement('div'),
+                check = document.createElement('input'),
+                body = document.createElement('div'),
+                merchant = document.createElement('div'),
+                meta = document.createElement('div'),
+                amount = document.createElement('div');
+              row.className = 'expense expense-link';
+              row.tabIndex = 0;
+              row.setAttribute('role', 'button');
+              row.setAttribute(
+                'aria-label',
+                `Open ${item.merchant} expense for ${item.user.fullName || item.user.email}`
+              );
+              check.type = 'checkbox';
+              check.checked = selected.has(item.id);
+              check.setAttribute(
+                'aria-label',
+                `Select ${item.merchant} expense for ${item.user.fullName || item.user.email}`
+              );
+              check.onchange = () => {
+                if (check.checked) selected.add(item.id);
+                else selected.delete(item.id);
+                draw();
+              };
+              merchant.className = 'merchant';
+              merchant.textContent = `${item.date} · ${item.merchant}`;
+              meta.className = 'meta';
+              meta.textContent = `${item.user.fullName || item.user.email} · ${item.category}${item.note ? ` · ${item.note}` : ''}`;
+              body.append(merchant, meta);
+              if (item.hasReceipt) {
+                const receipt = document.createElement('a'),
+                  returnTo = `${location.pathname}${location.search}`;
+                receipt.className = 'receipt';
+                receipt.href = `/api/expenses/${encodeURIComponent(item.id)}/receipt/view?returnTo=${encodeURIComponent(returnTo)}`;
+                receipt.textContent = 'View receipt';
+                body.append(receipt);
+              }
+              amount.className = 'amount';
+              amount.textContent = money(item.amount);
+              const open = event => {
+                if (event?.target?.closest('input,a,button')) return;
+                const params = new URLSearchParams({
+                  userId: item.user.id,
+                  expenseId: item.id,
+                  review: reviewerRole === 'super' ? 'super' : 'head',
+                  returnTo: 'batch',
+                  batchReturn: `${location.pathname}${location.search}`
+                });
+                location.assign(`/expense-detail.html?${params}`);
+              };
+              row.onclick = open;
+              row.onkeydown = event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  open(event);
+                }
+              };
+              row.append(check, body, amount);
+              return row;
+            })
+          );
+          if (!visible.length) {
+            const empty = document.createElement('p');
+            empty.className = 'notice';
+            empty.textContent = 'No pending expenses match these filters.';
+            root.append(empty);
+          }
+        }
+        async function load() {
+          try {
+            const me = await api('/api/auth/me');
+            if (!['super', 'department_head'].includes(me.user.role))
+              throw Error('Expense review access is required.');
+            reviewerRole = me.user.role;
+            let people;
+            if (me.user.role === 'super') {
+              const data = await api('/api/reports/expenses');
+              people = data.users;
+              records = data.expenses;
+            } else {
+              people = (await api('/api/users')).users;
+              const results = await Promise.all(
+                people.map(async user =>
+                  (await api(`/api/expenses?userId=${encodeURIComponent(user.id)}`)).expenses.map(
+                    expense => ({ ...expense, user })
+                  )
+                )
+              );
+              records = results.flat();
+            }
+            records = records
+              .filter(item => (item.reviewStatus || 'pending') === 'pending')
+              .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+            $('#user').replaceChildren(new Option('All employees', ''));
+            $('#category').replaceChildren(new Option('All categories', 'All'));
+            for (const person of people)
+              $('#user').add(new Option(person.fullName || person.email, person.id));
+            for (const category of [
+              ...new Set(records.map(item => item.category).filter(Boolean))
+            ].sort())
+              $('#category').add(new Option(category, category));
+            restoreFilters();
+            draw();
+          } catch (error) {
+            $('#summary').textContent = '';
+            $('#status').replaceChildren(
+              Object.assign(document.createElement('p'), {
+                className: 'notice',
+                textContent: error.message
+              })
+            );
+          }
+        }
+        for (const id of filterIds)
+          $('#' + id).onchange = () => {
+            persistFilters();
+            draw();
+          };
+        $('#selectAll').onchange = () => {
+          if ($('#selectAll').checked) visible.forEach(item => selected.add(item.id));
+          else visible.forEach(item => selected.delete(item.id));
+          draw();
+        };
+        $('#approve').onclick = async () => {
+          const ids = [...selected],
+            total = visible
+              .filter(item => selected.has(item.id))
+              .reduce((sum, item) => sum + Number(item.amount || 0), 0);
+          if (
+            !ids.length ||
+            !confirm(
+              `Approve ${ids.length} selected expense${ids.length === 1 ? '' : 's'} totalling ${money(total)} in recorded spend (including company paid)?`
+            )
+          )
+            return;
+          $('#approve').disabled = true;
+          try {
+            const result = await api('/api/expenses/batch-approve', {
+              method: 'POST',
+              body: JSON.stringify({ expenseIds: ids })
+            });
+            selected.clear();
+            $('#status').replaceChildren(
+              Object.assign(document.createElement('p'), {
+                className: 'notice success',
+                textContent: `${result.approved} expense${result.approved === 1 ? '' : 's'} approved.`
+              })
+            );
+            await load();
+          } catch (error) {
+            $('#status').replaceChildren(
+              Object.assign(document.createElement('p'), {
+                className: 'notice',
+                textContent: error.message
+              })
+            );
+            await load();
+          }
+        };
+        $('#back').onclick = event => {
+          event.preventDefault();
+          location.replace('/');
+        };
+        load();
+      })();
+    </script>
+  </body>
+</html>

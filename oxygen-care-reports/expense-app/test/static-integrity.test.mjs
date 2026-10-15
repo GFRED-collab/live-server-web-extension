@@ -1,5 +1,5 @@
 import test from 'node:test';
-import assert from 'node:assert/strict';
+import assert from './source-assert.mjs';
 import { readFile, readdir } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,7 +19,9 @@ test('all shipped JavaScript and inline scripts parse', async () => {
     const scripts = [...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi)];
     for (const [index, match] of scripts.entries()) {
       if (!match[1].trim()) continue;
-      assert.doesNotThrow(() => new vm.Script(match[1], { filename: `${file}:script-${index + 1}` }));
+      assert.doesNotThrow(
+        () => new vm.Script(match[1], { filename: `${file}:script-${index + 1}` })
+      );
     }
   }
 });
@@ -29,18 +31,28 @@ test('local page assets exist and the shared API client is loaded before consume
   const fileSet = new Set(files);
   for (const file of files.filter(name => name.endsWith('.html'))) {
     const html = await readFile(join(publicDir, file), 'utf8');
-    for (const match of html.matchAll(/(?:src|href)="\/([^"?#]+\.(?:js|css|jpeg))"/g)) assert.ok(fileSet.has(match[1]), `${file} references missing ${match[1]}`);
+    for (const match of html.matchAll(/(?:src|href)="\/([^"?#]+\.(?:js|css|jpeg))"/g))
+      assert.ok(fileSet.has(match[1]), `${file} references missing ${match[1]}`);
     if (/oxygenApi|review-common\.js|app\.js/.test(html)) {
       const shared = html.indexOf('/http.js');
-      const consumerPositions = ['/app.js', '/review-common.js', 'window.oxygenApi'].map(value => html.indexOf(value)).filter(value => value >= 0);
-      assert.ok(shared >= 0 && consumerPositions.every(position => shared < position), `${file} must load http.js before API consumers`);
+      const consumerPositions = ['/app.js', '/review-common.js', 'window.oxygenApi']
+        .map(value => html.indexOf(value))
+        .filter(value => value >= 0);
+      assert.ok(
+        shared >= 0 && consumerPositions.every(position => shared < position),
+        `${file} must load http.js before API consumers`
+      );
     }
   }
 });
 
 test('retired receipt routes and launchers are absent from the release', async () => {
   const files = await readdir(publicDir);
-  const sources = await Promise.all(files.filter(name => /\.(?:html|js)$/.test(name)).map(name => readFile(join(publicDir, name), 'utf8')));
+  const sources = await Promise.all(
+    files
+      .filter(name => /\.(?:html|js)$/.test(name))
+      .map(name => readFile(join(publicDir, name), 'utf8'))
+  );
   const combined = sources.join('\n');
   assert.doesNotMatch(combined, /\/receipt(?:\/image)?["'`]/);
   assert.doesNotMatch(combined, /Download receipt/);
@@ -67,10 +79,17 @@ test('deployment updater protects data and validates the live layout', async () 
   assert.match(remote, /listen 127\.0\.0\.1:8080/);
   assert.match(remote, /tailscale serve --bg --yes --https=443 http:\/\/127\.0\.0\.1:8080/);
   assert.match(remote, /expenses\.fynbos-spectrum\.ts\.net/);
-  assert.doesNotMatch(remote, /tailscale serve reset/, 'expense deployment must preserve other applications’ Serve listeners');
+  assert.doesNotMatch(
+    remote,
+    /tailscale serve reset/,
+    'expense deployment must preserve other applications’ Serve listeners'
+  );
   assert.match(remote, /trap rollback ERR/);
   assert.doesNotMatch(remote, /tar -C "\$APP_DIR\/data" -xzf/);
-  assert.ok(remote.indexOf('sudo systemctl stop "$APP_NAME"') < remote.indexOf('tar -C "$APP_DIR/data" -czf'));
+  assert.ok(
+    remote.indexOf('sudo systemctl stop "$APP_NAME"') <
+      remote.indexOf('tar -C "$APP_DIR/data" -czf')
+  );
   assert.doesNotMatch(remote, /node "\$STAGE_DIR\/scripts\/maintenance-cleanup.mjs"/);
   assert.match(remote, /maintenance-cleanup\.mjs/);
   assert.match(remote, /rm -f .*Start Oxygen Care\.command.*deploy-ubuntu\.sh/);
@@ -93,7 +112,8 @@ test('saved odometer readings expose an explicit edit state', async () => {
   assert.match(app, /button\('Odometer', \(\) => go\('odometer'\)\)/);
   assert.match(app, /if \(state\.view === 'odometer'\) return odometerPage\(\)/);
   assert.match(app, /function odometerPage\(\) \{ setContent\(odometerLogCard\(\)\); \}/);
-  const home = /async function regularHome\(\)([\s\S]*?)\n  function odometerPage/.exec(app)?.[1] || '';
+  const home =
+    /async function regularHome\(\)([\s\S]*?)\n  function odometerPage/.exec(app)?.[1] || '';
   assert.doesNotMatch(home, /odometerLogCard/);
 });
 
@@ -129,7 +149,10 @@ test('single expense print output excludes app navigation and actions', async ()
     readFile(join(publicDir, 'app.css'), 'utf8')
   ]);
   assert.match(app, /classList\.add\('print-expense'\)/);
-  assert.match(styles, /body\.print-expense \.workspace,body\.print-expense \.account,body\.print-expense \.actions\{display:none!important\}/);
+  assert.match(
+    styles,
+    /body\.print-expense \.workspace,body\.print-expense \.account,body\.print-expense \.actions\{display:none!important\}/
+  );
 });
 
 test('CSP and server resource limits remain hardened', async () => {
@@ -219,7 +242,11 @@ test('receipt images are compressed server-side with enforced upload and storage
   assert.match(app, /compressed securely when saved/);
   assert.match(localDeploy, /package-lock\.json/);
   assert.match(remoteDeploy, /npm ci --omit=dev/);
-  assert.ok(remoteDeploy.indexOf('npm ci --omit=dev') < remoteDeploy.indexOf('node --test test/receipt-access.test.mjs'), 'remote tests must run after production dependencies are installed');
+  assert.ok(
+    remoteDeploy.indexOf('npm ci --omit=dev') <
+      remoteDeploy.indexOf('node --test test/receipt-access.test.mjs'),
+    'remote tests must run after production dependencies are installed'
+  );
   assert.match(remoteDeploy, /client_max_body_size 15m/);
 });
 
@@ -235,7 +262,10 @@ test('dashboard keeps its main chart without the duplicate chart builder', async
 test('category creation offers an unchecked company-paid option and submits a boolean', async () => {
   const settings = await readFile(join(publicDir, 'settings.html'), 'utf8');
   assert.match(settings, /<input name="companyPaid" type="checkbox">Company paid/);
-  assert.match(settings, /companyPaid: form\.querySelector\('input\[name="companyPaid"\]'\)\.checked/);
+  assert.match(
+    settings,
+    /companyPaid: form\.querySelector\('input\[name="companyPaid"\]'\)\.checked/
+  );
   assert.match(settings, /settings\.companyPaidCategories/);
 });
 
@@ -258,13 +288,24 @@ test('Fuel Card is retained separately and excluded from expense totals', async 
 test('user and Department Head year-to-date cards appear in History, not Home', async () => {
   const app = await readFile(join(publicDir, 'app.js'), 'utf8');
   assert.match(app, /function yearToDateCards\(\)/);
-  assert.match(app, /records = state\.expenses\.filter\(expense => String\(expense\.date \|\| ''\)\.startsWith\(year\)\)/);
-  assert.match(app, /async function expenseHistory\(\)[\s\S]*?setContent\(\.\.\.yearToDateCards\(\), card/);
+  assert.match(
+    app,
+    /records = state\.expenses\.filter\(expense => String\(expense\.date \|\| ''\)\.startsWith\(year\)\)/
+  );
+  assert.match(
+    app,
+    /async function expenseHistory\(\)[\s\S]*?setContent\(\.\.\.yearToDateCards\(\), card/
+  );
   assert.match(app, /function renderFlatExpenseList\(records\)/);
-  const history = /async function expenseHistory\(\)([\s\S]*?)\n  async function reimbursementHistory/.exec(app)?.[1] || '';
+  const history =
+    /async function expenseHistory\(\)([\s\S]*?)\n  async function reimbursementHistory/.exec(
+      app
+    )?.[1] || '';
   assert.match(history, /renderFlatExpenseList\(records\)/);
   assert.doesNotMatch(history, /renderExpenseList\(records\)/);
-  const home = /async function regularHome\(\)([\s\S]*?)\n  async function expenseHistory/.exec(app)?.[1] || '';
+  const home =
+    /async function regularHome\(\)([\s\S]*?)\n  async function expenseHistory/.exec(app)?.[1] ||
+    '';
   assert.doesNotMatch(home, /yearToDateCards|YEAR-TO-DATE|hero|fuelCardTotal/);
 });
 
@@ -288,7 +329,10 @@ test('expense views use an accessible year, month, and day calendar drill-down',
   assert.match(app, /category\.onchange = \(\) => resetExpenseCalendar\(draw, \{ category:/);
   assert.match(app, /restoreFilter\(category, 'category'\)/);
   assert.match(app, /restoreFilter\(from, 'from'\)/);
-  assert.match(app, /\[from, to, category\]\.forEach\(input => input\.onchange = \(\) => resetExpenseCalendar\(draw, \{ from:/);
+  assert.match(
+    app,
+    /\[from, to, category\]\.forEach\(input => \(?input\.onchange = \(\) => resetExpenseCalendar\(draw, \{ from:/
+  );
   assert.match(app, /weekday: 'short', day: 'numeric'/);
   assert.match(styles, /\.calendar-cell/);
   assert.match(styles, /@media\(max-width:520px\)/);
@@ -310,8 +354,14 @@ test('receipt and expense navigation cannot loop through browser history', async
   ]);
   assert.match(server, /location\.replace\(event\.currentTarget\.href\)/);
   assert.equal((server.match(/function receiptViewerPage\(/g) || []).length, 1);
-  assert.equal((server.match(/document\.getElementById\('save'\)\.addEventListener/g) || []).length, 1);
-  assert.doesNotMatch(`${app}\n${review}\n${details}\n${reports}`, /target\s*=\s*['"]_blank['"]|target:\s*['_"]blank/);
+  assert.equal(
+    (server.match(/document\.getElementById\('save'\)\.addEventListener/g) || []).length,
+    1
+  );
+  assert.doesNotMatch(
+    `${app}\n${review}\n${details}\n${reports}`,
+    /target\s*=\s*['"]_blank['"]|target:\s*['_"]blank/
+  );
   assert.doesNotMatch(`${review}\n${details}`, /opened|window\.close/);
   assert.doesNotMatch(app, /history\.state\s*\?\s*history\.back/);
   assert.match(app, /button\('Back', \(\) => go\(state\.returnTo === 'history'/);
@@ -319,26 +369,44 @@ test('receipt and expense navigation cannot loop through browser history', async
 
 test('Super User reports remain a printable filter-driven list', async () => {
   const reports = await readFile(join(publicDir, 'reports.html'), 'utf8');
-  assert.doesNotMatch(reports, /expense-calendar\.js|OxygenExpenseCalendar|drawReportCalendar|reportCalendarRoot/);
-  assert.match(reports, /for\(const id of \['from','to','dept','user','category'\]\)\$\('#'\+id\)\.onchange=\(\)=>draw\(true\)/);
+  assert.doesNotMatch(
+    reports,
+    /expense-calendar\.js|OxygenExpenseCalendar|drawReportCalendar|reportCalendarRoot/
+  );
+  assert.match(
+    reports,
+    /for\(const id of \['from','to','dept','user','category'\]\)\$\('#'\+id\)\.onchange=\(\)=>draw\(true\)/
+  );
   assert.match(reports, /const rows=selected\(\)\.sort/);
   assert.match(reports, /pageRows\('#expenseReport','expenses',rows,draw\)/);
-  assert.match(reports, /new Option\('Current page','page'\),new Option\('All filtered results','all'\)/);
+  assert.match(
+    reports,
+    /new Option\('Current page','page'\),new Option\('All filtered results','all'\)/
+  );
   assert.match(reports, /if\(printRange\.value==='all'\)\$\('#rows'\)\.replaceChildren/);
   assert.match(reports, /addEventListener\('afterprint',restore,\{once:true\}\)/);
 });
 
 test('department review uses same-screen navigation and never renders null placeholders', async () => {
   const app = await readFile(join(publicDir, 'app.js'), 'utf8');
-  assert.match(app, /function openReview\(path\) \{ location\.assign\(new URL\(path, location\.origin\)\.href\); \}/);
+  assert.match(
+    app,
+    /function openReview\(path\) \{ location\.assign\(new URL\(path, location\.origin\)\.href\); \}/
+  );
   assert.doesNotMatch(app, /Allow pop-ups to open the expense review/);
   assert.match(app, /replaceChildren\(\.\.\.children\.filter\(Boolean\)\)/);
 });
 
 test('successful login and logout discard stale expense routes', async () => {
   const app = await readFile(join(publicDir, 'app.js'), 'utf8');
-  assert.match(app, /function resetWorkspaceRoute\(\) \{ history\.replaceState\(\{ view: 'home' \}, '', '\/'\)/);
-  assert.match(app, /resetWorkspaceRoute\(\); await start\(result\.user, result\.idleTimeoutMinutes\)/);
+  assert.match(
+    app,
+    /function resetWorkspaceRoute\(\) \{ history\.replaceState\(\{ view: 'home' \}, '', '\/'\)/
+  );
+  assert.match(
+    app,
+    /resetWorkspaceRoute\(\); await start\(result\.user, result\.idleTimeoutMinutes\)/
+  );
   assert.match(app, /clearTimeout\(idleTimer\); location\.assign\('\/logout'\)/);
   const server = await readFile(join(appDir, 'server.mjs'), 'utf8');
   assert.match(server, /req\.method === "GET" && pathname === "\/logout"/);
@@ -353,7 +421,10 @@ test('editable text limits match in the browser and server', async () => {
     readFile(join(publicDir, 'settings.html'), 'utf8'),
     readFile(join(publicDir, 'review-common.js'), 'utf8')
   ]);
-  assert.match(server, /fullName: 100, email: 254, jobDescription: 120, carRegistration: 20, department: 80, category: 60, merchant: 120, note: 300, message: 300, password: 128/);
+  assert.match(
+    server,
+    /fullName: 100, email: 254, jobDescription: 120, carRegistration: 20, department: 80, category: 60, merchant: 120, note: 300, message: 300, password: 128/
+  );
   assert.match(server, /cleanField\(fullName, textLimits\.fullName\)/);
   assert.match(server, /validEmail\(normalised\)/);
   assert.match(app, /maxlength: '100'/);
@@ -388,7 +459,10 @@ test('local OCR uses adaptive preprocessing without changing stored receipts', a
   assert.match(server, /tesseractText\(primaryImage, "6"\)/);
   assert.match(server, /tesseractResultScore\(primary\) < 5/);
   assert.match(server, /tesseractText\(retryImage, "4"\)/);
-  assert.match(server, /if \(tesseractResultScore\(retry\) > tesseractResultScore\(primary\)\) best = retry/);
+  assert.match(
+    server,
+    /if \(tesseractResultScore\(retry\) > tesseractResultScore\(primary\)\) best = retry/
+  );
   assert.match(server, /const bytes = receipt\.bytes;\n    const preparedImage/);
 });
 
@@ -399,15 +473,26 @@ test('Department Heads and Super Users batch approve within their role boundarie
     readFile(join(publicDir, 'batch-approve.html'), 'utf8'),
     readFile(join(publicDir, 'expense-detail.html'), 'utf8')
   ]);
-  assert.match(app, /state\.user\.role === 'department_head'\) workspace\.append\(element\('a', \{ class: 'link-button', href: '\/batch-approve\.html', text: 'Batch' \}\)\)/);
+  assert.match(
+    app,
+    /state\.user\.role === 'department_head'\) workspace\.append\(element\('a', \{ class: 'link-button', href: '\/batch-approve\.html', text: 'Batch' \}\)\)/
+  );
   assert.match(app, /href: '\/batch-approve\.html', text: 'Batch'/);
-  const reviewPanel = /async function addDepartmentReview\(\)([\s\S]*?)\n  async function render/.exec(app)?.[1] || '';
+  const reviewPanel =
+    /async function addDepartmentReview\(\)([\s\S]*?)\n  async function render/.exec(app)?.[1] ||
+    '';
   assert.doesNotMatch(reviewPanel, /Batch|batch-approve/);
   assert.match(server, /!\['super', 'department_head'\]\.includes\(reviewer\.role\)/);
   assert.match(server, /ids\.length > 100/);
-  assert.match(server, /reviewer\.role === 'super' \? owner && \['regular', 'department_head'\]\.includes\(owner\.role\)/);
+  assert.match(
+    server,
+    /reviewer\.role === 'super' \? owner && \['regular', 'department_head'\]\.includes\(owner\.role\)/
+  );
   assert.match(server, /\(expense\.reviewStatus \|\| 'pending'\) !== 'pending'/);
-  assert.match(server, /One or more selected expenses are no longer pending or available to you\. Nothing was approved\./);
+  assert.match(
+    server,
+    /One or more selected expenses are no longer pending or available to you\. Nothing was approved\./
+  );
   assert.match(server, /expenses_batch_approved/);
   assert.match(server, /pathname === "\/api\/expenses\/batch-approve"/);
   assert.match(page, /Select all filtered pending expenses/);
@@ -416,15 +501,24 @@ test('Department Heads and Super Users batch approve within their role boundarie
   assert.match(page, /me\.user\.role==='super'/);
   assert.match(page, /api\('\/api\/reports\/expenses'\)/);
   assert.match(page, /const filterIds=\['from','to','user','category'\]/);
-  assert.match(page, /history\.replaceState\(history\.state,'',`\$\{url\.pathname\}\$\{url\.search\}`\)/);
+  assert.match(
+    page,
+    /history\.replaceState\(history\.state,'',`\$\{url\.pathname\}\$\{url\.search\}`\)/
+  );
   assert.match(page, /function restoreFilters\(\)/);
   assert.match(page, /returnTo=`\$\{location\.pathname\}\$\{location\.search\}`/);
-  assert.match(page, /returnTo:'batch',batchReturn:`\$\{location\.pathname\}\$\{location\.search\}`/);
+  assert.match(
+    page,
+    /returnTo:'batch',batchReturn:`\$\{location\.pathname\}\$\{location\.search\}`/
+  );
   assert.match(page, /closest\('input,a,button'\)/);
   assert.match(page, /row\.onkeydown=event/);
   assert.match(details, /returnTo === 'batch'/);
   assert.match(details, /target\.pathname === '\/batch-approve\.html'/);
-  assert.match(details, /report\.expenses\.find\(item => item\.id === expenseId && item\.user\.id === userId\)/);
+  assert.match(
+    details,
+    /report\.expenses\.find\(item => item\.id === expenseId && item\.user\.id === userId\)/
+  );
 });
 
 test('Super Users create reimbursement batches from approved unpaid expenses', async () => {
@@ -434,7 +528,10 @@ test('Super Users create reimbursement batches from approved unpaid expenses', a
     readFile(join(publicDir, 'reports.html'), 'utf8')
   ]);
   assert.match(server, /async function reimbursementCandidates/);
-  assert.match(server, /expense\.reviewStatus === 'approved' && !expense\.reimbursementId && !isCompanyPaid\(expense\)/);
+  assert.match(
+    server,
+    /expense\.reviewStatus === 'approved' && !expense\.reimbursementId && !isCompanyPaid\(expense\)/
+  );
   assert.match(server, /async function createReimbursementBatch/);
   assert.match(server, /One or more selected expenses are no longer eligible\. Nothing was sent\./);
   assert.match(server, /reimbursement_batch_sent/);

@@ -1,61 +1,280 @@
 /* Screen-only rules: printed forms retain their existing layout. */
-.mobile-menu-toggle { display:none; }
-.sidebar-menu { display:flex; flex-direction:column; flex:1; min-height:0; overflow-y:auto; }
-@media screen and (max-width:1024px) {
- .workspace-shell { min-width:0; }
- .workspace-shell :is(.contract-content,.contracts-layout,.directory,.access-card,.inventory-panel,.calendar-card,.filter-card,.admin-grid)>* { min-width:0; }
- .workspace-shell :is(input,select,textarea) { max-width:100%; min-width:0; }
- .workspace-shell :is(.workspace-header,.directory-heading,.calendar-heading,.export-actions,.form-actions) { flex-wrap:wrap; gap:12px; }
- .workspace-shell :is(.table-wrap,.admin-entry-list) { max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; }
- .workspace-shell :is(.inventory-grid,.stock-tables,.repair-layout) { grid-template-columns:minmax(0,1fr); }
- .workspace-shell .fitted-parts form { flex-wrap:wrap; }
- .workspace-shell .client-rows { grid-template-columns:repeat(2,minmax(0,1fr)); overflow:visible; gap:10px; }
- .workspace-shell .client-rows article { min-width:0; grid-template-columns:1fr; gap:8px; }
- .workspace-shell .client-rows :is(h3,p,small) { white-space:normal; overflow-wrap:anywhere; }
- .workspace-shell .client-links { flex-wrap:wrap; }
+.mobile-menu-toggle {
+  display: none;
 }
-@media screen and (max-width:800px) {
- .workspace-shell { margin:0; max-width:none; padding:12px; }
- .workspace-shell .app-sidebar { position:sticky; top:0; z-index:40; width:auto; margin:-12px -12px 18px; padding:10px 14px; display:flex; flex-direction:row; align-items:center; flex-wrap:wrap; gap:10px; }
- .workspace-shell .sidebar-brand { width:145px; max-width:45%; padding:0; }
- .workspace-shell .mobile-menu-toggle { display:block; margin-left:auto; min-height:44px; padding:10px 16px; border:1px solid #80b7c1; border-radius:9px; color:white; background:#1b5866; font:inherit; cursor:pointer; }
- .workspace-shell .sidebar-menu { display:none; }
- .workspace-shell .mobile-menu-open .sidebar-menu { display:flex; flex-basis:100%; max-height:calc(100dvh - 100px); overflow:auto; }
- .workspace-shell .app-sidebar nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); overflow:visible; gap:6px; }
- .workspace-shell .app-sidebar nav button { min-width:0; min-height:44px; white-space:normal; }
- .workspace-shell .sidebar-account { display:grid; margin-top:12px; padding-top:12px; }
- .workspace-shell .workspace-header { align-items:flex-start; padding-bottom:16px; }
- .workspace-shell .workspace-header .brand img { width:105px; }
- .workspace-shell :is(h1,h2,h3,p,strong,span,a) { overflow-wrap:anywhere; }
- .workspace-shell :is(h1,h2) { font-size:clamp(21px,5vw,28px); }
- .workspace-shell :is(button,input:not([type=checkbox]):not([type=radio]):not([type=hidden]),select) { min-height:44px; }
- .workspace-shell :is(input,select,textarea) { font-size:16px; }
- .workspace-shell :is(.standalone-card,.directory,.access-card,.inventory-panel,.calendar-card,.filter-card,.import-card,.schema-card) { padding:14px; }
- .workspace-shell :is(.admin-grid,.inventory-grid,.stock-tables,.form-pair,.edit-user-form,.filter-controls,.access-grid,.contract-client-details,.signature-grid,.visit-device-form,.fieldwork-grid,.repair-form-grid,.repair-tools) { grid-template-columns:minmax(0,1fr); }
- .workspace-shell :is(.fieldwork-form,.fieldwork-list,.repair-form,.repair-register,.repair-detail) { padding:14px; min-width:0; }
- .workspace-shell :is(.import-card,.schema-card,.visit-device-heading,.report-link) { flex-wrap:wrap; }
- .workspace-shell .service-visit-picker { flex-basis:100%; width:100%; }
- .workspace-shell .contract-workspace-nav button { flex:1 1 auto; }
- .workspace-shell :is(.visit-device-list,.visit-summary,.signature-section) { margin:12px 0; }
- .workspace-shell .visit-summary { grid-template-columns:1fr; }
- .workspace-shell .fitted-parts form>* { flex:1 1 100%; width:100%; }
- .workspace-shell .client-rows { overflow:visible; grid-template-columns:1fr; }
- .workspace-shell .client-rows article { min-width:0; grid-template-columns:1fr; gap:8px; padding:14px; }
- .workspace-shell .client-rows :is(h3,p,small) { white-space:normal; }
- .workspace-shell .client-links { flex-wrap:wrap; }
- .workspace-shell .calendar-card { overflow:visible; }
- .workspace-shell .calendar-grid { min-width:0; grid-template-columns:repeat(7,minmax(0,1fr)); gap:3px; }
- .workspace-shell .calendar-weekdays { grid-template-columns:repeat(7,minmax(0,1fr)); font-size:11px; }
- .workspace-shell .calendar-day { min-width:0; min-height:58px; padding:5px 2px; position:relative; }
- .workspace-shell .calendar-day span { display:none; }
- .workspace-shell .calendar-day:has(span)::after { content:''; display:block; width:6px; height:6px; margin:5px auto 0; border-radius:50%; background:currentColor; }
- .workspace-shell .calendar-heading>div:last-child { display:flex; flex-wrap:wrap; gap:8px; }
- .workspace-shell dialog { max-width:calc(100vw - 24px); max-height:90dvh; overflow:auto; }
- .workspace-shell canvas { max-width:100%; touch-action:none; }
- .workspace-shell .field-form { min-width:0; }
- .workspace-shell .upload-control { min-width:0; width:100%; }
+.sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
-@media screen and (max-width:380px) {
- .workspace-shell .app-sidebar nav { grid-template-columns:1fr; }
- .workspace-shell .workspace-header .account-chip { flex-wrap:wrap; }
+@media screen and (max-width: 1024px) {
+  .workspace-shell {
+    min-width: 0;
+  }
+  .workspace-shell
+    :is(
+      .contract-content,
+      .contracts-layout,
+      .directory,
+      .access-card,
+      .inventory-panel,
+      .calendar-card,
+      .filter-card,
+      .admin-grid
+    )
+    > * {
+    min-width: 0;
+  }
+  .workspace-shell :is(input, select, textarea) {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .workspace-shell
+    :is(.workspace-header, .directory-heading, .calendar-heading, .export-actions, .form-actions) {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .workspace-shell :is(.table-wrap, .admin-entry-list) {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+  }
+  .workspace-shell :is(.inventory-grid, .stock-tables, .repair-layout) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell .fitted-parts form {
+    flex-wrap: wrap;
+  }
+  .workspace-shell .client-rows {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    gap: 10px;
+  }
+  .workspace-shell .client-rows article {
+    min-width: 0;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .workspace-shell .client-rows :is(h3, p, small) {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .workspace-shell .client-links {
+    flex-wrap: wrap;
+  }
+}
+@media screen and (max-width: 800px) {
+  .workspace-shell {
+    margin: 0;
+    max-width: none;
+    padding: 12px;
+  }
+  .workspace-shell .app-sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    width: auto;
+    margin: -12px -12px 18px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .workspace-shell .sidebar-brand {
+    width: 145px;
+    max-width: 45%;
+    padding: 0;
+  }
+  .workspace-shell .mobile-menu-toggle {
+    display: block;
+    margin-left: auto;
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 1px solid #80b7c1;
+    border-radius: 9px;
+    color: white;
+    background: #1b5866;
+    font: inherit;
+    cursor: pointer;
+  }
+  .workspace-shell .sidebar-menu {
+    display: none;
+  }
+  .workspace-shell .mobile-menu-open .sidebar-menu {
+    display: flex;
+    flex-basis: 100%;
+    max-height: calc(100dvh - 100px);
+    overflow: auto;
+  }
+  .workspace-shell .app-sidebar nav {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    overflow: visible;
+    gap: 6px;
+  }
+  .workspace-shell .app-sidebar nav button {
+    min-width: 0;
+    min-height: 44px;
+    white-space: normal;
+  }
+  .workspace-shell .sidebar-account {
+    display: grid;
+    margin-top: 12px;
+    padding-top: 12px;
+  }
+  .workspace-shell .workspace-header {
+    align-items: flex-start;
+    padding-bottom: 16px;
+  }
+  .workspace-shell .workspace-header .brand img {
+    width: 105px;
+  }
+  .workspace-shell :is(h1, h2, h3, p, strong, span, a) {
+    overflow-wrap: anywhere;
+  }
+  .workspace-shell :is(h1, h2) {
+    font-size: clamp(21px, 5vw, 28px);
+  }
+  .workspace-shell
+    :is(button, input:not([type='checkbox']):not([type='radio']):not([type='hidden']), select) {
+    min-height: 44px;
+  }
+  .workspace-shell :is(input, select, textarea) {
+    font-size: 16px;
+  }
+  .workspace-shell
+    :is(
+      .standalone-card,
+      .directory,
+      .access-card,
+      .inventory-panel,
+      .calendar-card,
+      .filter-card,
+      .import-card,
+      .schema-card
+    ) {
+    padding: 14px;
+  }
+  .workspace-shell
+    :is(
+      .admin-grid,
+      .inventory-grid,
+      .stock-tables,
+      .form-pair,
+      .edit-user-form,
+      .filter-controls,
+      .access-grid,
+      .contract-client-details,
+      .signature-grid,
+      .visit-device-form,
+      .fieldwork-grid,
+      .repair-form-grid,
+      .repair-tools
+    ) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .workspace-shell
+    :is(.fieldwork-form, .fieldwork-list, .repair-form, .repair-register, .repair-detail) {
+    padding: 14px;
+    min-width: 0;
+  }
+  .workspace-shell :is(.import-card, .schema-card, .visit-device-heading, .report-link) {
+    flex-wrap: wrap;
+  }
+  .workspace-shell .service-visit-picker {
+    flex-basis: 100%;
+    width: 100%;
+  }
+  .workspace-shell .contract-workspace-nav button {
+    flex: 1 1 auto;
+  }
+  .workspace-shell :is(.visit-device-list, .visit-summary, .signature-section) {
+    margin: 12px 0;
+  }
+  .workspace-shell .visit-summary {
+    grid-template-columns: 1fr;
+  }
+  .workspace-shell .fitted-parts form > * {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+  .workspace-shell .client-rows {
+    overflow: visible;
+    grid-template-columns: 1fr;
+  }
+  .workspace-shell .client-rows article {
+    min-width: 0;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px;
+  }
+  .workspace-shell .client-rows :is(h3, p, small) {
+    white-space: normal;
+  }
+  .workspace-shell .client-links {
+    flex-wrap: wrap;
+  }
+  .workspace-shell .calendar-card {
+    overflow: visible;
+  }
+  .workspace-shell .calendar-grid {
+    min-width: 0;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    gap: 3px;
+  }
+  .workspace-shell .calendar-weekdays {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    font-size: 11px;
+  }
+  .workspace-shell .calendar-day {
+    min-width: 0;
+    min-height: 58px;
+    padding: 5px 2px;
+    position: relative;
+  }
+  .workspace-shell .calendar-day span {
+    display: none;
+  }
+  .workspace-shell .calendar-day:has(span)::after {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    margin: 5px auto 0;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .workspace-shell .calendar-heading > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .workspace-shell dialog {
+    max-width: calc(100vw - 24px);
+    max-height: 90dvh;
+    overflow: auto;
+  }
+  .workspace-shell canvas {
+    max-width: 100%;
+    touch-action: none;
+  }
+  .workspace-shell .field-form {
+    min-width: 0;
+  }
+  .workspace-shell .upload-control {
+    min-width: 0;
+    width: 100%;
+  }
+}
+@media screen and (max-width: 380px) {
+  .workspace-shell .app-sidebar nav {
+    grid-template-columns: 1fr;
+  }
+  .workspace-shell .workspace-header .account-chip {
+    flex-wrap: wrap;
+  }
 }

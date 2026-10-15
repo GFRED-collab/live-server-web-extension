@@ -18,7 +18,8 @@ if (!Array.isArray(parsed)) throw new Error('expenses.json must contain an array
 
 let historiesRemoved = 0;
 for (const expense of parsed) {
-  if (!expense || typeof expense !== 'object' || Array.isArray(expense)) throw new Error('expenses.json contains an invalid expense.');
+  if (!expense || typeof expense !== 'object' || Array.isArray(expense))
+    throw new Error('expenses.json contains an invalid expense.');
   if (Object.hasOwn(expense, 'reviewHistory')) {
     delete expense.reviewHistory;
     historiesRemoved += 1;
@@ -33,9 +34,13 @@ if (historiesRemoved) {
   await chmod(expensesFile, 0o600);
 }
 
-const referenced = new Set(parsed.map(expense => expense.receiptFile).filter(value => typeof value === 'string'));
+const referenced = new Set(
+  parsed.map(expense => expense.receiptFile).filter(value => typeof value === 'string')
+);
 const stored = await readdir(receiptsDir, { withFileTypes: true });
-const orphaned = stored.filter(entry => entry.isFile() && receiptName.test(entry.name) && !referenced.has(entry.name));
+const orphaned = stored.filter(
+  entry => entry.isFile() && receiptName.test(entry.name) && !referenced.has(entry.name)
+);
 
 if (orphaned.length) {
   await mkdir(quarantineDir, { recursive: true, mode: 0o700 });

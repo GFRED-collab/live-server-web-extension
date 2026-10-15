@@ -1,359 +1,1520 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Expense Reports · Oxygen Care</title>
-<style>
-body{font:16px system-ui;color:#183f4b;margin:0;background:#effbff}.app{max-width:860px;margin:auto;background:#fff;min-height:100vh;padding:20px}.bar{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #cfeaf2;padding-bottom:14px}.bar img{width:136px}a,button{color:#277b91;font-weight:700}select,input,button{padding:8px;margin:5px}.card{border:1px solid #cfeaf2;border-radius:14px;padding:16px;margin-top:16px}table{width:100%;border-collapse:collapse;font-size:13px}td,th{padding:8px;border-bottom:1px solid #e8f2f5;text-align:left}.actions{margin-top:10px}.chart-wrap{overflow-x:auto;border:1px solid #e2f0f4;border-radius:10px;padding:10px;background:#fcfeff}.chart{display:block;width:100%;min-width:560px;height:auto}.chart-key{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 0;font-size:12px}.chart-key span{display:inline-flex;align-items:center;gap:5px}.chart-key i{width:10px;height:10px;border-radius:50%;display:inline-block}.chart-empty{padding:25px;text-align:center;color:#56747d}
-@media print{@page{margin:8mm}*,*::before,*::after{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}.no-print,#back,.pager,button{display:none!important}.app{max-width:none;padding:0}.bar{padding:0 0 6px;border-width:2px}.bar img{width:92px}.card{border:0;padding:0;margin:8px 0 0}.card h1{font-size:18px;margin:6px 0}.card h2{font-size:14px;margin:7px 0}table{font-size:9px;line-height:1.15}td,th{padding:3px 4px}th{font-size:8px;white-space:nowrap}td:first-child,td:nth-child(2),td:nth-child(3),td:nth-child(5),td:last-child{white-space:nowrap}body.print-expenses #odometerReport,body.print-expenses #reimbursementReport,body.print-expenses #chartBuilder,body.print-odometer #expenseReport,body.print-odometer #reimbursementReport,body.print-odometer #chartBuilder,body.print-reimbursement #expenseReport,body.print-reimbursement #odometerReport,body.print-reimbursement #chartBuilder,body.print-chart #expenseReport,body.print-chart #odometerReport,body.print-chart #reimbursementReport{display:none}}
-#reimbursementComposer .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-#reimbursementComposer .field{display:block;margin:12px 0}
-#reimbursementComposer .field input,#reimbursementComposer textarea{display:block;box-sizing:border-box;width:100%;margin:6px 0}
-#reimbursementComposer .expense{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #e8f2f5}
-#reimbursementComposer .grow{flex:1;min-width:0;overflow-wrap:anywhere}
-#reimbursementComposer .actions{display:flex;flex-wrap:wrap;gap:8px}
-#reimbursementComposer .meta{font-size:13px;color:#63818a}
-#reimbursementComposer .notice{padding:12px;background:#fff4ef}
-#reimbursementComposer .success{background:#eaf7f5}
-</style>
-</head>
-<body>
-<main class="app">
-<header class="bar">
-<img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care">
-<a id="back" href="/">Back</a>
-</header>
-<section id="expenseReport" class="card">
-<h1>Expense report</h1>
-<div class="no-print">
-<label>From <input id="from" type="date">
-</label>
-<label>To <input id="to" type="date">
-</label>
-<label>Department <select id="dept">
-<option value="All">All</option>
-</select>
-</label>
-<label>User <select id="user">
-<option value="">All</option>
-</select>
-</label>
-<label>Category <select id="category">
-<option value="All">All</option>
-</select>
-</label>
-<div class="actions">
-<button id="csv">Download CSV</button>
-<button id="print">Print / Save PDF</button>
-</div>
-</div>
-<h2 id="total">Loading…</h2>
-<table>
-<thead>
-<tr>
-<th>Date</th>
-<th>User</th>
-<th>Department</th>
-<th>Merchant</th>
-<th>Category</th>
-<th>Note</th>
-<th>Amount</th>
-</tr>
-</thead>
-<tbody id="rows">
-</tbody>
-</table>
-</section>
-<section id="odometerReport" class="card">
-<h1>Odometer report</h1>
-<div class="no-print">
-<label>From month <input id="odoFrom" type="month">
-</label>
-<label>To month <input id="odoTo" type="month">
-</label>
-<label>Department <select id="odoDept">
-<option value="All">All</option>
-</select>
-</label>
-<label>User <select id="odoUser">
-<option value="">All</option>
-</select>
-</label>
-<div class="actions">
-<button id="odoCsv">Download CSV</button>
-<button id="odoPrint">Print / Save PDF</button>
-</div>
-</div>
-<h2 id="odoTotal">Loading…</h2>
-<table>
-<thead>
-<tr>
-<th>Month</th>
-<th>User</th>
-<th>Department</th>
-<th>Car 1 Opening</th>
-<th>Car 1 Closing</th>
-<th>Car 1 KM</th>
-<th>Car 2 Opening</th>
-<th>Car 2 Closing</th>
-<th>Car 2 KM</th>
-<th>Combined KM</th>
-</tr>
-</thead>
-<tbody id="odoRows">
-</tbody>
-</table>
-</section>
-<section id="reimbursementReport" class="card">
-<div id="reimbursementComposer" class="no-print"></div>
-<h1>Reimbursement lookup</h1>
-<div class="no-print">
-<label>From <input id="reimbFrom" type="date">
-</label>
-<label>To <input id="reimbTo" type="date">
-</label>
-<label>Department <select id="reimbDept">
-<option value="All">All</option>
-</select>
-</label>
-<label>User <select id="reimbUser">
-<option value="">All</option>
-</select>
-</label>
-<label>Status <select id="reimbStatus">
-<option value="All">All</option>
-<option value="sent">Sent / unread</option>
-<option value="dismissed">Viewed / dismissed</option>
-</select>
-</label>
-<div class="actions">
-<button id="reimbCsv">Download CSV</button>
-<button id="reimbPrint">Print / Save PDF</button>
-</div>
-</div>
-<h2 id="reimbTotal">Loading…</h2>
-<table>
-<thead>
-<tr>
-<th>Sent</th>
-<th>User</th>
-<th>Department</th>
-<th>Message</th>
-<th>Amount</th>
-<th>Payment date</th>
-<th>Reference</th>
-<th>Expenses</th>
-<th>Status</th>
-</tr>
-</thead>
-<tbody id="reimbRows">
-</tbody>
-</table>
-</section>
-<section id="chartBuilder" class="card">
-<h1>Chart builder</h1>
-<p>Summarise filtered reporting data. Free-text fields such as merchant names and notes are deliberately excluded.</p>
-<div class="no-print">
-<label>Report data <select id="chartData">
-<option value="expenses">Expenses</option>
-<option value="odometer">Odometer</option>
-<option value="reimbursements">Reimbursements</option>
-</select>
-</label>
-<label>Measure <select id="chartMeasure">
-</select>
-</label>
-<label>Group by <select id="chartGroup">
-</select>
-</label>
-<label>Chart type <select id="chartType">
-<option value="bar">Bar</option>
-<option value="line">Line</option>
-<option value="pie">Pie</option>
-</select>
-</label>
-<br>
-<label>From <input id="chartFrom" type="date">
-</label>
-<label>To <input id="chartTo" type="date">
-</label>
-<label>Department <select id="chartDept">
-<option value="All">All</option>
-</select>
-</label>
-<label>User <select id="chartUser">
-<option value="">All</option>
-</select>
-</label>
-<label id="chartCategoryLabel">Category <select id="chartCategory">
-<option value="All">All</option>
-</select>
-</label>
-<label id="chartStatusLabel">Status <select id="chartStatus">
-<option value="All">All</option>
-<option value="pending">Pending</option>
-<option value="approved">Approved</option>
-<option value="declined">Declined</option>
-<option value="question">Questioned</option>
-<option value="sent">Sent / unread</option>
-<option value="dismissed">Viewed / dismissed</option>
-</select>
-</label>
-<div class="actions">
-<button id="chartPrint">Print / Save PDF</button>
-</div>
-</div>
-<h2 id="chartTotal">Loading chart…</h2>
-<div class="chart-wrap">
-<svg id="chartSvg" class="chart" viewBox="0 0 720 330" role="img" aria-label="Report chart">
-</svg>
-<div id="chartKey" class="chart-key">
-</div>
-</div>
-</section>
-</main>
-<script src="/csv.js"></script>
-<script src="/http.js">
-</script>
-<script>
-</script>
-<script>
-let all=[];const api=window.oxygenApi,$=s=>document.querySelector(s),money=n=>new Intl.NumberFormat(undefined,{style:'currency',currency:'EUR'}).format(Number(n)||0),cell=(row,value)=>{const td=document.createElement('td');td.textContent=value;row.append(td)};
-const printRange=document.createElement('select'),printRangeLabel=document.createElement('label');printRange.id='printRange';printRange.append(new Option('Current page','page'),new Option('All filtered results','all'));printRangeLabel.append('Print ',printRange);$('#print').before(printRangeLabel);
-const reportQuery=new URLSearchParams(location.search),reportTab=['expenses','reimbursements','odometer','charts'].includes(reportQuery.get('tab'))?reportQuery.get('tab'):'expenses';
-const reportTabs={expenses:{label:'Expense Report',section:'#expenseReport'},reimbursements:{label:'Reimbursements',section:'#reimbursementReport'},odometer:{label:'Odometer',section:'#odometerReport'},charts:{label:'Chart Builder',section:'#chartBuilder'}};
-function configureReportTabs(){const bar=document.querySelector('.bar'),tabs=document.createElement('nav'),returnTo=reportQuery.get('returnTo');tabs.className='no-print';tabs.setAttribute('aria-label','Report sections');tabs.style.cssText='display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0';Object.entries(reportTabs).forEach(([key,tab])=>{const link=document.createElement('a'),query=new URLSearchParams({tab:key});if(returnTo)query.set('returnTo',returnTo);link.href=`/reports.html?${query}`;link.textContent=tab.label;link.style.cssText=`padding:8px 11px;border:1px solid #cfeaf2;border-radius:8px;text-decoration:none;${key===reportTab?'background:#277b91;color:#fff;border-color:#277b91':''}`;if(key===reportTab)link.setAttribute('aria-current','page');tabs.append(link);$(tab.section).hidden=key!==reportTab});bar.after(tabs)}
-configureReportTabs();
-function selected(){return all.filter(expense=>(!$('#from').value||expense.date>=$('#from').value)&&(!$('#to').value||expense.date<=$('#to').value)&&($('#dept').value==='All'||expense.user.department===$('#dept').value)&&(!$('#user').value||expense.user.id===$('#user').value)&&($('#category').value==='All'||expense.category===$('#category').value))}
-const personName=user=>user.fullName||user.email;
-const pageSize=20,pages={expenses:1,odometer:1,reimbursements:1};
-function pageRows(sectionId,key,rows,draw){const total=Math.max(1,Math.ceil(rows.length/pageSize));pages[key]=Math.min(Math.max(1,pages[key]),total);const section=$(sectionId);let controls=section.querySelector('.pager');if(!controls){controls=document.createElement('div');controls.className='actions no-print pager';section.append(controls)}const previous=document.createElement('button'),next=document.createElement('button'),label=document.createElement('span');previous.type=next.type='button';previous.textContent='Previous';next.textContent='Next';label.textContent=` Page ${pages[key]} of ${total} `;previous.disabled=pages[key]===1;next.disabled=pages[key]===total;previous.onclick=()=>{pages[key]--;draw()};next.onclick=()=>{pages[key]++;draw()};controls.replaceChildren(previous,label,next);return rows.slice((pages[key]-1)*pageSize,pages[key]*pageSize)}
-function receiptCell(row,expense){const td=document.createElement('td');if(expense.hasReceipt){const link=document.createElement('a'),returnTo=`${location.pathname}${location.search}`;link.href=`/api/expenses/${encodeURIComponent(expense.id)}/receipt/view?returnTo=${encodeURIComponent(returnTo)}`;link.textContent='View receipt';td.append(link)}else td.textContent='—';row.append(td)}
-function openExpense(event,expense){if(event.target.closest('a,button'))return;const details=new URLSearchParams({userId:expense.user.id,expenseId:expense.id,review:'super',returnTo:'reports',reportReturn:`${location.pathname}${location.search}`});location.href=`/expense-detail.html?${details}`}
-function expenseRow(expense){const row=document.createElement('tr');row.className='expense-row';row.tabIndex=0;row.setAttribute('aria-label',`Open ${expense.merchant} expense for ${personName(expense.user)}`);row.onclick=event=>openExpense(event,expense);row.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();openExpense(event,expense)}};cell(row,expense.date);cell(row,personName(expense.user));cell(row,expense.user.department);cell(row,expense.merchant);cell(row,expense.category);cell(row,expense.note||'—');cell(row,money(expense.amount));receiptCell(row,expense);return row}
-function draw(reset=false){if(reset)pages.expenses=1;const rows=selected().sort((a,b)=>String(b.date).localeCompare(String(a.date))),fuelCard=rows.filter(expense=>expense.companyPaid===true),userPaid=rows.filter(expense=>expense.companyPaid!==true);$('#total').textContent=`${rows.length} expenses · Expenses: ${money(userPaid.reduce((sum,expense)=>sum+Number(expense.amount||0),0))} · Company paid: ${money(fuelCard.reduce((sum,expense)=>sum+Number(expense.amount||0),0))}`;const header=$('#expenseReport thead tr');if(!header.querySelector('.receipt-heading')){const heading=document.createElement('th');heading.className='receipt-heading';heading.textContent='Receipt';header.append(heading)}const visible=pageRows('#expenseReport','expenses',rows,draw);$('#rows').replaceChildren(...visible.map(expenseRow))}
-function downloadCsv(){const rows=selected(),quote=window.oxygenCsvCell;const csv=[['Date','User','Department','Merchant','Category','Amount','Currency','Note','Review status','Review note'],...rows.map(expense=>[expense.date,personName(expense.user),expense.user.department,expense.merchant,expense.category,expense.amount,expense.currency||'EUR',expense.note||'',expense.reviewStatus||'pending',expense.reviewNote||''])].map(row=>row.map(quote).join(',')).join('\r\n');const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.download=`oxygen-care-expense-report-${new Date().toISOString().slice(0,10)}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)}
-let odometer=[];
-function selectedOdometer(){return odometer.filter(reading=>(!$('#odoFrom').value||reading.month>=$('#odoFrom').value)&&(!$('#odoTo').value||reading.month<=$('#odoTo').value)&&($('#odoDept').value==='All'||reading.user.department===$('#odoDept').value)&&(!$('#odoUser').value||reading.user.id===$('#odoUser').value))}
-function drawOdometer(reset=false){if(reset)pages.odometer=1;const rows=selectedOdometer().sort((a,b)=>b.month.localeCompare(a.month)),display=value=>value==null?'—':Number(value).toLocaleString();$('#odoTotal').textContent=`${rows.length} monthly reading${rows.length===1?'':'s'} · ${rows.reduce((sum,row)=>sum+Number(row.kilometres||0),0).toLocaleString()} KM combined`;const visible=pageRows('#odometerReport','odometer',rows,drawOdometer);$('#odoRows').replaceChildren(...visible.map(reading=>{const row=document.createElement('tr');cell(row,reading.month);cell(row,personName(reading.user));cell(row,reading.user.department||'—');for(const value of [reading.car1OpeningReading,reading.car1ClosingReading,reading.car1Kilometres,reading.car2OpeningReading,reading.car2ClosingReading,reading.car2Kilometres,reading.kilometres])cell(row,display(value));return row}))}
-function downloadOdometerCsv(){const rows=selectedOdometer(),quote=window.oxygenCsvCell;const csv=[['Month','User','Department','Car 1 opening KM','Car 1 closing KM','Car 1 total KM','Car 2 opening KM','Car 2 closing KM','Car 2 total KM','Combined KM'],...rows.map(reading=>[reading.month,personName(reading.user),reading.user.department||'',reading.car1OpeningReading,reading.car1ClosingReading,reading.car1Kilometres,reading.car2OpeningReading,reading.car2ClosingReading,reading.car2Kilometres,reading.kilometres])].map(row=>row.map(quote).join(',')).join('\r\n');const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.download=`oxygen-care-odometer-report-${new Date().toISOString().slice(0,10)}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)}
-function printOnly(mode){document.body.classList.add(mode);print();setTimeout(()=>document.body.classList.remove(mode),1000)}
-function printExpenses(){if(printRange.value==='all')$('#rows').replaceChildren(...selected().sort((a,b)=>String(b.date).localeCompare(String(a.date))).map(expenseRow));document.body.classList.add('print-expenses');const restore=()=>{document.body.classList.remove('print-expenses');draw()};addEventListener('afterprint',restore,{once:true});print();setTimeout(()=>{if(document.body.classList.contains('print-expenses'))restore()},2000)}
-api('/api/reports/expenses').then(data=>{all=data.expenses;for(const value of data.departments)$('#dept').add(new Option(value,value));for(const person of data.users)$('#user').add(new Option(personName(person),person.id));for(const category of [...new Set(all.map(expense=>expense.category).filter(Boolean))].sort())$('#category').add(new Option(category,category));for(const id of ['from','to','dept','user','category'])$('#'+id).onchange=()=>draw(true);draw(true);refreshChart()}).catch(error=>$('#total').textContent=error.message);
-api('/api/reports/odometer').then(data=>{odometer=data.readings;for(const value of data.departments)$('#odoDept').add(new Option(value,value));for(const person of data.users)$('#odoUser').add(new Option(personName(person),person.id));for(const id of ['odoFrom','odoTo','odoDept','odoUser'])$('#'+id).onchange=()=>drawOdometer(true);drawOdometer(true);refreshChart()}).catch(error=>$('#odoTotal').textContent=error.message);
-let reimbursements=[];
-function selectedReimbursements(){return reimbursements.filter(item=>(!$('#reimbFrom').value||item.sentAt.slice(0,10)>=$('#reimbFrom').value)&&(!$('#reimbTo').value||item.sentAt.slice(0,10)<=$('#reimbTo').value)&&($('#reimbDept').value==='All'||item.user.department===$('#reimbDept').value)&&(!$('#reimbUser').value||item.user.id===$('#reimbUser').value)&&($('#reimbStatus').value==='All'||($('#reimbStatus').value==='dismissed')===Boolean(item.dismissedAt)))}
-function drawReimbursements(reset=false){if(reset)pages.reimbursements=1;const rows=selectedReimbursements().sort((a,b)=>String(b.sentAt).localeCompare(String(a.sentAt)));$('#reimbTotal').textContent=`${rows.length} reimbursement notice${rows.length===1?'':'s'} · ${money(rows.reduce((sum,item)=>sum+Number(item.amount||0),0))}`;const visible=pageRows('#reimbursementReport','reimbursements',rows,drawReimbursements);$('#reimbRows').replaceChildren(...visible.map(item=>{const row=document.createElement('tr');cell(row,new Date(item.sentAt).toLocaleDateString());cell(row,personName(item.user));cell(row,item.user.department||'—');cell(row,item.message);cell(row,item.amount == null?'—':money(item.amount));cell(row,item.paymentDate||'—');cell(row,item.reference||'—');cell(row,item.expenseCount??'—');cell(row,item.dismissedAt?'Viewed / dismissed':'Sent / unread');return row}))}
-function downloadReimbursementCsv(){const rows=selectedReimbursements(),quote=window.oxygenCsvCell;const csv=[['Sent','User','Department','Message','Amount','Currency','Payment date','Reference','Expense count','Expense IDs','Status','Viewed/dismissed at'],...rows.map(item=>[item.sentAt,personName(item.user),item.user.department||'',item.message,item.amount ?? '',item.currency||'EUR',item.paymentDate||'',item.reference||'',item.expenseCount??'',Array.isArray(item.expenseIds)?item.expenseIds.join(' '):'',item.dismissedAt?'Viewed / dismissed':'Sent / unread',item.dismissedAt||''])].map(row=>row.map(quote).join(',')).join('\r\n');const link=document.createElement('a');link.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));link.download=`oxygen-care-reimbursement-lookup-${new Date().toISOString().slice(0,10)}.csv`;link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1000)}
-const chartColours=['#277b91','#ee7b30','#65b9d2','#f2b544','#6b9d64','#9369a3','#d2697a','#58728d','#9b814f','#3d9d93'];
-const chartOptions={expenses:{measures:[['amount','Total spend'],['count','Expense count']],groups:[['month','Month'],['department','Department'],['user','User'],['category','Category'],['status','Review status']]},odometer:{measures:[['kilometres','Total KM'],['count','Reading count']],groups:[['month','Month'],['department','Department'],['user','User']]},reimbursements:{measures:[['amount','Total notified'],['count','Notification count']],groups:[['month','Month'],['department','Department'],['user','User'],['status','Notification status']]}};
-function replaceOptions(select,values,selected){select.replaceChildren(...values.map(([value,label])=>new Option(label,value)));if(values.some(([value])=>value===selected))select.value=selected}
-function chartUsers(){const people=new Map;for(const item of [...all,...odometer,...reimbursements])if(item.user)people.set(item.user.id,item.user);return [...people.values()].sort((a,b)=>personName(a).localeCompare(personName(b)))}
-function updateChartControls(){const type=$('#chartData').value,config=chartOptions[type],oldMeasure=$('#chartMeasure').value,oldGroup=$('#chartGroup').value;replaceOptions($('#chartMeasure'),config.measures,oldMeasure);replaceOptions($('#chartGroup'),config.groups,oldGroup);const categories=[...new Set(all.map(item=>item.category).filter(Boolean))].sort(),showCategory=type==='expenses',showStatus=type!=='odometer';$('#chartCategoryLabel').hidden=!showCategory;$('#chartStatusLabel').hidden=!showStatus;replaceOptions($('#chartDept'),[['All','All'],...chartUsers().map(person=>[person.department||'',person.department||'Unassigned']).filter(([value],index,items)=>value&&items.findIndex(item=>item[0]===value)===index)],$('#chartDept').value);replaceOptions($('#chartUser'),[['','All'],...chartUsers().map(person=>[person.id,personName(person)])],$('#chartUser').value);replaceOptions($('#chartCategory'),[['All','All'],...categories.map(value=>[value,value])],$('#chartCategory').value);const statuses=type==='reimbursements'?[['All','All'],['sent','Sent / unread'],['dismissed','Viewed / dismissed']]:[['All','All'],['pending','Pending'],['approved','Approved'],['declined','Declined'],['question','Questioned']];replaceOptions($('#chartStatus'),statuses,$('#chartStatus').value)}
-function chartSource(){return $('#chartData').value==='expenses'?all:$('#chartData').value==='odometer'?odometer:reimbursements}
-function chartDate(item,type){return type==='odometer'?item.month:type==='reimbursements'?String(item.sentAt||'').slice(0,10):item.date}
-function chartStatus(item,type){return type==='reimbursements'?(item.dismissedAt?'dismissed':'sent'):(item.reviewStatus||'pending')}
-function selectedChart(){const type=$('#chartData').value,from=$('#chartFrom').value,to=$('#chartTo').value;return chartSource().filter(item=>{const date=chartDate(item,type),dateFrom=type==='odometer'?(from?from.slice(0,7):''):from,dateTo=type==='odometer'?(to?to.slice(0,7):''):to;return(!dateFrom||date>=dateFrom)&&(!dateTo||date<=dateTo)&&($('#chartDept').value==='All'||item.user.department===$('#chartDept').value)&&(!$('#chartUser').value||item.user.id===$('#chartUser').value)&&(type!=='expenses'||$('#chartCategory').value==='All'||item.category===$('#chartCategory').value)&&(type==='odometer'||$('#chartStatus').value==='All'||chartStatus(item,type)===$('#chartStatus').value)})}
-function chartLabel(item,type,group){if(group==='month')return type==='odometer'?item.month:chartDate(item,type).slice(0,7);if(group==='department')return item.user.department||'Unassigned';if(group==='user')return personName(item.user);if(group==='category')return item.category||'Uncategorised';return chartStatus(item,type).replace(/^./,letter=>letter.toUpperCase())}
-function chartValue(item,type,measure){return measure==='count'?1:Number(type==='odometer'?item.kilometres:item.amount||0)}
-function svgNode(name,attributes={},textValue){const node=document.createElementNS('http://www.w3.org/2000/svg',name);for(const [name,value] of Object.entries(attributes))node.setAttribute(name,String(value));if(textValue!==undefined)node.textContent=textValue;return node}
-function chartNumber(value,type,measure){return measure==='count'?String(value):type==='odometer'?`${Math.round(value).toLocaleString()} KM`:money(value)}
-function chartLegend(colour,textValue){const item=document.createElement('span'),dot=document.createElement('i');dot.style.background=colour;item.append(dot,document.createTextNode(textValue));return item}
-function drawChart(){const type=$('#chartData').value,measure=$('#chartMeasure').value,group=$('#chartGroup').value,kind=$('#chartType').value,totals=new Map;for(const item of selectedChart()){const label=chartLabel(item,type,group);totals.set(label,(totals.get(label)||0)+chartValue(item,type,measure))}const entries=[...totals.entries()].sort((a,b)=>group==='month'?a[0].localeCompare(b[0]):b[1]-a[1]||a[0].localeCompare(b[0])),total=entries.reduce((sum,[,value])=>sum+value,0),svg=$('#chartSvg'),key=$('#chartKey');svg.replaceChildren();key.replaceChildren();$('#chartTotal').textContent=entries.length?`${chartNumber(total,type,measure)} · ${entries.length} group${entries.length===1?'':'s'}`:'No data matches these filters.';if(!entries.length){svg.append(svgNode('text',{x:360,y:165,'text-anchor':'middle',fill:'#56747d','font-size':16},'No chart data available'));return}const shown=(kind==='pie'?entries.slice(0,10):entries.slice(0,12)),max=Math.max(...shown.map(([,value])=>value),1);if(kind==='pie'){let start=-Math.PI/2;for(let index=0;index<shown.length;index++){const [label,value]=shown[index],angle=value/total*Math.PI*2,end=start+angle,x1=360+115*Math.cos(start),y1=150+115*Math.sin(start),x2=360+115*Math.cos(end),y2=150+115*Math.sin(end),large=angle>Math.PI?1:0,colour=chartColours[index%chartColours.length];svg.append(svgNode('path',{d:`M 360 150 L ${x1} ${y1} A 115 115 0 ${large} 1 ${x2} ${y2} Z`,fill:colour}));key.append(chartLegend(colour,`${label}: ${chartNumber(value,type,measure)}`));start=end}}else{const left=62,bottom=270,width=620,height=195;svg.append(svgNode('line',{x1:left,y1:bottom,x2:left+width,y2:bottom,stroke:'#a9cbd4'}));svg.append(svgNode('line',{x1:left,y1:55,x2:left,y2:bottom,stroke:'#a9cbd4'}));for(let tick=0;tick<=4;tick++){const y=bottom-height*tick/4,value=max*tick/4;svg.append(svgNode('line',{x1:left,y1:y,x2:left+width,y2:y,stroke:'#e7f1f4'}));svg.append(svgNode('text',{x:left-7,y:y+4,'text-anchor':'end',fill:'#56747d','font-size':10},chartNumber(value,type,measure)))}const gap=width/shown.length,points=[];shown.forEach(([label,value],index)=>{const x=left+gap*(index+.5),barWidth=Math.min(38,gap*.68),y=bottom-height*value/max;points.push(`${x},${y}`);if(kind==='bar')svg.append(svgNode('rect',{x:x-barWidth/2,y,width:barWidth,height:bottom-y,rx:3,fill:chartColours[index%chartColours.length]}));svg.append(svgNode('text',{x,y:bottom+16,'text-anchor':'middle',fill:'#45616b','font-size':10},label.length>13?`${label.slice(0,12)}…`:label));svg.append(svgNode('text',{x,y:y-7,'text-anchor':'middle',fill:'#31545f','font-size':10},chartNumber(value,type,measure)));});if(kind==='line'){svg.append(svgNode('polyline',{points:points.join(' '),fill:'none',stroke:'#277b91','stroke-width':3}));points.forEach(point=>{const [cx,cy]=point.split(',');svg.append(svgNode('circle',{cx,cy,r:4,fill:'#ee7b30'}))})}}}
-function refreshChart(){updateChartControls();drawChart()}
-for(const id of ['chartData','chartMeasure','chartGroup','chartType','chartFrom','chartTo','chartDept','chartUser','chartCategory','chartStatus'])$('#'+id).onchange=()=>{if(id==='chartData')updateChartControls();drawChart()};
-$('#chartPrint').onclick=()=>{document.body.classList.add('print-chart');print();setTimeout(()=>document.body.classList.remove('print-chart'),1000)};refreshChart();
-api('/api/reports/reimbursements').then(data=>{reimbursements=data.reimbursements;for(const value of data.departments)$('#reimbDept').add(new Option(value,value));for(const person of data.users)$('#reimbUser').add(new Option(personName(person),person.id));for(const id of ['reimbFrom','reimbTo','reimbDept','reimbUser','reimbStatus'])$('#'+id).onchange=()=>drawReimbursements(true);drawReimbursements(true);refreshChart()}).catch(error=>$('#reimbTotal').textContent=error.message);
-$('#csv').onclick=downloadCsv;$('#odoCsv').onclick=downloadOdometerCsv;$('#reimbCsv').onclick=downloadReimbursementCsv;$('#print').onclick=printExpenses;$('#odoPrint').onclick=()=>printOnly('print-odometer');$('#reimbPrint').onclick=()=>printOnly('print-reimbursement');$('#back').onclick=event=>{event.preventDefault();const requested=new URLSearchParams(location.search).get('returnTo');const allowed=new Set(['home','users','profile']);const returnTo=allowed.has(requested)?requested:'home';location.replace(returnTo==='home'?'/' : `/?view=${encodeURIComponent(returnTo)}`)};
-(() => {
-  if (reportTab !== 'reimbursements') return;
-  const root = document.querySelector('#reimbursementComposer');
-  const api = window.oxygenApi, euro = money;
-  const dateToday = () => { const parts = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Dublin', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(new Date()); const part = type => parts.find(item => item.type === type).value; return `${part('year')}-${part('month')}-${part('day')}`; };
-  const expenseAmount = records => records.reduce((sum, record) => sum + Number(record.amount || 0), 0);
-  function element(tag, attributes = {}, ...children) {
-    const node = document.createElement(tag);
-    for (const [key, value] of Object.entries(attributes)) {
-      if (key === 'class') node.className = value;
-      else if (key === 'text') node.textContent = value;
-      else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
-      else node.setAttribute(key, value);
-    }
-    node.append(...children.filter(Boolean)); return node;
-  }
-  function button(text, action, className = 'secondary') { return element('button', { type: 'button', class: className, text, onclick: action }); }
-  function card(...children) { return element('section', { class: 'card' }, ...children); }
-  function notice(message, ok = false) { return element('p', { class: `notice${ok ? ' success' : ''}`, text: message }); }
-
-  const details = element('div');
-  const setContent = (...children) => details.replaceChildren(...children);
-  const closeComposer = () => { details.replaceChildren(); };
-  const refreshHistory = () => api('/api/reports/reimbursements').then(data => { reimbursements = data.reimbursements; drawReimbursements(); refreshChart(); }).catch(() => details.append(notice('Notice sent. Reload this page to refresh reimbursement history.')));
-  async function reimbursementPage(person) {
-    setContent(card(element('div', { class: 'label', text: 'CREATE REIMBURSEMENT' }), element('div', { class: 'meta', text: `Loading approved expenses for ${personName(person)}…` })));
-    try {
-      const data = await api(`/api/users/${person.id}/reimbursement-candidates`), eligible = data.expenses;
-      if (!eligible.length) return setContent(card(element('div', { class: 'label', text: 'CREATE REIMBURSEMENT' }), element('h2', { text: personName(person) }), notice('This employee has no approved expenses awaiting reimbursement.'), element('div', { class: 'actions' }, button('Back to reimbursements', closeComposer))));
-      const paymentDate = element('input', { type: 'date', value: dateToday() });
-      const reference = element('input', { maxlength: '80', placeholder: 'e.g. Bank transfer 19 Sep 2026' });
-      const message = element('textarea', { maxlength: '300', rows: '5' });
-      const total = element('strong'), preview = element('div'), status = element('div'), expenseList = element('div', { class: 'expense-stack' });
-      let messageEdited = false;
-      const selections = eligible.map(expense => {
-        const checkbox = element('input', { type: 'checkbox', class: 'reimbursement-choice' }); checkbox.checked = true;
-        const row = element('label', { class: 'expense reimbursement-expense' }, checkbox, element('div', { class: 'grow' }, element('strong', { text: expense.merchant }), element('div', { class: 'meta', text: `${new Date(`${expense.date}T12:00:00`).toLocaleDateString()} · ${expense.category}${expense.note ? ` · ${expense.note}` : ''}` })), element('div', { class: 'amount', text: euro(expense.amount) }));
-        expenseList.append(row); return { expense, checkbox };
-      });
-      const selected = () => selections.filter(item => item.checkbox.checked).map(item => item.expense);
-      const suggestedMessage = records => `Your reimbursement of ${euro(expenseAmount(records))} for ${records.length} approved expense${records.length === 1 ? '' : 's'} was processed on ${paymentDate.value ? new Date(`${paymentDate.value}T12:00:00`).toLocaleDateString() : 'the selected payment date'}. Payment reference: ${reference.value.trim() || '[enter reference]'}.`;
-      const redraw = () => {
-        const records = selected(), amount = expenseAmount(records);
-        total.textContent = `${records.length} selected · ${euro(amount)}`;
-        if (!messageEdited) message.value = suggestedMessage(records);
-        preview.replaceChildren(element('div', { class: 'label', text: 'MESSAGE PREVIEW' }), element('p', { text: message.value || suggestedMessage(records) }), element('div', { class: 'meta', text: `${personName(person)} · ${records.length} expense${records.length === 1 ? '' : 's'} · ${euro(amount)}` }));
-      };
-      selections.forEach(item => item.checkbox.onchange = redraw);
-      paymentDate.onchange = redraw; reference.oninput = redraw; message.oninput = () => { messageEdited = true; redraw(); };
-      let sending = false;
-      const send = async () => {
-        if (sending) return;
-        const records = selected();
-        if (!records.length) return status.replaceChildren(notice('Select at least one approved expense.'));
-        if (!paymentDate.value || !reference.value.trim() || !message.value.trim()) return status.replaceChildren(notice('Complete the payment date, reference, and message before sending.'));
-        if (!confirm(`Send a ${euro(expenseAmount(records))} reimbursement notice to ${personName(person)} for ${records.length} expense${records.length === 1 ? '' : 's'}?`)) return;
-        sending = true;
-        try {
-          const result = await api(`/api/users/${person.id}/reimbursements`, { method: 'POST', body: JSON.stringify({ expenseIds: records.map(expense => expense.id), paymentDate: paymentDate.value, reference: reference.value, message: message.value }) });
-          setContent(card(element('div', { class: 'label', text: 'REIMBURSEMENT SENT' }), element('h2', { text: personName(person) }), notice(`${euro(result.reimbursement.amount)} was recorded across ${result.reimbursement.expenseCount} approved expense${result.reimbursement.expenseCount === 1 ? '' : 's'}.`, true), element('div', { class: 'meta', text: `Payment date: ${new Date(`${result.reimbursement.paymentDate}T12:00:00`).toLocaleDateString()} · Reference: ${result.reimbursement.reference}` }), element('div', { class: 'actions' }, button('Create another reimbursement', () => reimbursementPage(person), 'primary'), button('Back to reimbursements', closeComposer))));
-          refreshHistory();
-        } catch (error) { sending = false; status.replaceChildren(notice(error.message)); }
-      };
-      redraw();
-      setContent(
-        card(element('div', { class: 'label', text: 'CREATE REIMBURSEMENT' }), element('h2', { text: personName(person) }), element('p', { class: 'meta', text: 'Select approved expenses that are included in this payment. Company-paid expenses and expenses already reimbursed are excluded.' }), expenseList, element('div', { class: 'actions' }, button('Select all', () => { selections.forEach(item => { item.checkbox.checked = true; }); redraw(); }), button('Clear selection', () => { selections.forEach(item => { item.checkbox.checked = false; }); redraw(); })), element('div', { class: 'reimbursement-total' }, total)),
-        card(element('div', { class: 'label', text: 'PAYMENT DETAILS' }), element('div', { class: 'grid' }, element('label', { class: 'field', text: 'PAYMENT DATE' }, paymentDate), element('label', { class: 'field', text: 'PAYMENT REFERENCE' }, reference)), element('label', { class: 'field', text: 'MESSAGE TO EMPLOYEE' }, message)),
-        card(preview, element('div', { class: 'actions' }, button('Send reimbursement', send, 'primary'), button('Cancel', closeComposer)), status)
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Expense Reports · Oxygen Care</title>
+    <style>
+      body {
+        font: 16px system-ui;
+        color: #183f4b;
+        margin: 0;
+        background: #effbff;
+      }
+      .app {
+        max-width: 860px;
+        margin: auto;
+        background: #fff;
+        min-height: 100vh;
+        padding: 20px;
+      }
+      .bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #cfeaf2;
+        padding-bottom: 14px;
+      }
+      .bar img {
+        width: 136px;
+      }
+      a,
+      button {
+        color: #277b91;
+        font-weight: 700;
+      }
+      select,
+      input,
+      button {
+        padding: 8px;
+        margin: 5px;
+      }
+      .card {
+        border: 1px solid #cfeaf2;
+        border-radius: 14px;
+        padding: 16px;
+        margin-top: 16px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      td,
+      th {
+        padding: 8px;
+        border-bottom: 1px solid #e8f2f5;
+        text-align: left;
+      }
+      .actions {
+        margin-top: 10px;
+      }
+      .chart-wrap {
+        overflow-x: auto;
+        border: 1px solid #e2f0f4;
+        border-radius: 10px;
+        padding: 10px;
+        background: #fcfeff;
+      }
+      .chart {
+        display: block;
+        width: 100%;
+        min-width: 560px;
+        height: auto;
+      }
+      .chart-key {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 14px;
+        margin: 10px 0 0;
+        font-size: 12px;
+      }
+      .chart-key span {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .chart-key i {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .chart-empty {
+        padding: 25px;
+        text-align: center;
+        color: #56747d;
+      }
+      @media print {
+        @page {
+          margin: 8mm;
+        }
+        *,
+        *::before,
+        *::after {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        .no-print,
+        #back,
+        .pager,
+        button {
+          display: none !important;
+        }
+        .app {
+          max-width: none;
+          padding: 0;
+        }
+        .bar {
+          padding: 0 0 6px;
+          border-width: 2px;
+        }
+        .bar img {
+          width: 92px;
+        }
+        .card {
+          border: 0;
+          padding: 0;
+          margin: 8px 0 0;
+        }
+        .card h1 {
+          font-size: 18px;
+          margin: 6px 0;
+        }
+        .card h2 {
+          font-size: 14px;
+          margin: 7px 0;
+        }
+        table {
+          font-size: 9px;
+          line-height: 1.15;
+        }
+        td,
+        th {
+          padding: 3px 4px;
+        }
+        th {
+          font-size: 8px;
+          white-space: nowrap;
+        }
+        td:first-child,
+        td:nth-child(2),
+        td:nth-child(3),
+        td:nth-child(5),
+        td:last-child {
+          white-space: nowrap;
+        }
+        body.print-expenses #odometerReport,
+        body.print-expenses #reimbursementReport,
+        body.print-expenses #chartBuilder,
+        body.print-odometer #expenseReport,
+        body.print-odometer #reimbursementReport,
+        body.print-odometer #chartBuilder,
+        body.print-reimbursement #expenseReport,
+        body.print-reimbursement #odometerReport,
+        body.print-reimbursement #chartBuilder,
+        body.print-chart #expenseReport,
+        body.print-chart #odometerReport,
+        body.print-chart #reimbursementReport {
+          display: none;
+        }
+      }
+      #reimbursementComposer .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+      }
+      #reimbursementComposer .field {
+        display: block;
+        margin: 12px 0;
+      }
+      #reimbursementComposer .field input,
+      #reimbursementComposer textarea {
+        display: block;
+        box-sizing: border-box;
+        width: 100%;
+        margin: 6px 0;
+      }
+      #reimbursementComposer .expense {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 0;
+        border-bottom: 1px solid #e8f2f5;
+      }
+      #reimbursementComposer .grow {
+        flex: 1;
+        min-width: 0;
+        overflow-wrap: anywhere;
+      }
+      #reimbursementComposer .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      #reimbursementComposer .meta {
+        font-size: 13px;
+        color: #63818a;
+      }
+      #reimbursementComposer .notice {
+        padding: 12px;
+        background: #fff4ef;
+      }
+      #reimbursementComposer .success {
+        background: #eaf7f5;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="bar">
+        <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care" />
+        <a id="back" href="/">Back</a>
+      </header>
+      <section id="expenseReport" class="card">
+        <h1>Expense report</h1>
+        <div class="no-print">
+          <label>From <input id="from" type="date" /> </label>
+          <label>To <input id="to" type="date" /> </label>
+          <label
+            >Department
+            <select id="dept">
+              <option value="All">All</option>
+            </select>
+          </label>
+          <label
+            >User
+            <select id="user">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label
+            >Category
+            <select id="category">
+              <option value="All">All</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="csv">Download CSV</button>
+            <button id="print">Print / Save PDF</button>
+          </div>
+        </div>
+        <h2 id="total">Loading…</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>User</th>
+              <th>Department</th>
+              <th>Merchant</th>
+              <th>Category</th>
+              <th>Note</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </section>
+      <section id="odometerReport" class="card">
+        <h1>Odometer report</h1>
+        <div class="no-print">
+          <label>From month <input id="odoFrom" type="month" /> </label>
+          <label>To month <input id="odoTo" type="month" /> </label>
+          <label
+            >Department
+            <select id="odoDept">
+              <option value="All">All</option>
+            </select>
+          </label>
+          <label
+            >User
+            <select id="odoUser">
+              <option value="">All</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="odoCsv">Download CSV</button>
+            <button id="odoPrint">Print / Save PDF</button>
+          </div>
+        </div>
+        <h2 id="odoTotal">Loading…</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Month</th>
+              <th>User</th>
+              <th>Department</th>
+              <th>Car 1 Opening</th>
+              <th>Car 1 Closing</th>
+              <th>Car 1 KM</th>
+              <th>Car 2 Opening</th>
+              <th>Car 2 Closing</th>
+              <th>Car 2 KM</th>
+              <th>Combined KM</th>
+            </tr>
+          </thead>
+          <tbody id="odoRows"></tbody>
+        </table>
+      </section>
+      <section id="reimbursementReport" class="card">
+        <div id="reimbursementComposer" class="no-print"></div>
+        <h1>Reimbursement lookup</h1>
+        <div class="no-print">
+          <label>From <input id="reimbFrom" type="date" /> </label>
+          <label>To <input id="reimbTo" type="date" /> </label>
+          <label
+            >Department
+            <select id="reimbDept">
+              <option value="All">All</option>
+            </select>
+          </label>
+          <label
+            >User
+            <select id="reimbUser">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label
+            >Status
+            <select id="reimbStatus">
+              <option value="All">All</option>
+              <option value="sent">Sent / unread</option>
+              <option value="dismissed">Viewed / dismissed</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="reimbCsv">Download CSV</button>
+            <button id="reimbPrint">Print / Save PDF</button>
+          </div>
+        </div>
+        <h2 id="reimbTotal">Loading…</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Sent</th>
+              <th>User</th>
+              <th>Department</th>
+              <th>Message</th>
+              <th>Amount</th>
+              <th>Payment date</th>
+              <th>Reference</th>
+              <th>Expenses</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="reimbRows"></tbody>
+        </table>
+      </section>
+      <section id="chartBuilder" class="card">
+        <h1>Chart builder</h1>
+        <p>
+          Summarise filtered reporting data. Free-text fields such as merchant names and notes are
+          deliberately excluded.
+        </p>
+        <div class="no-print">
+          <label
+            >Report data
+            <select id="chartData">
+              <option value="expenses">Expenses</option>
+              <option value="odometer">Odometer</option>
+              <option value="reimbursements">Reimbursements</option>
+            </select>
+          </label>
+          <label
+            >Measure
+            <select id="chartMeasure"></select>
+          </label>
+          <label
+            >Group by
+            <select id="chartGroup"></select>
+          </label>
+          <label
+            >Chart type
+            <select id="chartType">
+              <option value="bar">Bar</option>
+              <option value="line">Line</option>
+              <option value="pie">Pie</option>
+            </select>
+          </label>
+          <br />
+          <label>From <input id="chartFrom" type="date" /> </label>
+          <label>To <input id="chartTo" type="date" /> </label>
+          <label
+            >Department
+            <select id="chartDept">
+              <option value="All">All</option>
+            </select>
+          </label>
+          <label
+            >User
+            <select id="chartUser">
+              <option value="">All</option>
+            </select>
+          </label>
+          <label id="chartCategoryLabel"
+            >Category
+            <select id="chartCategory">
+              <option value="All">All</option>
+            </select>
+          </label>
+          <label id="chartStatusLabel"
+            >Status
+            <select id="chartStatus">
+              <option value="All">All</option>
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="declined">Declined</option>
+              <option value="question">Questioned</option>
+              <option value="sent">Sent / unread</option>
+              <option value="dismissed">Viewed / dismissed</option>
+            </select>
+          </label>
+          <div class="actions">
+            <button id="chartPrint">Print / Save PDF</button>
+          </div>
+        </div>
+        <h2 id="chartTotal">Loading chart…</h2>
+        <div class="chart-wrap">
+          <svg
+            id="chartSvg"
+            class="chart"
+            viewBox="0 0 720 330"
+            role="img"
+            aria-label="Report chart"
+          ></svg>
+          <div id="chartKey" class="chart-key"></div>
+        </div>
+      </section>
+    </main>
+    <script src="/csv.js"></script>
+    <script src="/http.js"></script>
+    <script></script>
+    <script>
+      let all = [];
+      const api = window.oxygenApi,
+        $ = s => document.querySelector(s),
+        money = n =>
+          new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(
+            Number(n) || 0
+          ),
+        cell = (row, value) => {
+          const td = document.createElement('td');
+          td.textContent = value;
+          row.append(td);
+        };
+      const printRange = document.createElement('select'),
+        printRangeLabel = document.createElement('label');
+      printRange.id = 'printRange';
+      printRange.append(
+        new Option('Current page', 'page'),
+        new Option('All filtered results', 'all')
       );
-    } catch (error) { setContent(card(element('div', { class: 'label', text: 'CREATE REIMBURSEMENT' }), notice(error.message), element('div', { class: 'actions' }, button('Back to reimbursements', closeComposer)))); }
-  }
+      printRangeLabel.append('Print ', printRange);
+      $('#print').before(printRangeLabel);
+      const reportQuery = new URLSearchParams(location.search),
+        reportTab = ['expenses', 'reimbursements', 'odometer', 'charts'].includes(
+          reportQuery.get('tab')
+        )
+          ? reportQuery.get('tab')
+          : 'expenses';
+      const reportTabs = {
+        expenses: { label: 'Expense Report', section: '#expenseReport' },
+        reimbursements: { label: 'Reimbursements', section: '#reimbursementReport' },
+        odometer: { label: 'Odometer', section: '#odometerReport' },
+        charts: { label: 'Chart Builder', section: '#chartBuilder' }
+      };
+      function configureReportTabs() {
+        const bar = document.querySelector('.bar'),
+          tabs = document.createElement('nav'),
+          returnTo = reportQuery.get('returnTo');
+        tabs.className = 'no-print';
+        tabs.setAttribute('aria-label', 'Report sections');
+        tabs.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0';
+        Object.entries(reportTabs).forEach(([key, tab]) => {
+          const link = document.createElement('a'),
+            query = new URLSearchParams({ tab: key });
+          if (returnTo) query.set('returnTo', returnTo);
+          link.href = `/reports.html?${query}`;
+          link.textContent = tab.label;
+          link.style.cssText = `padding:8px 11px;border:1px solid #cfeaf2;border-radius:8px;text-decoration:none;${key === reportTab ? 'background:#277b91;color:#fff;border-color:#277b91' : ''}`;
+          if (key === reportTab) link.setAttribute('aria-current', 'page');
+          tabs.append(link);
+          $(tab.section).hidden = key !== reportTab;
+        });
+        bar.after(tabs);
+      }
+      configureReportTabs();
+      function selected() {
+        return all.filter(
+          expense =>
+            (!$('#from').value || expense.date >= $('#from').value) &&
+            (!$('#to').value || expense.date <= $('#to').value) &&
+            ($('#dept').value === 'All' || expense.user.department === $('#dept').value) &&
+            (!$('#user').value || expense.user.id === $('#user').value) &&
+            ($('#category').value === 'All' || expense.category === $('#category').value)
+        );
+      }
+      const personName = user => user.fullName || user.email;
+      const pageSize = 20,
+        pages = { expenses: 1, odometer: 1, reimbursements: 1 };
+      function pageRows(sectionId, key, rows, draw) {
+        const total = Math.max(1, Math.ceil(rows.length / pageSize));
+        pages[key] = Math.min(Math.max(1, pages[key]), total);
+        const section = $(sectionId);
+        let controls = section.querySelector('.pager');
+        if (!controls) {
+          controls = document.createElement('div');
+          controls.className = 'actions no-print pager';
+          section.append(controls);
+        }
+        const previous = document.createElement('button'),
+          next = document.createElement('button'),
+          label = document.createElement('span');
+        previous.type = next.type = 'button';
+        previous.textContent = 'Previous';
+        next.textContent = 'Next';
+        label.textContent = ` Page ${pages[key]} of ${total} `;
+        previous.disabled = pages[key] === 1;
+        next.disabled = pages[key] === total;
+        previous.onclick = () => {
+          pages[key]--;
+          draw();
+        };
+        next.onclick = () => {
+          pages[key]++;
+          draw();
+        };
+        controls.replaceChildren(previous, label, next);
+        return rows.slice((pages[key] - 1) * pageSize, pages[key] * pageSize);
+      }
+      function receiptCell(row, expense) {
+        const td = document.createElement('td');
+        if (expense.hasReceipt) {
+          const link = document.createElement('a'),
+            returnTo = `${location.pathname}${location.search}`;
+          link.href = `/api/expenses/${encodeURIComponent(expense.id)}/receipt/view?returnTo=${encodeURIComponent(returnTo)}`;
+          link.textContent = 'View receipt';
+          td.append(link);
+        } else td.textContent = '—';
+        row.append(td);
+      }
+      function openExpense(event, expense) {
+        if (event.target.closest('a,button')) return;
+        const details = new URLSearchParams({
+          userId: expense.user.id,
+          expenseId: expense.id,
+          review: 'super',
+          returnTo: 'reports',
+          reportReturn: `${location.pathname}${location.search}`
+        });
+        location.href = `/expense-detail.html?${details}`;
+      }
+      function expenseRow(expense) {
+        const row = document.createElement('tr');
+        row.className = 'expense-row';
+        row.tabIndex = 0;
+        row.setAttribute(
+          'aria-label',
+          `Open ${expense.merchant} expense for ${personName(expense.user)}`
+        );
+        row.onclick = event => openExpense(event, expense);
+        row.onkeydown = event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            openExpense(event, expense);
+          }
+        };
+        cell(row, expense.date);
+        cell(row, personName(expense.user));
+        cell(row, expense.user.department);
+        cell(row, expense.merchant);
+        cell(row, expense.category);
+        cell(row, expense.note || '—');
+        cell(row, money(expense.amount));
+        receiptCell(row, expense);
+        return row;
+      }
+      function draw(reset = false) {
+        if (reset) pages.expenses = 1;
+        const rows = selected().sort((a, b) => String(b.date).localeCompare(String(a.date))),
+          fuelCard = rows.filter(expense => expense.companyPaid === true),
+          userPaid = rows.filter(expense => expense.companyPaid !== true);
+        $('#total').textContent =
+          `${rows.length} expenses · Expenses: ${money(userPaid.reduce((sum, expense) => sum + Number(expense.amount || 0), 0))} · Company paid: ${money(fuelCard.reduce((sum, expense) => sum + Number(expense.amount || 0), 0))}`;
+        const header = $('#expenseReport thead tr');
+        if (!header.querySelector('.receipt-heading')) {
+          const heading = document.createElement('th');
+          heading.className = 'receipt-heading';
+          heading.textContent = 'Receipt';
+          header.append(heading);
+        }
+        const visible = pageRows('#expenseReport', 'expenses', rows, draw);
+        $('#rows').replaceChildren(...visible.map(expenseRow));
+      }
+      function downloadCsv() {
+        const rows = selected(),
+          quote = window.oxygenCsvCell;
+        const csv = [
+          [
+            'Date',
+            'User',
+            'Department',
+            'Merchant',
+            'Category',
+            'Amount',
+            'Currency',
+            'Note',
+            'Review status',
+            'Review note'
+          ],
+          ...rows.map(expense => [
+            expense.date,
+            personName(expense.user),
+            expense.user.department,
+            expense.merchant,
+            expense.category,
+            expense.amount,
+            expense.currency || 'EUR',
+            expense.note || '',
+            expense.reviewStatus || 'pending',
+            expense.reviewNote || ''
+          ])
+        ]
+          .map(row => row.map(quote).join(','))
+          .join('\r\n');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        link.download = `oxygen-care-expense-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }
+      let odometer = [];
+      function selectedOdometer() {
+        return odometer.filter(
+          reading =>
+            (!$('#odoFrom').value || reading.month >= $('#odoFrom').value) &&
+            (!$('#odoTo').value || reading.month <= $('#odoTo').value) &&
+            ($('#odoDept').value === 'All' || reading.user.department === $('#odoDept').value) &&
+            (!$('#odoUser').value || reading.user.id === $('#odoUser').value)
+        );
+      }
+      function drawOdometer(reset = false) {
+        if (reset) pages.odometer = 1;
+        const rows = selectedOdometer().sort((a, b) => b.month.localeCompare(a.month)),
+          display = value => (value == null ? '—' : Number(value).toLocaleString());
+        $('#odoTotal').textContent =
+          `${rows.length} monthly reading${rows.length === 1 ? '' : 's'} · ${rows.reduce((sum, row) => sum + Number(row.kilometres || 0), 0).toLocaleString()} KM combined`;
+        const visible = pageRows('#odometerReport', 'odometer', rows, drawOdometer);
+        $('#odoRows').replaceChildren(
+          ...visible.map(reading => {
+            const row = document.createElement('tr');
+            cell(row, reading.month);
+            cell(row, personName(reading.user));
+            cell(row, reading.user.department || '—');
+            for (const value of [
+              reading.car1OpeningReading,
+              reading.car1ClosingReading,
+              reading.car1Kilometres,
+              reading.car2OpeningReading,
+              reading.car2ClosingReading,
+              reading.car2Kilometres,
+              reading.kilometres
+            ])
+              cell(row, display(value));
+            return row;
+          })
+        );
+      }
+      function downloadOdometerCsv() {
+        const rows = selectedOdometer(),
+          quote = window.oxygenCsvCell;
+        const csv = [
+          [
+            'Month',
+            'User',
+            'Department',
+            'Car 1 opening KM',
+            'Car 1 closing KM',
+            'Car 1 total KM',
+            'Car 2 opening KM',
+            'Car 2 closing KM',
+            'Car 2 total KM',
+            'Combined KM'
+          ],
+          ...rows.map(reading => [
+            reading.month,
+            personName(reading.user),
+            reading.user.department || '',
+            reading.car1OpeningReading,
+            reading.car1ClosingReading,
+            reading.car1Kilometres,
+            reading.car2OpeningReading,
+            reading.car2ClosingReading,
+            reading.car2Kilometres,
+            reading.kilometres
+          ])
+        ]
+          .map(row => row.map(quote).join(','))
+          .join('\r\n');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        link.download = `oxygen-care-odometer-report-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }
+      function printOnly(mode) {
+        document.body.classList.add(mode);
+        print();
+        setTimeout(() => document.body.classList.remove(mode), 1000);
+      }
+      function printExpenses() {
+        if (printRange.value === 'all')
+          $('#rows').replaceChildren(
+            ...selected()
+              .sort((a, b) => String(b.date).localeCompare(String(a.date)))
+              .map(expenseRow)
+          );
+        document.body.classList.add('print-expenses');
+        const restore = () => {
+          document.body.classList.remove('print-expenses');
+          draw();
+        };
+        addEventListener('afterprint', restore, { once: true });
+        print();
+        setTimeout(() => {
+          if (document.body.classList.contains('print-expenses')) restore();
+        }, 2000);
+      }
+      api('/api/reports/expenses')
+        .then(data => {
+          all = data.expenses;
+          for (const value of data.departments) $('#dept').add(new Option(value, value));
+          for (const person of data.users)
+            $('#user').add(new Option(personName(person), person.id));
+          for (const category of [
+            ...new Set(all.map(expense => expense.category).filter(Boolean))
+          ].sort())
+            $('#category').add(new Option(category, category));
+          for (const id of ['from', 'to', 'dept', 'user', 'category'])
+            $('#' + id).onchange = () => draw(true);
+          draw(true);
+          refreshChart();
+        })
+        .catch(error => ($('#total').textContent = error.message));
+      api('/api/reports/odometer')
+        .then(data => {
+          odometer = data.readings;
+          for (const value of data.departments) $('#odoDept').add(new Option(value, value));
+          for (const person of data.users)
+            $('#odoUser').add(new Option(personName(person), person.id));
+          for (const id of ['odoFrom', 'odoTo', 'odoDept', 'odoUser'])
+            $('#' + id).onchange = () => drawOdometer(true);
+          drawOdometer(true);
+          refreshChart();
+        })
+        .catch(error => ($('#odoTotal').textContent = error.message));
+      let reimbursements = [];
+      function selectedReimbursements() {
+        return reimbursements.filter(
+          item =>
+            (!$('#reimbFrom').value || item.sentAt.slice(0, 10) >= $('#reimbFrom').value) &&
+            (!$('#reimbTo').value || item.sentAt.slice(0, 10) <= $('#reimbTo').value) &&
+            ($('#reimbDept').value === 'All' || item.user.department === $('#reimbDept').value) &&
+            (!$('#reimbUser').value || item.user.id === $('#reimbUser').value) &&
+            ($('#reimbStatus').value === 'All' ||
+              ($('#reimbStatus').value === 'dismissed') === Boolean(item.dismissedAt))
+        );
+      }
+      function drawReimbursements(reset = false) {
+        if (reset) pages.reimbursements = 1;
+        const rows = selectedReimbursements().sort((a, b) =>
+          String(b.sentAt).localeCompare(String(a.sentAt))
+        );
+        $('#reimbTotal').textContent =
+          `${rows.length} reimbursement notice${rows.length === 1 ? '' : 's'} · ${money(rows.reduce((sum, item) => sum + Number(item.amount || 0), 0))}`;
+        const visible = pageRows(
+          '#reimbursementReport',
+          'reimbursements',
+          rows,
+          drawReimbursements
+        );
+        $('#reimbRows').replaceChildren(
+          ...visible.map(item => {
+            const row = document.createElement('tr');
+            cell(row, new Date(item.sentAt).toLocaleDateString());
+            cell(row, personName(item.user));
+            cell(row, item.user.department || '—');
+            cell(row, item.message);
+            cell(row, item.amount == null ? '—' : money(item.amount));
+            cell(row, item.paymentDate || '—');
+            cell(row, item.reference || '—');
+            cell(row, item.expenseCount ?? '—');
+            cell(row, item.dismissedAt ? 'Viewed / dismissed' : 'Sent / unread');
+            return row;
+          })
+        );
+      }
+      function downloadReimbursementCsv() {
+        const rows = selectedReimbursements(),
+          quote = window.oxygenCsvCell;
+        const csv = [
+          [
+            'Sent',
+            'User',
+            'Department',
+            'Message',
+            'Amount',
+            'Currency',
+            'Payment date',
+            'Reference',
+            'Expense count',
+            'Expense IDs',
+            'Status',
+            'Viewed/dismissed at'
+          ],
+          ...rows.map(item => [
+            item.sentAt,
+            personName(item.user),
+            item.user.department || '',
+            item.message,
+            item.amount ?? '',
+            item.currency || 'EUR',
+            item.paymentDate || '',
+            item.reference || '',
+            item.expenseCount ?? '',
+            Array.isArray(item.expenseIds) ? item.expenseIds.join(' ') : '',
+            item.dismissedAt ? 'Viewed / dismissed' : 'Sent / unread',
+            item.dismissedAt || ''
+          ])
+        ]
+          .map(row => row.map(quote).join(','))
+          .join('\r\n');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+        link.download = `oxygen-care-reimbursement-lookup-${new Date().toISOString().slice(0, 10)}.csv`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      }
+      const chartColours = [
+        '#277b91',
+        '#ee7b30',
+        '#65b9d2',
+        '#f2b544',
+        '#6b9d64',
+        '#9369a3',
+        '#d2697a',
+        '#58728d',
+        '#9b814f',
+        '#3d9d93'
+      ];
+      const chartOptions = {
+        expenses: {
+          measures: [
+            ['amount', 'Total spend'],
+            ['count', 'Expense count']
+          ],
+          groups: [
+            ['month', 'Month'],
+            ['department', 'Department'],
+            ['user', 'User'],
+            ['category', 'Category'],
+            ['status', 'Review status']
+          ]
+        },
+        odometer: {
+          measures: [
+            ['kilometres', 'Total KM'],
+            ['count', 'Reading count']
+          ],
+          groups: [
+            ['month', 'Month'],
+            ['department', 'Department'],
+            ['user', 'User']
+          ]
+        },
+        reimbursements: {
+          measures: [
+            ['amount', 'Total notified'],
+            ['count', 'Notification count']
+          ],
+          groups: [
+            ['month', 'Month'],
+            ['department', 'Department'],
+            ['user', 'User'],
+            ['status', 'Notification status']
+          ]
+        }
+      };
+      function replaceOptions(select, values, selected) {
+        select.replaceChildren(...values.map(([value, label]) => new Option(label, value)));
+        if (values.some(([value]) => value === selected)) select.value = selected;
+      }
+      function chartUsers() {
+        const people = new Map();
+        for (const item of [...all, ...odometer, ...reimbursements])
+          if (item.user) people.set(item.user.id, item.user);
+        return [...people.values()].sort((a, b) => personName(a).localeCompare(personName(b)));
+      }
+      function updateChartControls() {
+        const type = $('#chartData').value,
+          config = chartOptions[type],
+          oldMeasure = $('#chartMeasure').value,
+          oldGroup = $('#chartGroup').value;
+        replaceOptions($('#chartMeasure'), config.measures, oldMeasure);
+        replaceOptions($('#chartGroup'), config.groups, oldGroup);
+        const categories = [...new Set(all.map(item => item.category).filter(Boolean))].sort(),
+          showCategory = type === 'expenses',
+          showStatus = type !== 'odometer';
+        $('#chartCategoryLabel').hidden = !showCategory;
+        $('#chartStatusLabel').hidden = !showStatus;
+        replaceOptions(
+          $('#chartDept'),
+          [
+            ['All', 'All'],
+            ...chartUsers()
+              .map(person => [person.department || '', person.department || 'Unassigned'])
+              .filter(
+                ([value], index, items) =>
+                  value && items.findIndex(item => item[0] === value) === index
+              )
+          ],
+          $('#chartDept').value
+        );
+        replaceOptions(
+          $('#chartUser'),
+          [['', 'All'], ...chartUsers().map(person => [person.id, personName(person)])],
+          $('#chartUser').value
+        );
+        replaceOptions(
+          $('#chartCategory'),
+          [['All', 'All'], ...categories.map(value => [value, value])],
+          $('#chartCategory').value
+        );
+        const statuses =
+          type === 'reimbursements'
+            ? [
+                ['All', 'All'],
+                ['sent', 'Sent / unread'],
+                ['dismissed', 'Viewed / dismissed']
+              ]
+            : [
+                ['All', 'All'],
+                ['pending', 'Pending'],
+                ['approved', 'Approved'],
+                ['declined', 'Declined'],
+                ['question', 'Questioned']
+              ];
+        replaceOptions($('#chartStatus'), statuses, $('#chartStatus').value);
+      }
+      function chartSource() {
+        return $('#chartData').value === 'expenses'
+          ? all
+          : $('#chartData').value === 'odometer'
+            ? odometer
+            : reimbursements;
+      }
+      function chartDate(item, type) {
+        return type === 'odometer'
+          ? item.month
+          : type === 'reimbursements'
+            ? String(item.sentAt || '').slice(0, 10)
+            : item.date;
+      }
+      function chartStatus(item, type) {
+        return type === 'reimbursements'
+          ? item.dismissedAt
+            ? 'dismissed'
+            : 'sent'
+          : item.reviewStatus || 'pending';
+      }
+      function selectedChart() {
+        const type = $('#chartData').value,
+          from = $('#chartFrom').value,
+          to = $('#chartTo').value;
+        return chartSource().filter(item => {
+          const date = chartDate(item, type),
+            dateFrom = type === 'odometer' ? (from ? from.slice(0, 7) : '') : from,
+            dateTo = type === 'odometer' ? (to ? to.slice(0, 7) : '') : to;
+          return (
+            (!dateFrom || date >= dateFrom) &&
+            (!dateTo || date <= dateTo) &&
+            ($('#chartDept').value === 'All' || item.user.department === $('#chartDept').value) &&
+            (!$('#chartUser').value || item.user.id === $('#chartUser').value) &&
+            (type !== 'expenses' ||
+              $('#chartCategory').value === 'All' ||
+              item.category === $('#chartCategory').value) &&
+            (type === 'odometer' ||
+              $('#chartStatus').value === 'All' ||
+              chartStatus(item, type) === $('#chartStatus').value)
+          );
+        });
+      }
+      function chartLabel(item, type, group) {
+        if (group === 'month')
+          return type === 'odometer' ? item.month : chartDate(item, type).slice(0, 7);
+        if (group === 'department') return item.user.department || 'Unassigned';
+        if (group === 'user') return personName(item.user);
+        if (group === 'category') return item.category || 'Uncategorised';
+        return chartStatus(item, type).replace(/^./, letter => letter.toUpperCase());
+      }
+      function chartValue(item, type, measure) {
+        return measure === 'count'
+          ? 1
+          : Number(type === 'odometer' ? item.kilometres : item.amount || 0);
+      }
+      function svgNode(name, attributes = {}, textValue) {
+        const node = document.createElementNS('http://www.w3.org/2000/svg', name);
+        for (const [name, value] of Object.entries(attributes))
+          node.setAttribute(name, String(value));
+        if (textValue !== undefined) node.textContent = textValue;
+        return node;
+      }
+      function chartNumber(value, type, measure) {
+        return measure === 'count'
+          ? String(value)
+          : type === 'odometer'
+            ? `${Math.round(value).toLocaleString()} KM`
+            : money(value);
+      }
+      function chartLegend(colour, textValue) {
+        const item = document.createElement('span'),
+          dot = document.createElement('i');
+        dot.style.background = colour;
+        item.append(dot, document.createTextNode(textValue));
+        return item;
+      }
+      function drawChart() {
+        const type = $('#chartData').value,
+          measure = $('#chartMeasure').value,
+          group = $('#chartGroup').value,
+          kind = $('#chartType').value,
+          totals = new Map();
+        for (const item of selectedChart()) {
+          const label = chartLabel(item, type, group);
+          totals.set(label, (totals.get(label) || 0) + chartValue(item, type, measure));
+        }
+        const entries = [...totals.entries()].sort((a, b) =>
+            group === 'month' ? a[0].localeCompare(b[0]) : b[1] - a[1] || a[0].localeCompare(b[0])
+          ),
+          total = entries.reduce((sum, [, value]) => sum + value, 0),
+          svg = $('#chartSvg'),
+          key = $('#chartKey');
+        svg.replaceChildren();
+        key.replaceChildren();
+        $('#chartTotal').textContent = entries.length
+          ? `${chartNumber(total, type, measure)} · ${entries.length} group${entries.length === 1 ? '' : 's'}`
+          : 'No data matches these filters.';
+        if (!entries.length) {
+          svg.append(
+            svgNode(
+              'text',
+              { x: 360, y: 165, 'text-anchor': 'middle', fill: '#56747d', 'font-size': 16 },
+              'No chart data available'
+            )
+          );
+          return;
+        }
+        const shown = kind === 'pie' ? entries.slice(0, 10) : entries.slice(0, 12),
+          max = Math.max(...shown.map(([, value]) => value), 1);
+        if (kind === 'pie') {
+          let start = -Math.PI / 2;
+          for (let index = 0; index < shown.length; index++) {
+            const [label, value] = shown[index],
+              angle = (value / total) * Math.PI * 2,
+              end = start + angle,
+              x1 = 360 + 115 * Math.cos(start),
+              y1 = 150 + 115 * Math.sin(start),
+              x2 = 360 + 115 * Math.cos(end),
+              y2 = 150 + 115 * Math.sin(end),
+              large = angle > Math.PI ? 1 : 0,
+              colour = chartColours[index % chartColours.length];
+            svg.append(
+              svgNode('path', {
+                d: `M 360 150 L ${x1} ${y1} A 115 115 0 ${large} 1 ${x2} ${y2} Z`,
+                fill: colour
+              })
+            );
+            key.append(chartLegend(colour, `${label}: ${chartNumber(value, type, measure)}`));
+            start = end;
+          }
+        } else {
+          const left = 62,
+            bottom = 270,
+            width = 620,
+            height = 195;
+          svg.append(
+            svgNode('line', {
+              x1: left,
+              y1: bottom,
+              x2: left + width,
+              y2: bottom,
+              stroke: '#a9cbd4'
+            })
+          );
+          svg.append(
+            svgNode('line', { x1: left, y1: 55, x2: left, y2: bottom, stroke: '#a9cbd4' })
+          );
+          for (let tick = 0; tick <= 4; tick++) {
+            const y = bottom - (height * tick) / 4,
+              value = (max * tick) / 4;
+            svg.append(
+              svgNode('line', { x1: left, y1: y, x2: left + width, y2: y, stroke: '#e7f1f4' })
+            );
+            svg.append(
+              svgNode(
+                'text',
+                { x: left - 7, y: y + 4, 'text-anchor': 'end', fill: '#56747d', 'font-size': 10 },
+                chartNumber(value, type, measure)
+              )
+            );
+          }
+          const gap = width / shown.length,
+            points = [];
+          shown.forEach(([label, value], index) => {
+            const x = left + gap * (index + 0.5),
+              barWidth = Math.min(38, gap * 0.68),
+              y = bottom - (height * value) / max;
+            points.push(`${x},${y}`);
+            if (kind === 'bar')
+              svg.append(
+                svgNode('rect', {
+                  x: x - barWidth / 2,
+                  y,
+                  width: barWidth,
+                  height: bottom - y,
+                  rx: 3,
+                  fill: chartColours[index % chartColours.length]
+                })
+              );
+            svg.append(
+              svgNode(
+                'text',
+                { x, y: bottom + 16, 'text-anchor': 'middle', fill: '#45616b', 'font-size': 10 },
+                label.length > 13 ? `${label.slice(0, 12)}…` : label
+              )
+            );
+            svg.append(
+              svgNode(
+                'text',
+                { x, y: y - 7, 'text-anchor': 'middle', fill: '#31545f', 'font-size': 10 },
+                chartNumber(value, type, measure)
+              )
+            );
+          });
+          if (kind === 'line') {
+            svg.append(
+              svgNode('polyline', {
+                points: points.join(' '),
+                fill: 'none',
+                stroke: '#277b91',
+                'stroke-width': 3
+              })
+            );
+            points.forEach(point => {
+              const [cx, cy] = point.split(',');
+              svg.append(svgNode('circle', { cx, cy, r: 4, fill: '#ee7b30' }));
+            });
+          }
+        }
+      }
+      function refreshChart() {
+        updateChartControls();
+        drawChart();
+      }
+      for (const id of [
+        'chartData',
+        'chartMeasure',
+        'chartGroup',
+        'chartType',
+        'chartFrom',
+        'chartTo',
+        'chartDept',
+        'chartUser',
+        'chartCategory',
+        'chartStatus'
+      ])
+        $('#' + id).onchange = () => {
+          if (id === 'chartData') updateChartControls();
+          drawChart();
+        };
+      $('#chartPrint').onclick = () => {
+        document.body.classList.add('print-chart');
+        print();
+        setTimeout(() => document.body.classList.remove('print-chart'), 1000);
+      };
+      refreshChart();
+      api('/api/reports/reimbursements')
+        .then(data => {
+          reimbursements = data.reimbursements;
+          for (const value of data.departments) $('#reimbDept').add(new Option(value, value));
+          for (const person of data.users)
+            $('#reimbUser').add(new Option(personName(person), person.id));
+          for (const id of ['reimbFrom', 'reimbTo', 'reimbDept', 'reimbUser', 'reimbStatus'])
+            $('#' + id).onchange = () => drawReimbursements(true);
+          drawReimbursements(true);
+          refreshChart();
+        })
+        .catch(error => ($('#reimbTotal').textContent = error.message));
+      $('#csv').onclick = downloadCsv;
+      $('#odoCsv').onclick = downloadOdometerCsv;
+      $('#reimbCsv').onclick = downloadReimbursementCsv;
+      $('#print').onclick = printExpenses;
+      $('#odoPrint').onclick = () => printOnly('print-odometer');
+      $('#reimbPrint').onclick = () => printOnly('print-reimbursement');
+      $('#back').onclick = event => {
+        event.preventDefault();
+        const requested = new URLSearchParams(location.search).get('returnTo');
+        const allowed = new Set(['home', 'users', 'profile']);
+        const returnTo = allowed.has(requested) ? requested : 'home';
+        location.replace(returnTo === 'home' ? '/' : `/?view=${encodeURIComponent(returnTo)}`);
+      };
+      (() => {
+        if (reportTab !== 'reimbursements') return;
+        const root = document.querySelector('#reimbursementComposer');
+        const api = window.oxygenApi,
+          euro = money;
+        const dateToday = () => {
+          const parts = new Intl.DateTimeFormat('en-GB', {
+            timeZone: 'Europe/Dublin',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          }).formatToParts(new Date());
+          const part = type => parts.find(item => item.type === type).value;
+          return `${part('year')}-${part('month')}-${part('day')}`;
+        };
+        const expenseAmount = records =>
+          records.reduce((sum, record) => sum + Number(record.amount || 0), 0);
+        function element(tag, attributes = {}, ...children) {
+          const node = document.createElement(tag);
+          for (const [key, value] of Object.entries(attributes)) {
+            if (key === 'class') node.className = value;
+            else if (key === 'text') node.textContent = value;
+            else if (key.startsWith('on')) node.addEventListener(key.slice(2), value);
+            else node.setAttribute(key, value);
+          }
+          node.append(...children.filter(Boolean));
+          return node;
+        }
+        function button(text, action, className = 'secondary') {
+          return element('button', { type: 'button', class: className, text, onclick: action });
+        }
+        function card(...children) {
+          return element('section', { class: 'card' }, ...children);
+        }
+        function notice(message, ok = false) {
+          return element('p', { class: `notice${ok ? ' success' : ''}`, text: message });
+        }
 
-  async function initialise() {
-    const me = await api('/api/auth/me');
-    if (me.user.role !== 'super') return;
-    const people = (await api('/api/users')).users.filter(person => person.role === 'regular');
-    const select = element('select', { 'aria-label': 'Reimbursement employee' });
-    select.append(element('option', { value: '', text: 'Choose an employee' }), ...people.map(person => element('option', { value: person.id, text: personName(person) })));
-    const open = button('Create reimbursement notice', () => {
-      const person = people.find(person => person.id === select.value);
-      if (person) reimbursementPage(person);
-    }, 'primary');
-    open.disabled = true;
-    select.onchange = () => { open.disabled = !select.value; closeComposer(); };
-    root.replaceChildren(element('h2', { text: 'Reimbursement notice' }), element('label', {}, select), open, details);
-  }
-  initialise().catch(error => root.replaceChildren(notice(error.message)));
-})();
-</script>
-</body>
+        const details = element('div');
+        const setContent = (...children) => details.replaceChildren(...children);
+        const closeComposer = () => {
+          details.replaceChildren();
+        };
+        const refreshHistory = () =>
+          api('/api/reports/reimbursements')
+            .then(data => {
+              reimbursements = data.reimbursements;
+              drawReimbursements();
+              refreshChart();
+            })
+            .catch(() =>
+              details.append(
+                notice('Notice sent. Reload this page to refresh reimbursement history.')
+              )
+            );
+        async function reimbursementPage(person) {
+          setContent(
+            card(
+              element('div', { class: 'label', text: 'CREATE REIMBURSEMENT' }),
+              element('div', {
+                class: 'meta',
+                text: `Loading approved expenses for ${personName(person)}…`
+              })
+            )
+          );
+          try {
+            const data = await api(`/api/users/${person.id}/reimbursement-candidates`),
+              eligible = data.expenses;
+            if (!eligible.length)
+              return setContent(
+                card(
+                  element('div', { class: 'label', text: 'CREATE REIMBURSEMENT' }),
+                  element('h2', { text: personName(person) }),
+                  notice('This employee has no approved expenses awaiting reimbursement.'),
+                  element(
+                    'div',
+                    { class: 'actions' },
+                    button('Back to reimbursements', closeComposer)
+                  )
+                )
+              );
+            const paymentDate = element('input', { type: 'date', value: dateToday() });
+            const reference = element('input', {
+              maxlength: '80',
+              placeholder: 'e.g. Bank transfer 19 Sep 2026'
+            });
+            const message = element('textarea', { maxlength: '300', rows: '5' });
+            const total = element('strong'),
+              preview = element('div'),
+              status = element('div'),
+              expenseList = element('div', { class: 'expense-stack' });
+            let messageEdited = false;
+            const selections = eligible.map(expense => {
+              const checkbox = element('input', {
+                type: 'checkbox',
+                class: 'reimbursement-choice'
+              });
+              checkbox.checked = true;
+              const row = element(
+                'label',
+                { class: 'expense reimbursement-expense' },
+                checkbox,
+                element(
+                  'div',
+                  { class: 'grow' },
+                  element('strong', { text: expense.merchant }),
+                  element('div', {
+                    class: 'meta',
+                    text: `${new Date(`${expense.date}T12:00:00`).toLocaleDateString()} · ${expense.category}${expense.note ? ` · ${expense.note}` : ''}`
+                  })
+                ),
+                element('div', { class: 'amount', text: euro(expense.amount) })
+              );
+              expenseList.append(row);
+              return { expense, checkbox };
+            });
+            const selected = () =>
+              selections.filter(item => item.checkbox.checked).map(item => item.expense);
+            const suggestedMessage = records =>
+              `Your reimbursement of ${euro(expenseAmount(records))} for ${records.length} approved expense${records.length === 1 ? '' : 's'} was processed on ${paymentDate.value ? new Date(`${paymentDate.value}T12:00:00`).toLocaleDateString() : 'the selected payment date'}. Payment reference: ${reference.value.trim() || '[enter reference]'}.`;
+            const redraw = () => {
+              const records = selected(),
+                amount = expenseAmount(records);
+              total.textContent = `${records.length} selected · ${euro(amount)}`;
+              if (!messageEdited) message.value = suggestedMessage(records);
+              preview.replaceChildren(
+                element('div', { class: 'label', text: 'MESSAGE PREVIEW' }),
+                element('p', { text: message.value || suggestedMessage(records) }),
+                element('div', {
+                  class: 'meta',
+                  text: `${personName(person)} · ${records.length} expense${records.length === 1 ? '' : 's'} · ${euro(amount)}`
+                })
+              );
+            };
+            selections.forEach(item => (item.checkbox.onchange = redraw));
+            paymentDate.onchange = redraw;
+            reference.oninput = redraw;
+            message.oninput = () => {
+              messageEdited = true;
+              redraw();
+            };
+            let sending = false;
+            const send = async () => {
+              if (sending) return;
+              const records = selected();
+              if (!records.length)
+                return status.replaceChildren(notice('Select at least one approved expense.'));
+              if (!paymentDate.value || !reference.value.trim() || !message.value.trim())
+                return status.replaceChildren(
+                  notice('Complete the payment date, reference, and message before sending.')
+                );
+              if (
+                !confirm(
+                  `Send a ${euro(expenseAmount(records))} reimbursement notice to ${personName(person)} for ${records.length} expense${records.length === 1 ? '' : 's'}?`
+                )
+              )
+                return;
+              sending = true;
+              try {
+                const result = await api(`/api/users/${person.id}/reimbursements`, {
+                  method: 'POST',
+                  body: JSON.stringify({
+                    expenseIds: records.map(expense => expense.id),
+                    paymentDate: paymentDate.value,
+                    reference: reference.value,
+                    message: message.value
+                  })
+                });
+                setContent(
+                  card(
+                    element('div', { class: 'label', text: 'REIMBURSEMENT SENT' }),
+                    element('h2', { text: personName(person) }),
+                    notice(
+                      `${euro(result.reimbursement.amount)} was recorded across ${result.reimbursement.expenseCount} approved expense${result.reimbursement.expenseCount === 1 ? '' : 's'}.`,
+                      true
+                    ),
+                    element('div', {
+                      class: 'meta',
+                      text: `Payment date: ${new Date(`${result.reimbursement.paymentDate}T12:00:00`).toLocaleDateString()} · Reference: ${result.reimbursement.reference}`
+                    }),
+                    element(
+                      'div',
+                      { class: 'actions' },
+                      button(
+                        'Create another reimbursement',
+                        () => reimbursementPage(person),
+                        'primary'
+                      ),
+                      button('Back to reimbursements', closeComposer)
+                    )
+                  )
+                );
+                refreshHistory();
+              } catch (error) {
+                sending = false;
+                status.replaceChildren(notice(error.message));
+              }
+            };
+            redraw();
+            setContent(
+              card(
+                element('div', { class: 'label', text: 'CREATE REIMBURSEMENT' }),
+                element('h2', { text: personName(person) }),
+                element('p', {
+                  class: 'meta',
+                  text: 'Select approved expenses that are included in this payment. Company-paid expenses and expenses already reimbursed are excluded.'
+                }),
+                expenseList,
+                element(
+                  'div',
+                  { class: 'actions' },
+                  button('Select all', () => {
+                    selections.forEach(item => {
+                      item.checkbox.checked = true;
+                    });
+                    redraw();
+                  }),
+                  button('Clear selection', () => {
+                    selections.forEach(item => {
+                      item.checkbox.checked = false;
+                    });
+                    redraw();
+                  })
+                ),
+                element('div', { class: 'reimbursement-total' }, total)
+              ),
+              card(
+                element('div', { class: 'label', text: 'PAYMENT DETAILS' }),
+                element(
+                  'div',
+                  { class: 'grid' },
+                  element('label', { class: 'field', text: 'PAYMENT DATE' }, paymentDate),
+                  element('label', { class: 'field', text: 'PAYMENT REFERENCE' }, reference)
+                ),
+                element('label', { class: 'field', text: 'MESSAGE TO EMPLOYEE' }, message)
+              ),
+              card(
+                preview,
+                element(
+                  'div',
+                  { class: 'actions' },
+                  button('Send reimbursement', send, 'primary'),
+                  button('Cancel', closeComposer)
+                ),
+                status
+              )
+            );
+          } catch (error) {
+            setContent(
+              card(
+                element('div', { class: 'label', text: 'CREATE REIMBURSEMENT' }),
+                notice(error.message),
+                element(
+                  'div',
+                  { class: 'actions' },
+                  button('Back to reimbursements', closeComposer)
+                )
+              )
+            );
+          }
+        }
+
+        async function initialise() {
+          const me = await api('/api/auth/me');
+          if (me.user.role !== 'super') return;
+          const people = (await api('/api/users')).users.filter(
+            person => person.role === 'regular'
+          );
+          const select = element('select', { 'aria-label': 'Reimbursement employee' });
+          select.append(
+            element('option', { value: '', text: 'Choose an employee' }),
+            ...people.map(person =>
+              element('option', { value: person.id, text: personName(person) })
+            )
+          );
+          const open = button(
+            'Create reimbursement notice',
+            () => {
+              const person = people.find(person => person.id === select.value);
+              if (person) reimbursementPage(person);
+            },
+            'primary'
+          );
+          open.disabled = true;
+          select.onchange = () => {
+            open.disabled = !select.value;
+            closeComposer();
+          };
+          root.replaceChildren(
+            element('h2', { text: 'Reimbursement notice' }),
+            element('label', {}, select),
+            open,
+            details
+          );
+        }
+        initialise().catch(error => root.replaceChildren(notice(error.message)));
+      })();
+    </script>
+  </body>
 </html>

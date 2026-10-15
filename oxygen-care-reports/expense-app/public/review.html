@@ -1,4 +1,220 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Review Expenses · Oxygen Care</title><link rel="stylesheet" href="/calendar.css"><style>
-body{margin:0;background:#f5fbfd;color:#183f4b;font:16px system-ui,-apple-system,Segoe UI,sans-serif}.app{max-width:900px;margin:auto;padding:24px}.head{display:flex;align-items:center;gap:22px;border-bottom:3px solid #277b91;padding-bottom:18px}.logo{width:145px;height:auto}.meta{color:#63818a;font-size:13px}.card{background:#fff;border:1px solid #cfeaf2;border-radius:15px;padding:16px;margin-top:18px}.expense{padding:16px 0;border-bottom:1px solid #e4f0f4;cursor:pointer}.expense:hover,.expense:focus{background:#f7fcfd;outline:none}.expense:last-child{border:0}.title{font-weight:800}.actions,.filters{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px}button,.home,select,input{border:1px solid #cfeaf2;background:#fff;border-radius:8px;padding:8px 10px;color:#277b91;font:inherit;font-weight:750;cursor:pointer;text-decoration:none}.home{margin-left:auto;white-space:nowrap}button.decline,button.delete{color:#a5412e}.receipt{display:inline-block;color:#277b91;font-size:13px;font-weight:750;margin-top:8px}.flag{margin-top:8px;color:#a5412e;font-size:13px;font-weight:650}.error{color:#a5412e}.history{margin-top:12px;border-left:3px solid #cfeaf2;padding-left:10px}.history summary{cursor:pointer;color:#277b91;font-size:13px;font-weight:700}.history-item{font-size:13px;padding:7px 0;border-bottom:1px solid #eef5f7}.history-item:last-child{border:0}.modal{position:fixed;inset:0;background:#183f4baa;display:grid;place-items:center;padding:20px}.modal-box{background:#fff;border-radius:16px;padding:20px;width:min(100%,420px);box-shadow:0 18px 45px #183f4b55}.modal-box h2{margin-top:0}textarea{box-sizing:border-box;width:100%;min-height:110px;margin:10px 0;padding:10px;border:1px solid #9bcbd9;border-radius:8px;font:inherit}.modal-actions{display:flex;justify-content:flex-end;gap:8px}@media(max-width:600px){.app{padding:16px}.head{gap:12px}.logo{width:110px}}
-</style></head><body><main class="app"><header class="head"><img class="logo" src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care"><div><h1 style="margin:0;font-size:25px">Expense Review</h1><div id="subtitle" class="meta">Loading…</div></div><a id="back" class="home" href="/">Back</a></header><section class="card"><div class="filters"><label>From <input id="from" type="date"></label><label>To <input id="to" type="date"></label><label>Status <select id="status"><option value="pending">Pending</option><option value="approved">Approved</option><option value="all">All statuses</option><option value="declined">Declined</option><option value="question">Questioned</option></select></label></div><div id="count" class="meta"></div></section><section id="content" class="card">Loading expenses…</section></main><script>window.reviewConfig={role:'super',review:'super',subjectLabel:'user',allowDelete:true,titleElement:'subtitle',titleTag:'div',titleClass:'title',flagClass:'flag',actionsClass:'modal-actions',accessError:'Super User access is required.',userError:'Regular user not found.'};</script><script src="/http.js"></script><script src="/expense-calendar.js"></script><script src="/review-common.js"></script></body></html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Review Expenses · Oxygen Care</title>
+    <link rel="stylesheet" href="/calendar.css" />
+    <style>
+      body {
+        margin: 0;
+        background: #f5fbfd;
+        color: #183f4b;
+        font:
+          16px system-ui,
+          -apple-system,
+          Segoe UI,
+          sans-serif;
+      }
+      .app {
+        max-width: 900px;
+        margin: auto;
+        padding: 24px;
+      }
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        border-bottom: 3px solid #277b91;
+        padding-bottom: 18px;
+      }
+      .logo {
+        width: 145px;
+        height: auto;
+      }
+      .meta {
+        color: #63818a;
+        font-size: 13px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #cfeaf2;
+        border-radius: 15px;
+        padding: 16px;
+        margin-top: 18px;
+      }
+      .expense {
+        padding: 16px 0;
+        border-bottom: 1px solid #e4f0f4;
+        cursor: pointer;
+      }
+      .expense:hover,
+      .expense:focus {
+        background: #f7fcfd;
+        outline: none;
+      }
+      .expense:last-child {
+        border: 0;
+      }
+      .title {
+        font-weight: 800;
+      }
+      .actions,
+      .filters {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 9px;
+      }
+      button,
+      .home,
+      select,
+      input {
+        border: 1px solid #cfeaf2;
+        background: #fff;
+        border-radius: 8px;
+        padding: 8px 10px;
+        color: #277b91;
+        font: inherit;
+        font-weight: 750;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      .home {
+        margin-left: auto;
+        white-space: nowrap;
+      }
+      button.decline,
+      button.delete {
+        color: #a5412e;
+      }
+      .receipt {
+        display: inline-block;
+        color: #277b91;
+        font-size: 13px;
+        font-weight: 750;
+        margin-top: 8px;
+      }
+      .flag {
+        margin-top: 8px;
+        color: #a5412e;
+        font-size: 13px;
+        font-weight: 650;
+      }
+      .error {
+        color: #a5412e;
+      }
+      .history {
+        margin-top: 12px;
+        border-left: 3px solid #cfeaf2;
+        padding-left: 10px;
+      }
+      .history summary {
+        cursor: pointer;
+        color: #277b91;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .history-item {
+        font-size: 13px;
+        padding: 7px 0;
+        border-bottom: 1px solid #eef5f7;
+      }
+      .history-item:last-child {
+        border: 0;
+      }
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: #183f4baa;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+      }
+      .modal-box {
+        background: #fff;
+        border-radius: 16px;
+        padding: 20px;
+        width: min(100%, 420px);
+        box-shadow: 0 18px 45px #183f4b55;
+      }
+      .modal-box h2 {
+        margin-top: 0;
+      }
+      textarea {
+        box-sizing: border-box;
+        width: 100%;
+        min-height: 110px;
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #9bcbd9;
+        border-radius: 8px;
+        font: inherit;
+      }
+      .modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+      @media (max-width: 600px) {
+        .app {
+          padding: 16px;
+        }
+        .head {
+          gap: 12px;
+        }
+        .logo {
+          width: 110px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="app">
+      <header class="head">
+        <img class="logo" src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care" />
+        <div>
+          <h1 style="margin: 0; font-size: 25px">Expense Review</h1>
+          <div id="subtitle" class="meta">Loading…</div>
+        </div>
+        <a id="back" class="home" href="/">Back</a>
+      </header>
+      <section class="card">
+        <div class="filters">
+          <label>From <input id="from" type="date" /></label
+          ><label>To <input id="to" type="date" /></label
+          ><label
+            >Status
+            <select id="status">
+              <option value="pending">Pending</option>
+              <option value="approved">Approved</option>
+              <option value="all">All statuses</option>
+              <option value="declined">Declined</option>
+              <option value="question">Questioned</option>
+            </select></label
+          >
+        </div>
+        <div id="count" class="meta"></div>
+      </section>
+      <section id="content" class="card">Loading expenses…</section>
+    </main>
+    <script>
+      window.reviewConfig = {
+        role: 'super',
+        review: 'super',
+        subjectLabel: 'user',
+        allowDelete: true,
+        titleElement: 'subtitle',
+        titleTag: 'div',
+        titleClass: 'title',
+        flagClass: 'flag',
+        actionsClass: 'modal-actions',
+        accessError: 'Super User access is required.',
+        userError: 'Regular user not found.'
+      };
+    </script>
+    <script src="/http.js"></script>
+    <script src="/expense-calendar.js"></script>
+    <script src="/review-common.js"></script>
+  </body>
+</html>
