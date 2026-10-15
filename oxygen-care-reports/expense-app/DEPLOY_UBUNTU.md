@@ -25,6 +25,7 @@ The updater:
   stale files cannot survive from older releases;
 - verifies that `pdfinfo` and `pdftoppm` from `poppler-utils` are installed;
 - installs Tesseract OCR (`tesseract-ocr`, `tesseract-ocr-eng`) and verifies the English language data, which receipt scanning needs;
+- installs RapidOCR, the local failover for receipts Tesseract can't read, in `/home/serveradmin/oxygen-care-expenses-rapidocr` and downloads its models before the service stops (the server needs access to PyPI and `www.modelscope.cn` during deployment only), then checks it can read an image;
 - installs Nginx from Ubuntu's package repository;
 - requests sudo authentication before modifying the live release;
 - creates verified code and data rollback archives in

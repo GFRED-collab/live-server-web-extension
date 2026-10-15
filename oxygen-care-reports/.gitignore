@@ -6,3 +6,5 @@
 **/tsconfig.tsbuildinfo
 expense-app/data/
 *.log
+**/.rapidocr/
+**/__pycache__/
