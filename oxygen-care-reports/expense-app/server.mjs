@@ -2330,13 +2330,43 @@ async function scanWithAzure(image, mediaType) {
   throw new Error('Receipt scanning timed out. Please enter it manually.');
 }
 function amountFromText(value) {
-  const numeric = Number(
-    String(value)
-      .replace(/[^0-9,.-]/g, '')
-      .replace(/,(?=\d{2}$)/, '.')
-      .replace(/,/g, '')
-  );
-  return Number.isFinite(numeric) && numeric > 0 && numeric <= 1_000_000 ? numeric : null;
+  const digits = String(value).replace(/[^0-9,.]/g, '');
+  // The last separator followed by exactly two digits is the decimal point, so both
+  // 1,245.00 and 1.245,00 read as 1245; any other separators group thousands.
+  const decimal = /[,.](\d{2})$/.exec(digits);
+  const whole = (decimal ? digits.slice(0, decimal.index) : digits).replace(/[,.]/g, '');
+  const numeric = Number(`${whole}${decimal ? `.${decimal[1]}` : ''}`);
+  return whole && Number.isFinite(numeric) && numeric > 0 && numeric <= 1_000_000 ? numeric : null;
+}
+// Matches 12.50, 6,75, €1,245.00, 1.245,00 and EUR 12; whole numbers only count when
+// the caller allows them, so quantities and reference numbers are not taken as totals.
+const receiptAmountPattern = /(?:€|EUR)?\s*(?:\d{1,3}(?:[,.]\d{3})+|\d+)(?:[,.]\d{2})?(?!\d)/gi;
+const receiptTotalLine =
+  /\b(grand\s*total|total\s*due|amount\s*due|balance\s*due|to\s*pay|total)\b/i;
+const receiptNotTotalLine =
+  /\b(sub\s*-?\s*total|total\s*(items?|qty|quantity|savings?|saved|discount|vat|tax)|vat\s*total|tax\s*total)\b/i;
+function receiptAmounts(line, { allowWhole = false } = {}) {
+  // Dates such as 14.10.2026 would otherwise read as the amount 14.10.
+  const withoutDates = line.replace(/\b\d{1,4}[-/.]\d{1,2}[-/.]\d{2,4}\b/g, ' ');
+  return (withoutDates.match(receiptAmountPattern) || [])
+    .filter(match => allowWhole || /[,.]\d{2}$/.test(match.trim()))
+    .map(amountFromText)
+    .filter(Boolean);
+}
+function receiptTotal(lines) {
+  for (const [index, line] of lines.entries()) {
+    if (!receiptTotalLine.test(line) || receiptNotTotalLine.test(line)) continue;
+    // Receipts often print the amount on the total line or on the line below it.
+    const amount =
+      receiptAmounts(line, { allowWhole: true })[0] ||
+      (lines[index + 1] && !/[A-Za-z]{3}/.test(lines[index + 1])
+        ? receiptAmounts(lines[index + 1], { allowWhole: true })[0]
+        : null);
+    if (amount) return amount;
+  }
+  // Without a readable total line, the largest priced amount is usually the total.
+  const amounts = lines.flatMap(line => receiptAmounts(line));
+  return amounts.length ? Math.max(...amounts) : null;
 }
 function dateFromTesseract(text) {
   const iso = /\b(20\d{2})[-/.](0?[1-9]|1[0-2])[-/.](0?[1-9]|[12]\d|3[01])\b/.exec(text);
@@ -2360,16 +2390,21 @@ function categoryFromTesseract(text) {
 function parseTesseractReceipt(text) {
   const lines = text
     .split(/\r?\n/)
-    .map(line => line.replace(/\s+/g, ' ').trim())
+    .map(line =>
+      line
+        .replace(/\s+/g, ' ')
+        // OCR often adds a space inside numbers, e.g. "€1, 245.00" or "12 .50".
+        .replace(/(\d[,.]) (?=\d)/g, '$1')
+        .replace(/(\d) (?=[,.]\d)/g, '$1')
+        // ...or misreads the decimal point as a similar mark, e.g. "17°49".
+        .replace(/(\d)[°'’`´·](\d{2})(?!\d)/g, '$1.$2')
+        .trim()
+    )
     .filter(Boolean);
-  const totalLine = lines.find(line =>
-    /\b(grand\s*total|total\s*due|amount\s*due|total)\b/i.test(line)
-  );
-  const candidates = (totalLine ? [totalLine] : lines)
-    .flatMap(line => line.match(/(?:€|EUR|\b)\s*\d{1,3}(?:[,.]\d{3})*(?:[,.]\d{2})\b/gi) || [])
-    .map(amountFromText)
-    .filter(Boolean);
-  const amount = candidates[0] || null;
+  const amount = receiptTotal(lines);
+  const itemAmounts = lines
+    .filter(line => !receiptTotalLine.test(line))
+    .flatMap(line => receiptAmounts(line));
   const merchant =
     lines
       .find(
@@ -2383,7 +2418,9 @@ function parseTesseractReceipt(text) {
     amount,
     date: dateFromTesseract(text),
     category: categoryFromTesseract(text),
-    note: ''
+    note: '',
+    // A total below an item price means part of the receipt was misread.
+    totalBelowItem: Boolean(amount && itemAmounts.some(item => item > amount))
   };
 }
 async function tesseractText(bytes, pageSegmentationMode = '6') {
@@ -2448,7 +2485,11 @@ async function localOcrVariants(bytes) {
   return [primary, highContrast];
 }
 function tesseractResultScore(result) {
-  return (result.merchant ? 2 : 0) + (result.amount ? 2 : 0) + (result.date ? 1 : 0);
+  return (
+    (result.merchant ? 2 : 0) +
+    (result.amount ? (result.totalBelowItem ? 1 : 2) : 0) +
+    (result.date ? 1 : 0)
+  );
 }
 async function scanWithTesseract(bytes) {
   const [primaryImage, retryImage] = await localOcrVariants(bytes);
@@ -2510,7 +2551,14 @@ async function scanReceipt(req, res) {
             tesseractError.message,
             azureError.message
           );
-          throw new Error('Receipt could not be read automatically. Please enter it manually.');
+          // With cloud fallback off, show the local reason (e.g. Tesseract not installed)
+          // instead of a generic message, so the cause is visible without the server log.
+          const cloudUnused = process.env.OCR_ALLOW_CLOUD !== 'true';
+          throw new Error(
+            cloudUnused && /^Tesseract OCR /.test(tesseractError.message)
+              ? `${tesseractError.message} Please enter it manually.`
+              : 'Receipt could not be read automatically. Please enter it manually.'
+          );
         }
       }
     }

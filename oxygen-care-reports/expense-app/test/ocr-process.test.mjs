@@ -30,3 +30,36 @@ test('Tesseract exiting before reading the receipt rejects instead of crashing t
     await rm(bin, { recursive: true, force: true });
   }
 });
+
+async function loadReceiptParser() {
+  const server = await readFile(join(appDir, 'server.mjs'), 'utf8');
+  const start = server.indexOf('function amountFromText(');
+  const end = server.indexOf('async function tesseractText(');
+  assert.ok(start >= 0 && end > start);
+  const source = `${server.slice(start, end)}\nexport { parseTesseractReceipt };`;
+  return (await import(`data:text/javascript,${encodeURIComponent(source)}`)).parseTesseractReceipt;
+}
+
+test('receipt totals are found in the layouts Tesseract commonly produces', async () => {
+  const parse = await loadReceiptParser();
+  const cases = [
+    ['SHOP LTD\nTOTAL €10.53', 10.53],
+    ['SHOP LTD\nTotal EUR 6,75', 6.75],
+    ['SHOP LTD\nTOTAL DUE €1, 245.00', 1245],
+    ['SHOP LTD\nAMOUNT DUE 1.245,00', 1245],
+    ['SHOP LTD\nTOTAL €12', 12],
+    ['SHOP LTD\nTOTAL\n€ 17.49', 17.49],
+    ['SHOP LTD\nTOTAL:\n17°49', 17.49],
+    ['SHOP LTD\nTotal 6 ,75', 6.75],
+    ['SHOP LTD\nTotal items: 3\nTOTAL 23.40', 23.4],
+    ['SHOP LTD\nSUBTOTAL 20.00\nTOTAL VAT 3.40\nTOTAL SAVINGS 1.00\nTOTAL 23.40', 23.4],
+    ['SHOP LTD\n14.10.2026\nMilk 2.19\nBread 1.85', 2.19]
+  ];
+  for (const [text, amount] of cases) assert.equal(parse(text).amount, amount, text);
+});
+
+test('a total below an item price is flagged so the second OCR pass runs', async () => {
+  const parse = await loadReceiptParser();
+  assert.equal(parse('SHOP LTD\nPaper 12.99\nTOTAL 7.49').totalBelowItem, true);
+  assert.equal(parse('SHOP LTD\nPaper 12.99\nTOTAL 17.49').totalBelowItem, false);
+});
