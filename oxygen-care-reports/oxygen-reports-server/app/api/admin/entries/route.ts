@@ -25,6 +25,9 @@ async function visitSnapshot(db: PoolClient, id: string) {
   );
   return result.rows[0];
 }
+// Saved-entry lists show 20 entries per page.
+const pageSize = 20;
+
 export async function GET(request: Request) {
   const auth = await requireUser(['super_user']);
   if (auth.response) return auth.response;
@@ -44,18 +47,24 @@ export async function GET(request: Request) {
       const result = await db.query(
         `SELECT id,entity_id AS "entityId",operation,reason,recorded_at AS "recordedAt",snapshot
         FROM admin_entry_history WHERE entity_type=$1 AND ($2::uuid IS NULL OR entity_id=$2::uuid)
-        AND (reason ILIKE $3 OR snapshot::text ILIKE $3) ORDER BY recorded_at DESC LIMIT 51 OFFSET $4`,
-        [kind, id, '%' + search + '%', page * 50]
+        AND (reason ILIKE $3 OR snapshot::text ILIKE $3) ORDER BY recorded_at DESC LIMIT $5 OFFSET $4`,
+        [kind, id, '%' + search + '%', page * pageSize, pageSize + 1]
       );
-      return Response.json({ history: result.rows.slice(0, 50), hasMore: result.rows.length > 50 });
+      return Response.json({
+        history: result.rows.slice(0, pageSize),
+        hasMore: result.rows.length > pageSize
+      });
     }
     const columns = def.fields.map(f => quote(f.name)).join(',');
     const result = await db.query(
       `SELECT id,${columns},md5(to_jsonb(t)::text) AS version
-      FROM ${quote(kind)} t WHERE concat_ws(' ',${columns}) ILIKE $1 ORDER BY id LIMIT 51 OFFSET $2`,
-      ['%' + search + '%', page * 50]
+      FROM ${quote(kind)} t WHERE concat_ws(' ',${columns}) ILIKE $1 ORDER BY id LIMIT $3 OFFSET $2`,
+      ['%' + search + '%', page * pageSize, pageSize + 1]
     );
-    return Response.json({ entries: result.rows.slice(0, 50), hasMore: result.rows.length > 50 });
+    return Response.json({
+      entries: result.rows.slice(0, pageSize),
+      hasMore: result.rows.length > pageSize
+    });
   } catch (error) {
     return errorResponse(error);
   }
