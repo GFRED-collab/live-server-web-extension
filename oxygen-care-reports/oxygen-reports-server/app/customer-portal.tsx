@@ -2,6 +2,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CsvPreview } from './report-tools';
 import { brandPrintWindow } from './print-layout';
+import { ServiceReport, writeServiceReport } from './service-report';
+import { CustomerCalloutRequests } from './customer-callout-requests';
 import './customer-portal.css';
 type Contract = {
   id: string;
@@ -40,7 +42,7 @@ type Data = {
   services: Service[];
   canExport: boolean;
 };
-type Tab = 'contracts' | 'devices' | 'history';
+type Tab = 'contracts' | 'devices' | 'history' | 'requests';
 export default function CustomerPortal({ logout }: { logout: () => void }) {
   const [data, setData] = useState<Data | null>(null),
     [error, setError] = useState(''),
@@ -163,7 +165,7 @@ export default function CustomerPortal({ logout }: { logout: () => void }) {
             .join('\n')
         ];
       }),
-      ids: [] as string[]
+      ids: filtered.map(s => s.visitId)
     };
   }, [data, tab, contract, device, query, status, from, to]);
   function print() {
@@ -211,6 +213,28 @@ export default function CustomerPortal({ logout }: { logout: () => void }) {
     });
     brandPrintWindow(popup);
   }
+  async function openReport(visitId: string) {
+    // Open the window before the download so the browser does not block it as a pop-up.
+    const popup = window.open('', '_blank');
+    if (!popup) {
+      setError('Allow pop-ups to open the service report.');
+      return;
+    }
+    popup.opener = null;
+    popup.document.title = 'Loading service report…';
+    popup.document.body.textContent = 'Loading service report…';
+    try {
+      const response = await fetch(`/api/customer-portal/service-visits/${visitId}`, {
+        cache: 'no-store'
+      });
+      const body = await response.json().catch(() => ({}));
+      if (!response.ok) throw Error(body.error || 'Could not open the service report.');
+      writeServiceReport(popup, body as ServiceReport);
+    } catch (e) {
+      popup.close();
+      setError(e instanceof Error ? e.message : 'Could not open the service report.');
+    }
+  }
   function switchTab(next: Tab) {
     setTab(next);
     setStatus('');
@@ -240,158 +264,181 @@ export default function CustomerPortal({ logout }: { logout: () => void }) {
       {data && (
         <>
           <nav aria-label="Customer sections">
-            {(['contracts', 'devices', 'history'] as Tab[]).map(name => (
+            {(['contracts', 'devices', 'history', 'requests'] as Tab[]).map(name => (
               <button key={name} aria-pressed={tab === name} onClick={() => switchTab(name)}>
                 {name === 'history'
                   ? 'Service history'
                   : name === 'devices'
                     ? 'Devices'
-                    : 'Contracts'}
+                    : name === 'requests'
+                      ? 'Request a callout'
+                      : 'Contracts'}
               </button>
             ))}
           </nav>
-          <section className="customer-filters" aria-label="Portal filters">
-            <label>
-              Contract
-              <select
-                aria-label="Contract"
-                value={contract}
-                onChange={e => {
-                  setContract(e.target.value);
-                  setDevice('');
-                }}
-              >
-                <option value="">All contracts</option>
-                {data.contracts.map(c => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} · {c.contractNumber}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Search
-              <input
-                type="search"
-                placeholder="Device, serial, asset or contract"
-                value={query}
-                onChange={e => setQuery(e.target.value)}
-              />
-            </label>
-            <label>
-              Status
-              <select aria-label="Status" value={status} onChange={e => setStatus(e.target.value)}>
-                <option value="">All statuses</option>
-                {statuses.map(s => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </label>
-            {tab === 'history' && (
-              <>
+          {tab === 'requests' ? (
+            <CustomerCalloutRequests contracts={data.contracts} devices={data.devices} />
+          ) : (
+            <>
+              <section className="customer-filters" aria-label="Portal filters">
                 <label>
-                  Device
+                  Contract
                   <select
-                    aria-label="Device"
-                    value={device}
-                    onChange={e => setDevice(e.target.value)}
+                    aria-label="Contract"
+                    value={contract}
+                    onChange={e => {
+                      setContract(e.target.value);
+                      setDevice('');
+                    }}
                   >
-                    <option value="">All devices</option>
-                    {data.devices
-                      .filter(d => !contract || d.contractId === contract)
-                      .map(d => (
-                        <option key={d.contractId + d.id} value={d.id}>
-                          {d.deviceName} · {d.serialNumber || d.assetNumber}
-                        </option>
-                      ))}
+                    <option value="">All contracts</option>
+                    {data.contracts.map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} · {c.contractNumber}
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label>
-                  From
+                  Search
                   <input
-                    type="date"
-                    value={from}
-                    max={to || undefined}
-                    onChange={e => setFrom(e.target.value)}
+                    type="search"
+                    placeholder="Device, serial, asset or contract"
+                    value={query}
+                    onChange={e => setQuery(e.target.value)}
                   />
                 </label>
                 <label>
-                  To
-                  <input
-                    type="date"
-                    value={to}
-                    min={from || undefined}
-                    onChange={e => setTo(e.target.value)}
-                  />
-                </label>
-              </>
-            )}
-            <button
-              onClick={() => {
-                setContract('');
-                setDevice('');
-                setQuery('');
-                setStatus('');
-                setFrom('');
-                setTo('');
-              }}
-            >
-              Clear filters
-            </button>
-          </section>
-          <div className="customer-actions">
-            <span>{view.rows.length} results</span>
-            {data.canExport && (
-              <>
-                <button onClick={print}>Print / Save PDF</button>
-                <button onClick={() => setCsv({ columns: view.columns, rows: view.rows })}>
-                  Export CSV
-                </button>
-              </>
-            )}
-          </div>
-          <div className="customer-table">
-            <table>
-              <thead>
-                <tr>
-                  {view.columns.map(c => (
-                    <th key={c}>{c}</th>
-                  ))}
-                  {tab === 'devices' && <th>History</th>}
-                </tr>
-              </thead>
-              <tbody>
-                {view.rows.map((row, i) => (
-                  <tr key={i}>
-                    {row.map((v, j) => (
-                      <td key={j}>{v || '—'}</td>
+                  Status
+                  <select
+                    aria-label="Status"
+                    value={status}
+                    onChange={e => setStatus(e.target.value)}
+                  >
+                    <option value="">All statuses</option>
+                    {statuses.map(s => (
+                      <option key={s}>{s}</option>
                     ))}
-                    {tab === 'devices' && (
-                      <td>
-                        <button
-                          onClick={() => {
-                            setTab('history');
-                            setDevice(view.ids[i]);
-                            setQuery('');
-                            setStatus('');
-                            setFrom('');
-                            setTo('');
-                          }}
-                        >
-                          Open history
-                        </button>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!view.rows.length && (
-            <p>
-              No matching records
-              {tab === 'history' ? ' — only finalized, signed service visits are available' : ''}.
-            </p>
+                  </select>
+                </label>
+                {tab === 'history' && (
+                  <>
+                    <label>
+                      Device
+                      <select
+                        aria-label="Device"
+                        value={device}
+                        onChange={e => setDevice(e.target.value)}
+                      >
+                        <option value="">All devices</option>
+                        {data.devices
+                          .filter(d => !contract || d.contractId === contract)
+                          .map(d => (
+                            <option key={d.contractId + d.id} value={d.id}>
+                              {d.deviceName} · {d.serialNumber || d.assetNumber}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <label>
+                      From
+                      <input
+                        type="date"
+                        value={from}
+                        max={to || undefined}
+                        onChange={e => setFrom(e.target.value)}
+                      />
+                    </label>
+                    <label>
+                      To
+                      <input
+                        type="date"
+                        value={to}
+                        min={from || undefined}
+                        onChange={e => setTo(e.target.value)}
+                      />
+                    </label>
+                  </>
+                )}
+                <button
+                  onClick={() => {
+                    setContract('');
+                    setDevice('');
+                    setQuery('');
+                    setStatus('');
+                    setFrom('');
+                    setTo('');
+                  }}
+                >
+                  Clear filters
+                </button>
+              </section>
+              <div className="customer-actions">
+                <span>{view.rows.length} results</span>
+                {data.canExport && (
+                  <>
+                    <button onClick={print}>Print / Save PDF</button>
+                    <button onClick={() => setCsv({ columns: view.columns, rows: view.rows })}>
+                      Export CSV
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="customer-table">
+                <table>
+                  <thead>
+                    <tr>
+                      {view.columns.map(c => (
+                        <th key={c}>{c}</th>
+                      ))}
+                      {tab === 'devices' && <th>History</th>}
+                      {tab === 'history' && data.canExport && <th>Report</th>}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {view.rows.map((row, i) => (
+                      <tr key={i}>
+                        {row.map((v, j) => (
+                          <td key={j}>{v || '—'}</td>
+                        ))}
+                        {tab === 'history' && data.canExport && (
+                          <td>
+                            <button onClick={() => void openReport(view.ids[i])}>
+                              Signed report
+                            </button>
+                          </td>
+                        )}
+                        {tab === 'devices' && (
+                          <td>
+                            <button
+                              onClick={() => {
+                                setTab('history');
+                                setDevice(view.ids[i]);
+                                setQuery('');
+                                setStatus('');
+                                setFrom('');
+                                setTo('');
+                              }}
+                            >
+                              Open history
+                            </button>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!view.rows.length && (
+                <p>
+                  No matching records
+                  {tab === 'history'
+                    ? ' — only finalized, signed service visits are available'
+                    : ''}
+                  .
+                </p>
+              )}
+            </>
           )}
         </>
       )}

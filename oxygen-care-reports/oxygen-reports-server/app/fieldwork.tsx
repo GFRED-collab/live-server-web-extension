@@ -1,6 +1,7 @@
 'use client';
 import { FormEvent, PointerEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { brandPrintWindow } from './print-layout';
+import { CalloutRequests } from './callout-requests';
 import './fieldwork.css';
 
 type Callout = {
@@ -830,6 +831,12 @@ export default function Fieldwork({
           </button>
         </fieldset>
       </form>
+      {mode === 'callouts' && user.role === 'super_user' && tab === 'entry' && (
+        <CalloutRequests
+          engineers={data.engineers.filter(engineer => engineer.id !== user.id)}
+          onAccepted={() => void load().catch(e => setError(e.message))}
+        />
+      )}
       <section hidden={tab !== 'entry'} className="fieldwork-list">
         <h2>{mode === 'callouts' ? 'Call-out register' : 'Docket register'}</h2>
         {mode === 'callouts'
