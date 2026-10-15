@@ -133,7 +133,56 @@
 .customer-table th {
   white-space: nowrap;
 }
+.customer-requests {
+  display: grid;
+  gap: 20px;
+}
+.customer-requests form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+}
+.customer-requests form h2,
+.customer-requests form p,
+.customer-requests form label:has(textarea),
+.customer-requests form button {
+  grid-column: 1 / -1;
+}
+.customer-requests form h2,
+.customer-requests .customer-table h2 {
+  margin: 0;
+}
+.customer-requests .customer-table h2 {
+  padding: 12px;
+}
+.customer-requests form button {
+  justify-self: start;
+}
+.customer-requests label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+.customer-requests input,
+.customer-requests select,
+.customer-requests textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 9px;
+  font: inherit;
+}
+.customer-requests [role='alert'] {
+  color: #a5412e;
+}
 @media screen and (max-width: 800px) {
+  .customer-requests form {
+    grid-template-columns: minmax(0, 1fr);
+  }
   .customer-portal {
     padding: 12px;
   }

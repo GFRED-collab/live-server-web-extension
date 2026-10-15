@@ -22,7 +22,8 @@ export async function GET(request: Request) {
       params = [user.role, user.id];
     if (new URL(request.url).searchParams.get('notifications') === '1') {
       const result = await db.query(
-        `SELECT count(*)::int AS count FROM callouts WHERE status='open' AND ($1='super_user' OR assigned_user_id=$2)`,
+        `SELECT ((SELECT count(*) FROM callouts WHERE status='open' AND ($1='super_user' OR assigned_user_id=$2))
+   + CASE WHEN $1='super_user' THEN (SELECT count(*) FROM callout_requests WHERE status='new') ELSE 0 END)::int AS count`,
         params
       );
       return Response.json({ count: result.rows[0].count });
