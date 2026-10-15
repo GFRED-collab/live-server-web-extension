@@ -2,6 +2,7 @@
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { entryDefinitions } from '../lib/entry-definitions';
 import { brandPrintWindow } from './print-layout';
+import { EntryList } from './entry-list';
 import { localDateTime } from '../lib/work-times';
 import './entry-layout.css';
 type Entry = { id: string; version: string; [key: string]: unknown };
@@ -363,73 +364,46 @@ export default function AdminEntries({ sidebar }: { sidebar: ReactNode }) {
         {loading ? (
           <p>Loading…</p>
         ) : historyMode ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Action</th>
-                <th>Reason</th>
-                <th>Original</th>
-              </tr>
-            </thead>
-            <tbody>
-              {history.map(h => (
-                <tr key={h.id}>
-                  <td>{new Date(h.recordedAt).toLocaleString('en-IE')}</td>
-                  <td>{h.operation}</td>
-                  <td>{h.reason}</td>
-                  <td>
-                    <button
-                      onClick={() => {
-                        if (!printHistory(h, def.label)) setError('Please allow the print window.');
-                      }}
-                    >
-                      View / Print original
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <EntryList
+            label={`${def.label} preserved originals`}
+            items={history}
+            getKey={h => h.id}
+            empty="No matching entries."
+            disabled={busy}
+            paging={{ page, hasMore, onPage: setPage }}
+            badge={h => <span className="entry-badge">{h.operation}</span>}
+            line={h => [new Date(h.recordedAt).toLocaleString('en-IE'), h.reason]}
+            actions={h => (
+              <button
+                onClick={() => {
+                  if (!printHistory(h, def.label)) setError('Please allow the print window.');
+                }}
+              >
+                View / Print original
+              </button>
+            )}
+          />
         ) : (
-          <table>
-            <thead>
-              <tr>
-                {def.fields.slice(0, 4).map(f => (
-                  <th key={f.name}>{f.label}</th>
-                ))}
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map(entry => (
-                <tr key={entry.id}>
-                  {def.fields.slice(0, 4).map(f => (
-                    <td key={f.name}>{String(entry[f.name] ?? '—').slice(0, 160)}</td>
-                  ))}
-                  <td>
-                    <button onClick={() => open(entry)} disabled={busy}>
-                      Edit
-                    </button>
-                    <button onClick={() => open(entry, true)} disabled={busy}>
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <EntryList
+            label={`${def.label} current entries`}
+            items={entries}
+            getKey={entry => entry.id}
+            empty="No matching entries."
+            disabled={busy}
+            paging={{ page, hasMore, onPage: setPage }}
+            line={entry => def.fields.map(f => String(entry[f.name] ?? '').trim())}
+            actions={entry => (
+              <>
+                <button onClick={() => open(entry)} disabled={busy}>
+                  Edit
+                </button>
+                <button onClick={() => open(entry, true)} disabled={busy}>
+                  Delete
+                </button>
+              </>
+            )}
+          />
         )}
-        {!loading && !(historyMode ? history : entries).length && <p>No matching entries.</p>}
-        <div className="export-actions">
-          <button disabled={page === 0 || loading || busy} onClick={() => setPage(p => p - 1)}>
-            Previous
-          </button>
-          <span>Page {page + 1} · up to 50 entries per page</span>
-          <button disabled={!hasMore || loading || busy} onClick={() => setPage(p => p + 1)}>
-            Next
-          </button>
-        </div>
       </section>
     </main>
   );

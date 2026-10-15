@@ -1,5 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { EntryList } from './entry-list';
 
 type CalloutRequest = {
   id: string;
@@ -97,75 +98,66 @@ export function CalloutRequests({
           {notice}
         </p>
       )}
-      {waiting.map(r => (
-        <article key={r.id}>
-          <div>
-            <h3>
-              {r.reference} · {r.clientName}
-              <span className="callout-bubble">{r.priority === 'urgent' ? 'Urgent' : 'New'}</span>
-            </h3>
-            <p>{r.description}</p>
-            {(r.contractName || r.deviceName) && (
-              <p>
-                {[r.contractName, r.contractNumber, r.deviceName, r.serialNumber]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </p>
-            )}
-            <small>
-              {[
-                r.location,
-                [r.contactName, r.contactPhone].filter(Boolean).join(' '),
-                `Sent by ${r.requestedByName || r.requestedByEmail || 'a customer'}`,
-                new Date(r.createdAt).toLocaleString('en-IE')
-              ]
-                .filter(Boolean)
-                .join(' · ')}
-            </small>
-          </div>
-          <div className="request-actions">
-            <label>
-              Engineer
-              <select
-                value={engineerFor[r.id] || ''}
-                onChange={e => setEngineerFor({ ...engineerFor, [r.id]: e.target.value })}
-              >
-                <option value="">Choose engineer</option>
-                {engineers.map(engineer => (
-                  <option key={engineer.id} value={engineer.id}>
-                    {engineer.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+      <EntryList
+        label="Customer call-out requests waiting for review"
+        items={waiting}
+        getKey={r => r.id}
+        disabled={busy}
+        empty="No customer requests are waiting for review."
+        badge={r => (
+          <span className="callout-bubble">{r.priority === 'urgent' ? 'Urgent' : 'New'}</span>
+        )}
+        line={r => [
+          r.reference,
+          new Date(r.createdAt).toLocaleString('en-IE'),
+          r.clientName,
+          [r.deviceName, r.serialNumber].filter(Boolean).join(' '),
+          r.description,
+          r.location,
+          [r.contactName, r.contactPhone].filter(Boolean).join(' '),
+          [r.contractName, r.contractNumber].filter(Boolean).join(' '),
+          `Sent by ${r.requestedByName || r.requestedByEmail || 'a customer'}`
+        ]}
+        actions={r => (
+          <>
+            <select
+              aria-label={`Engineer for ${r.reference}`}
+              value={engineerFor[r.id] || ''}
+              onChange={e => setEngineerFor({ ...engineerFor, [r.id]: e.target.value })}
+            >
+              <option value="">Choose engineer</option>
+              {engineers.map(engineer => (
+                <option key={engineer.id} value={engineer.id}>
+                  {engineer.name}
+                </option>
+              ))}
+            </select>
             <button disabled={busy || !engineerFor[r.id]} onClick={() => void decide(r, 'accept')}>
-              Accept and create call-out
+              Accept
             </button>
             <button disabled={busy} onClick={() => void decide(r, 'decline')}>
               Decline
             </button>
-          </div>
-        </article>
-      ))}
-      {!waiting.length && <p>No customer requests are waiting for review.</p>}
+          </>
+        )}
+      />
       {decided.length > 0 && (
         <details>
           <summary>Handled in the last 30 days ({decided.length})</summary>
-          {decided.map(r => (
-            <article key={r.id}>
-              <div>
-                <h3>
-                  {r.reference} · {r.clientName}
-                </h3>
-                <p>{r.description}</p>
-                <small>
-                  {r.status === 'accepted' ? 'Accepted' : `Declined: ${r.declineReason}`} by{' '}
-                  {r.decidedByName || 'staff'} ·{' '}
-                  {r.decidedAt ? new Date(r.decidedAt).toLocaleString('en-IE') : ''}
-                </small>
-              </div>
-            </article>
-          ))}
+          <EntryList
+            label="Customer call-out requests handled in the last 30 days"
+            items={decided}
+            getKey={r => r.id}
+            badge={r => <span className="entry-badge">{r.status}</span>}
+            line={r => [
+              r.reference,
+              r.decidedAt && new Date(r.decidedAt).toLocaleString('en-IE'),
+              r.clientName,
+              r.description,
+              r.status === 'declined' && `Reason: ${r.declineReason}`,
+              `By ${r.decidedByName || 'staff'}`
+            ]}
+          />
         </details>
       )}
     </section>

@@ -2,6 +2,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import './repair-registry.css';
 import { brandPrintWindow } from './print-layout';
+import { EntryList } from './entry-list';
 import { csvCell } from '../lib/csv-export';
 
 type User = { id: string; displayName: string; role: string };
@@ -507,23 +508,26 @@ export default function RepairRegistry({ user, sidebar }: { user: User; sidebar:
               </div>
               <span>{filtered.length} entries</span>
             </div>
-            {filtered.map(repair => (
-              <button
-                type="button"
-                className={repair.id === selectedId ? 'active' : ''}
-                key={repair.id}
-                onClick={() => setSelectedId(repair.id)}
-              >
+            <EntryList
+              label="Repair entries"
+              items={filtered}
+              getKey={repair => repair.id}
+              empty="No repair entries match the filters."
+              onOpen={repair => setSelectedId(repair.id)}
+              badge={repair => (
                 <span className={`repair-priority ${repair.priority}`}>{repair.priority}</span>
-                <strong>{repair.entryNumber}</strong>
-                <span>{repair.deviceName}</span>
-                <small>
-                  {repair.clientName || 'No client'} · {repair.serialNumber || 'No serial number'}
-                </small>
-                <em>{labels[repair.status]}</em>
-              </button>
-            ))}
-            {!filtered.length && <p className="muted">No repair entries match the filters.</p>}
+              )}
+              line={repair => [
+                repair.entryNumber,
+                repair.receivedDate,
+                labels[repair.status],
+                repair.deviceName,
+                repair.serialNumber,
+                repair.clientName || 'No client',
+                repair.reportedFault,
+                repair.engineerName
+              ]}
+            />
           </div>
         </section>
       </section>

@@ -69,47 +69,9 @@
 .fieldwork-form .primary {
   max-width: 340px;
 }
-.fieldwork-list article {
-  display: flex;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 16px 0;
-  border-bottom: 1px solid var(--line);
-}
-.fieldwork-list h3 {
-  margin: 0;
-}
 .fieldwork-list p {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-}
-.fieldwork-list small {
-  color: var(--muted);
-}
-.fieldwork-list .request-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: flex-end;
-  gap: 6px;
-  max-width: 460px;
-}
-.fieldwork-list .request-actions label {
-  display: grid;
-  gap: 4px;
-  margin: 5px;
-  color: var(--muted);
-  font-size: 13px;
-}
-.fieldwork-list .request-actions select {
-  min-width: 190px;
-  min-height: 42px;
-  padding: 8px 10px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  color: var(--ink);
-  background: white;
-  font: inherit;
 }
 .fieldwork-list details summary {
   padding-top: 14px;
@@ -118,9 +80,6 @@
 @media (max-width: 650px) {
   .fieldwork-grid {
     grid-template-columns: 1fr;
-  }
-  .fieldwork-list article {
-    flex-direction: column;
   }
 }
 .docket-signoff {

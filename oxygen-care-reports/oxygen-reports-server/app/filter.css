@@ -207,35 +207,6 @@
   gap: 9px;
   margin-top: 16px;
 }
-.report-link {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  border: 1px solid #dcedf2;
-  border-radius: 11px;
-  padding: 13px;
-  background: #fff;
-  color: var(--ink);
-  text-align: left;
-  cursor: pointer;
-}
-.report-link:hover {
-  background: #f3fbfd;
-}
-.report-link span {
-  display: grid;
-  gap: 3px;
-}
-.report-link small {
-  color: var(--muted);
-  font-size: 12px;
-}
-.report-link b {
-  color: var(--brand);
-  font-size: 12px;
-  white-space: nowrap;
-}
 .field-list span[draggable='true'] {
   cursor: grab;
 }

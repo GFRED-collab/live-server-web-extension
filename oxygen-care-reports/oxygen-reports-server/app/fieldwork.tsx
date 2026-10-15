@@ -2,6 +2,7 @@
 import { FormEvent, PointerEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { brandPrintWindow } from './print-layout';
 import { CalloutRequests } from './callout-requests';
+import { EntryList } from './entry-list';
 import './fieldwork.css';
 
 type Callout = {
@@ -873,68 +874,67 @@ export default function Fieldwork({
       )}
       <section hidden={tab !== 'entry'} className="fieldwork-list">
         <h2>{mode === 'callouts' ? 'Call-out register' : 'Docket register'}</h2>
-        {mode === 'callouts'
-          ? data.callouts.map(c => (
-              <article key={c.id}>
-                <div>
-                  <h3>
-                    {c.clientName}
-                    {c.status === 'open' && <span className="callout-bubble">New</span>}
-                  </h3>
-                  <p>{c.description}</p>
-                  {c.deviceName && (
-                    <p>
-                      {c.deviceName} · {c.serialNumber || 'No serial number'}
-                    </p>
-                  )}
-                  <small>
-                    {c.location} · {c.assignedUserName} · {c.priority} · {c.status}
-                  </small>
-                </div>
-                <div>
-                  {c.status === 'open' && (
-                    <button disabled={busy} onClick={() => void update(c.id, 'acknowledged')}>
-                      Acknowledge
-                    </button>
-                  )}
-                  {c.status !== 'closed' && openDocket && (
-                    <button disabled={busy} onClick={() => openDocket(c.id)}>
-                      Create docket
-                    </button>
-                  )}
-                  {c.status !== 'closed' && (
-                    <button disabled={busy} onClick={() => void update(c.id, 'closed')}>
-                      Close call-out
-                    </button>
-                  )}
-                </div>
-              </article>
-            ))
-          : data.dockets.map(d => (
-              <article key={d.id}>
-                <div>
-                  <h3>
-                    {d.entryNumber} · {d.clientName}
-                  </h3>
-                  <p>
-                    {d.deviceName} · Customer: {d.signerName}
-                  </p>
-                  <small>
-                    {d.correctionPending
-                      ? 'Awaiting fresh customer sign-off'
-                      : new Date(d.signedAt).toLocaleString('en-IE')}
-                  </small>
-                </div>
-                <div>
-                  <button onClick={() => void printDocket(d)}>Print / Save PDF</button>
-                  {d.correctionPending && (
-                    <button onClick={() => setSigningDocket(d)}>Customer sign-off</button>
-                  )}
-                </div>
-              </article>
-            ))}
-        {!(mode === 'callouts' ? data.callouts.length : data.dockets.length) && (
-          <p>No entries yet.</p>
+        {mode === 'callouts' ? (
+          <EntryList
+            label="Call-out register"
+            items={data.callouts}
+            getKey={c => c.id}
+            disabled={busy}
+            badge={c => (c.status === 'open' ? <span className="callout-bubble">New</span> : null)}
+            line={c => [
+              new Date(c.createdAt).toLocaleDateString('en-IE'),
+              c.clientName,
+              c.deviceName && `${c.deviceName} ${c.serialNumber || ''}`.trim(),
+              c.description,
+              c.location,
+              c.assignedUserName,
+              c.priority === 'urgent' ? 'Urgent' : '',
+              c.status
+            ]}
+            actions={c => (
+              <>
+                {c.status === 'open' && (
+                  <button disabled={busy} onClick={() => void update(c.id, 'acknowledged')}>
+                    Acknowledge
+                  </button>
+                )}
+                {c.status !== 'closed' && openDocket && (
+                  <button disabled={busy} onClick={() => openDocket(c.id)}>
+                    Create docket
+                  </button>
+                )}
+                {c.status !== 'closed' && (
+                  <button disabled={busy} onClick={() => void update(c.id, 'closed')}>
+                    Close
+                  </button>
+                )}
+              </>
+            )}
+          />
+        ) : (
+          <EntryList
+            label="Docket register"
+            items={data.dockets}
+            getKey={d => d.id}
+            line={d => [
+              d.entryNumber,
+              d.correctionPending
+                ? 'Awaiting fresh customer sign-off'
+                : new Date(d.signedAt).toLocaleString('en-IE'),
+              d.clientName,
+              d.deviceName && `${d.deviceName} ${d.serialNumber || ''}`.trim(),
+              `Customer: ${d.signerName}`,
+              d.workDescription
+            ]}
+            actions={d => (
+              <>
+                <button onClick={() => void printDocket(d)}>Print / PDF</button>
+                {d.correctionPending && (
+                  <button onClick={() => setSigningDocket(d)}>Customer sign-off</button>
+                )}
+              </>
+            )}
+          />
         )}
       </section>
       {signingDocket && (

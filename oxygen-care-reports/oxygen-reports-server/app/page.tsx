@@ -19,6 +19,7 @@ import type { ImportWarning } from '../lib/import-duplicates';
 import Fieldwork, { CalloutNav } from './fieldwork';
 import { brandPrintWindow } from './print-layout';
 import { openServiceReport } from './service-report';
+import { EntryList } from './entry-list';
 import { BookingDates, FieldEditor, CsvPreview } from './report-tools';
 import { csvCell } from '../lib/csv-export';
 import { coversDate } from '../lib/booking-dates';
@@ -2434,21 +2435,23 @@ export default function HomePage() {
           <section className="uploads-card">
             <p className="eyebrow">YOUR REPORTS</p>
             <h2>Open an assigned report</h2>
-            <div>
-              {uploads.map(report => (
-                <button key={report.id} className="report-link" onClick={() => openReport(report)}>
-                  <span>
-                    <strong>
-                      {report.clientName} · {report.fileName}
-                    </strong>
-                    <small>
-                      {report.rowCount} records · {report.uploadedAt}
-                    </small>
-                  </span>
-                  <b>Open ↗</b>
+            <EntryList
+              label="Uploaded reports"
+              items={uploads}
+              getKey={report => report.id}
+              onOpen={report => openReport(report)}
+              line={report => [
+                report.clientName,
+                report.fileName,
+                `${report.rowCount} records`,
+                report.uploadedAt
+              ]}
+              actions={report => (
+                <button type="button" onClick={() => openReport(report)}>
+                  Open
                 </button>
-              ))}
-            </div>
+              )}
+            />
           </section>
         )}
         {editingReportRow && writableFields.length > 0 && (
@@ -3043,33 +3046,28 @@ export default function HomePage() {
             </div>
             <span>{appointments.length} appointments</span>
           </div>
-          <div className="appointment-list">
-            {appointments.map(appointment => (
-              <article key={appointment.id}>
-                <div>
-                  <strong>
-                    {appointment.appointmentDate}
-                    {appointment.endDate && appointment.endDate !== appointment.appointmentDate
-                      ? ' – ' + appointment.endDate
-                      : ''}{' '}
-                    · {appointment.startTime || 'Any time'} · {appointment.title}
-                  </strong>
-                  <p>
-                    {[appointment.clientName, appointment.location, appointment.assignedUserName]
-                      .filter(Boolean)
-                      .join(' · ') || 'No additional details'}
-                  </p>
-                </div>
-                <button
-                  className="access-button"
-                  type="button"
-                  onClick={() => setEditingAppointmentId(appointment.id)}
-                >
-                  Edit
-                </button>
-              </article>
-            ))}
-          </div>
+          <EntryList
+            label="Appointment list"
+            items={appointments}
+            getKey={appointment => appointment.id}
+            empty="No appointments this month."
+            line={appointment => [
+              appointment.appointmentDate +
+                (appointment.endDate && appointment.endDate !== appointment.appointmentDate
+                  ? ' – ' + appointment.endDate
+                  : ''),
+              appointment.startTime || 'Any time',
+              appointment.title,
+              appointment.clientName,
+              appointment.location,
+              appointment.assignedUserName
+            ]}
+            actions={appointment => (
+              <button type="button" onClick={() => setEditingAppointmentId(appointment.id)}>
+                Edit
+              </button>
+            )}
+          />
         </section>
         {appointments.find(item => item.id === editingAppointmentId) &&
           (() => {
@@ -3823,40 +3821,40 @@ export default function HomePage() {
               Print client list
             </button>
           </div>
-          <div className="client-rows">
-            {filteredClients.map(client => {
-              const clientReports = uploads.filter(
-                  report => report.clientName === client.name
-                ).length,
-                clientAppointments = appointments.filter(
-                  appointment => appointment.clientName === client.name
-                ).length;
-              return (
-                <article key={client.id}>
-                  <h3>{client.name}</h3>
-                  <p>{client.contactName || 'No contact recorded'}</p>
-                  <small>
-                    {client.email || client.phone || client.address || 'No contact details yet'}
-                  </small>
-                  <p title={client.notes}>{client.notes || '—'}</p>
-                  <div className="client-links">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setClientName(client.name);
-                        navigateWorkspace('dashboard');
-                      }}
-                    >
-                      {clientReports} reports
-                    </button>
-                    <button type="button" onClick={() => navigateWorkspace('calendar')}>
-                      {clientAppointments} appointments
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+          <EntryList
+            label="Client list"
+            items={filteredClients}
+            getKey={client => client.id}
+            empty="No clients match."
+            line={client => [
+              client.name,
+              client.contactName,
+              client.phone,
+              client.email,
+              client.address,
+              client.notes
+            ]}
+            actions={client => (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClientName(client.name);
+                    navigateWorkspace('dashboard');
+                  }}
+                >
+                  {uploads.filter(report => report.clientName === client.name).length} reports
+                </button>
+                <button type="button" onClick={() => navigateWorkspace('calendar')}>
+                  {
+                    appointments.filter(appointment => appointment.clientName === client.name)
+                      .length
+                  }{' '}
+                  appointments
+                </button>
+              </>
+            )}
+          />
         </section>
       </main>
     );
@@ -4467,25 +4465,26 @@ export default function HomePage() {
           <section className="uploads-card">
             <p className="eyebrow">UPLOADED REPORTS</p>
             <h2>Open an uploaded report</h2>
-            <div>
-              {uploads.map(report => (
-                <button key={report.id} className="report-link" onClick={() => openReport(report)}>
-                  <span>
-                    <strong>
-                      {report.clientName} · {report.fileName}
-                    </strong>
-                    <small>
-                      {report.rowCount} records ·{' '}
-                      {accounts
-                        .filter(account => report.userIds.includes(account.id))
-                        .map(account => account.name)
-                        .join(', ')}
-                    </small>
-                  </span>
-                  <b>Open ↗</b>
+            <EntryList
+              label="Uploaded reports"
+              items={uploads}
+              getKey={report => report.id}
+              onOpen={report => openReport(report)}
+              line={report => [
+                report.clientName,
+                report.fileName,
+                `${report.rowCount} records`,
+                accounts
+                  .filter(account => report.userIds.includes(account.id))
+                  .map(account => account.name)
+                  .join(', ')
+              ]}
+              actions={report => (
+                <button type="button" onClick={() => openReport(report)}>
+                  Open
                 </button>
-              ))}
-            </div>
+              )}
+            />
           </section>
         )}
         <section className="directory report-table">
