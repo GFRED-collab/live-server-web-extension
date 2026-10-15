@@ -7,14 +7,41 @@ import { fileURLToPath } from 'node:url';
 
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
-async function loadTesseractText() {
+let loads = 0;
+// RAPIDOCR_PYTHON is read when the code loads, so each call loads a fresh copy.
+async function loadOcrRunners() {
   const server = await readFile(join(appDir, 'server.mjs'), 'utf8');
-  const start = server.indexOf('async function tesseractText(');
+  const start = server.indexOf('function runOcrProcess(');
   const end = server.indexOf('async function localOcrVariants(');
   assert.ok(start >= 0 && end > start);
-  const source = `import { spawn } from "node:child_process";\nconst upstreamTimeoutMs = 5000;\n${server.slice(start, end)}\nexport { tesseractText };`;
-  return (await import(`data:text/javascript,${encodeURIComponent(source)}`)).tesseractText;
+  const source = `// load ${(loads += 1)}\nimport { spawn } from "node:child_process";\nimport { join } from "node:path";\nconst upstreamTimeoutMs = 5000;\n${server.slice(start, end)}\nexport { tesseractText, rapidOcrText };`;
+  return import(`data:text/javascript,${encodeURIComponent(source)}`);
 }
+const loadTesseractText = async () => (await loadOcrRunners()).tesseractText;
+
+test('RapidOCR failover runs the helper script with the configured Python', async () => {
+  const bin = await mkdtemp(join(tmpdir(), 'fake-rapidocr-'));
+  const originalPython = process.env.RAPIDOCR_PYTHON;
+  try {
+    // Stands in for Python: checks it was given the helper script, then prints receipt text.
+    await writeFile(
+      join(bin, 'python3'),
+      '#!/bin/sh\ncase "$2" in */scripts/rapidocr_text.py) cat >/dev/null; printf "SHOP LTD\\nTOTAL 9.99\\n";; *) exit 3;; esac\n'
+    );
+    await chmod(join(bin, 'python3'), 0o755);
+    process.env.RAPIDOCR_PYTHON = join(bin, 'python3');
+    const { rapidOcrText } = await loadOcrRunners();
+    assert.equal(await rapidOcrText(Buffer.from('image')), 'SHOP LTD\nTOTAL 9.99\n');
+
+    process.env.RAPIDOCR_PYTHON = join(bin, 'missing-python3');
+    const missing = (await loadOcrRunners()).rapidOcrText;
+    await assert.rejects(missing(Buffer.from('image')), /RapidOCR is not installed on this server/);
+  } finally {
+    if (originalPython === undefined) delete process.env.RAPIDOCR_PYTHON;
+    else process.env.RAPIDOCR_PYTHON = originalPython;
+    await rm(bin, { recursive: true, force: true });
+  }
+});
 
 test('Tesseract exiting before reading the receipt rejects instead of crashing the server', async () => {
   const bin = await mkdtemp(join(tmpdir(), 'fake-tesseract-'));
@@ -34,7 +61,7 @@ test('Tesseract exiting before reading the receipt rejects instead of crashing t
 async function loadReceiptParser() {
   const server = await readFile(join(appDir, 'server.mjs'), 'utf8');
   const start = server.indexOf('function amountFromText(');
-  const end = server.indexOf('async function tesseractText(');
+  const end = server.indexOf('// Runs a local OCR program');
   assert.ok(start >= 0 && end > start);
   const source = `${server.slice(start, end)}\nexport { parseTesseractReceipt };`;
   return (await import(`data:text/javascript,${encodeURIComponent(source)}`)).parseTesseractReceipt;
@@ -53,9 +80,17 @@ test('receipt totals are found in the layouts Tesseract commonly produces', asyn
     ['SHOP LTD\nTotal 6 ,75', 6.75],
     ['SHOP LTD\nTotal items: 3\nTOTAL 23.40', 23.4],
     ['SHOP LTD\nSUBTOTAL 20.00\nTOTAL VAT 3.40\nTOTAL SAVINGS 1.00\nTOTAL 23.40', 23.4],
-    ['SHOP LTD\n14.10.2026\nMilk 2.19\nBread 1.85', 2.19]
+    ['SHOP LTD\n14.10.2026\nMilk 2.19\nBread 1.85', 2.19],
+    // RapidOCR sometimes drops the space between a word and the amount.
+    ['SHOP LTD\nSUBTOTAL10.53\nTOTAL10.53', 10.53]
   ];
   for (const [text, amount] of cases) assert.equal(parse(text).amount, amount, text);
+});
+
+test('dates are read when OCR runs the year into the time', async () => {
+  const parse = await loadReceiptParser();
+  assert.equal(parse('SHOP LTD\nDate:14/10/202612:41\nTOTAL 1.00').date, '2026-10-14');
+  assert.equal(parse('SHOP LTD\n14/10/2026 12:41\nTOTAL 1.00').date, '2026-10-14');
 });
 
 test('a total below an item price is flagged so the second OCR pass runs', async () => {
