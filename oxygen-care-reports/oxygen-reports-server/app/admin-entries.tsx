@@ -368,6 +368,12 @@ export default function AdminEntries({ sidebar }: { sidebar: ReactNode }) {
             label={`${def.label} preserved originals`}
             items={history}
             getKey={h => h.id}
+            title={h => `${def.label} · ${h.operation}`}
+            details={h => [
+              ['Recorded', new Date(h.recordedAt).toLocaleString('en-IE')],
+              ['Action', h.operation],
+              ['Reason', h.reason]
+            ]}
             empty="No matching entries."
             disabled={busy}
             paging={{ page, hasMore, onPage: setPage }}
@@ -388,6 +394,10 @@ export default function AdminEntries({ sidebar }: { sidebar: ReactNode }) {
             label={`${def.label} current entries`}
             items={entries}
             getKey={entry => entry.id}
+            title={entry => `${def.label} · ${String(entry[def.fields[0].name] ?? '')}`}
+            details={entry =>
+              def.fields.map(f => [f.label, String(entry[f.name] ?? '').trim()] as [string, string])
+            }
             empty="No matching entries."
             disabled={busy}
             paging={{ page, hasMore, onPage: setPage }}
