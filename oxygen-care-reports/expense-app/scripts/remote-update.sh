@@ -26,7 +26,10 @@ node --check "$STAGE_DIR/server.mjs"
 node --check "$STAGE_DIR/public/app.js"
 sudo -v
 sudo apt-get update
-sudo apt-get install -y nginx
+sudo apt-get install -y nginx tesseract-ocr tesseract-ocr-eng
+# Receipt scanning runs Tesseract locally; without it every scan falls back to manual entry.
+command -v tesseract >/dev/null || { echo "tesseract is missing. Install tesseract-ocr before deployment."; exit 1; }
+tesseract --list-langs 2>/dev/null | grep -qx eng || { echo "Tesseract English data is missing. Install tesseract-ocr-eng before deployment."; exit 1; }
 
 # Back up a quiescent service. On failure restore code, never rewind live data.
 BACKUP_READY=0

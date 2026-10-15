@@ -24,6 +24,7 @@ The updater:
 - recreates the disposable Ubuntu staging directory on every deployment so
   stale files cannot survive from older releases;
 - verifies that `pdfinfo` and `pdftoppm` from `poppler-utils` are installed;
+- installs Tesseract OCR (`tesseract-ocr`, `tesseract-ocr-eng`) and verifies the English language data, which receipt scanning needs;
 - installs Nginx from Ubuntu's package repository;
 - requests sudo authentication before modifying the live release;
 - creates verified code and data rollback archives in
