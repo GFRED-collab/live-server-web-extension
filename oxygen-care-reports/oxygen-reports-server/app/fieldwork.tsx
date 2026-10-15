@@ -339,11 +339,17 @@ function DocketSignOff({
 export default function Fieldwork({
   mode,
   sidebar,
-  user
+  user,
+  initialCalloutId = '',
+  onInitialCalloutUsed,
+  openDocket
 }: {
   mode: 'callouts' | 'dockets';
   sidebar: ReactNode;
   user: { id: string; displayName: string; role: string };
+  initialCalloutId?: string;
+  onInitialCalloutUsed?: () => void;
+  openDocket?: (calloutId: string) => void;
 }) {
   const [data, setData] = useState<Data>({ callouts: [], dockets: [], engineers: [] }),
     [error, setError] = useState(''),
@@ -411,6 +417,14 @@ export default function Fieldwork({
   useEffect(() => {
     void load().catch(e => setError(e.message));
   }, []);
+  useEffect(() => {
+    if (mode !== 'dockets' || !initialCalloutId) return;
+    if (!data.callouts.some(c => c.id === initialCalloutId)) return;
+    selectCallout(initialCalloutId);
+    setTab('entry');
+    onInitialCalloutUsed?.();
+    // selectCallout and onInitialCalloutUsed change every render; run once the data arrives.
+  }, [data, initialCalloutId, mode]);
   useEffect(() => {
     setClientId('');
     setRelatedCallout('');
@@ -702,6 +716,26 @@ export default function Fieldwork({
         <fieldset disabled={busy}>
           {mode === 'dockets' && <input type="hidden" name="calloutId" value={relatedCallout} />}
           <div className="fieldwork-grid">
+            {mode === 'dockets' && (
+              <label className="wide">
+                Related call-out
+                <select
+                  aria-label="Related call-out"
+                  value={relatedCallout}
+                  onChange={e => selectCallout(e.target.value)}
+                >
+                  <option value="">None: enter the details below</option>
+                  {data.callouts
+                    .filter(c => c.status !== 'closed' || c.id === relatedCallout)
+                    .map(c => (
+                      <option key={c.id} value={c.id}>
+                        {[c.clientName, c.deviceName, c.serialNumber].filter(Boolean).join(' · ')} —{' '}
+                        {c.description.slice(0, 65)}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
             <label>
               Client
               <input
@@ -861,6 +895,11 @@ export default function Fieldwork({
                   {c.status === 'open' && (
                     <button disabled={busy} onClick={() => void update(c.id, 'acknowledged')}>
                       Acknowledge
+                    </button>
+                  )}
+                  {c.status !== 'closed' && openDocket && (
+                    <button disabled={busy} onClick={() => openDocket(c.id)}>
+                      Create docket
                     </button>
                   )}
                   {c.status !== 'closed' && (

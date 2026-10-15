@@ -713,6 +713,8 @@ export default function HomePage() {
   const [editingAccountId, setEditingAccountId] = useState<string | null>(null);
   const [accessAccountId, setAccessAccountId] = useState<string | null>(null);
   const [dashboardPage, setDashboardPage] = useState<WorkspacePage>('calendar');
+  // A call-out chosen with "Create docket", pre-selected when the Dockets page opens.
+  const [docketCalloutId, setDocketCalloutId] = useState('');
   const [importUserIds, setImportUserIds] = useState<string[]>([]);
   const [uploads, setUploads] = useState<UploadedReport[]>([]);
   const [filters, setFilters] = useState<Record<string, string>>({});
@@ -2598,6 +2600,12 @@ export default function HomePage() {
         key={dashboardPage}
         mode={dashboardPage}
         user={sessionUser}
+        initialCalloutId={dashboardPage === 'dockets' ? docketCalloutId : ''}
+        onInitialCalloutUsed={() => setDocketCalloutId('')}
+        openDocket={calloutId => {
+          setDocketCalloutId(calloutId);
+          navigateWorkspace('dockets');
+        }}
         sidebar={
           <AppSidebar
             page={dashboardPage}
