@@ -3050,6 +3050,21 @@ export default function HomePage() {
             label="Appointment list"
             items={appointments}
             getKey={appointment => appointment.id}
+            title={appointment => appointment.title}
+            details={appointment => [
+              [
+                'Date',
+                appointment.appointmentDate +
+                  (appointment.endDate && appointment.endDate !== appointment.appointmentDate
+                    ? ' – ' + appointment.endDate
+                    : '')
+              ],
+              ['Time', appointment.startTime || 'Any time'],
+              ['Client', appointment.clientName],
+              ['Location', appointment.location],
+              ['Assigned to', appointment.assignedUserName],
+              ['Notes', appointment.notes]
+            ]}
             empty="No appointments this month."
             line={appointment => [
               appointment.appointmentDate +
@@ -3825,6 +3840,14 @@ export default function HomePage() {
             label="Client list"
             items={filteredClients}
             getKey={client => client.id}
+            title={client => client.name}
+            details={client => [
+              ['Contact', client.contactName],
+              ['Phone', client.phone],
+              ['Email', client.email],
+              ['Address', client.address],
+              ['Notes', client.notes]
+            ]}
             empty="No clients match."
             line={client => [
               client.name,

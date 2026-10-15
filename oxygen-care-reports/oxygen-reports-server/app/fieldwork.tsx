@@ -879,6 +879,18 @@ export default function Fieldwork({
             label="Call-out register"
             items={data.callouts}
             getKey={c => c.id}
+            title={c => `Call-out · ${c.clientName}`}
+            details={c => [
+              ['Logged', new Date(c.createdAt).toLocaleString('en-IE')],
+              ['Client', c.clientName],
+              ['Location', c.location],
+              ['Device', c.deviceName],
+              ['Serial number', c.serialNumber],
+              ['Details', c.description],
+              ['Assigned to', c.assignedUserName],
+              ['Priority', c.priority === 'urgent' ? 'Urgent' : 'Normal'],
+              ['Status', c.status]
+            ]}
             disabled={busy}
             badge={c => (c.status === 'open' ? <span className="callout-bubble">New</span> : null)}
             line={c => [
@@ -905,7 +917,7 @@ export default function Fieldwork({
                 )}
                 {c.status !== 'closed' && (
                   <button disabled={busy} onClick={() => void update(c.id, 'closed')}>
-                    Close
+                    Close call-out
                   </button>
                 )}
               </>
@@ -916,6 +928,25 @@ export default function Fieldwork({
             label="Docket register"
             items={data.dockets}
             getKey={d => d.id}
+            title={d => `Docket ${d.entryNumber} · ${d.clientName}`}
+            details={d => [
+              ['Docket', d.entryNumber],
+              ['Client', d.clientName],
+              ['Location', d.location],
+              ['Device', d.deviceName],
+              ['Serial number', d.serialNumber],
+              ['Engineer', d.engineerName],
+              ['Time started', d.startedAt ? new Date(d.startedAt).toLocaleString('en-IE') : ''],
+              ['Time ended', d.endedAt ? new Date(d.endedAt).toLocaleString('en-IE') : ''],
+              ['Work completed', d.workDescription],
+              ['Customer', d.signerName],
+              [
+                'Signed',
+                d.correctionPending
+                  ? 'Awaiting fresh customer sign-off'
+                  : new Date(d.signedAt).toLocaleString('en-IE')
+              ]
+            ]}
             line={d => [
               d.entryNumber,
               d.correctionPending

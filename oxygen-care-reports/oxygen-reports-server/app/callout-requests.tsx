@@ -102,6 +102,19 @@ export function CalloutRequests({
         label="Customer call-out requests waiting for review"
         items={waiting}
         getKey={r => r.id}
+        title={r => `${r.reference} · ${r.clientName}`}
+        details={r => [
+          ['Sent', new Date(r.createdAt).toLocaleString('en-IE')],
+          ['Client', r.clientName],
+          ['Contract', [r.contractName, r.contractNumber].filter(Boolean).join(' · ')],
+          ['Device', r.deviceName],
+          ['Serial number', r.serialNumber],
+          ['Problem', r.description],
+          ['Priority', r.priority === 'urgent' ? 'Urgent' : 'Normal'],
+          ['Location', r.location],
+          ['Contact', [r.contactName, r.contactPhone].filter(Boolean).join(' · ')],
+          ['Sent by', r.requestedByName || r.requestedByEmail]
+        ]}
         disabled={busy}
         empty="No customer requests are waiting for review."
         badge={r => (
@@ -148,6 +161,18 @@ export function CalloutRequests({
             label="Customer call-out requests handled in the last 30 days"
             items={decided}
             getKey={r => r.id}
+            title={r => `${r.reference} · ${r.clientName}`}
+            details={r => [
+              ['Decision', r.status === 'accepted' ? 'Accepted' : 'Declined'],
+              ['Reason', r.status === 'declined' ? r.declineReason : ''],
+              ['Decided by', r.decidedByName],
+              ['Decided', r.decidedAt ? new Date(r.decidedAt).toLocaleString('en-IE') : ''],
+              ['Sent', new Date(r.createdAt).toLocaleString('en-IE')],
+              ['Client', r.clientName],
+              ['Device', [r.deviceName, r.serialNumber].filter(Boolean).join(' · ')],
+              ['Problem', r.description],
+              ['Contact', [r.contactName, r.contactPhone].filter(Boolean).join(' · ')]
+            ]}
             badge={r => <span className="entry-badge">{r.status}</span>}
             line={r => [
               r.reference,

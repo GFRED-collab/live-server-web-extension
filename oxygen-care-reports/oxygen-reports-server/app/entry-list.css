@@ -29,10 +29,6 @@
   outline: 2px solid var(--brand);
   outline-offset: 2px;
 }
-.entry-list li.expanded .entry-text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
 .entry-list .entry-text .callout-bubble,
 .entry-list .entry-text .entry-badge {
   margin: 0 6px 0 0;
@@ -97,7 +93,86 @@
   font-size: 13px;
   color: var(--muted);
 }
+.entry-dialog {
+  width: min(640px, 94vw);
+  max-height: 88vh;
+  overflow: auto;
+  padding: 20px 22px;
+  border: 1px solid #bcd3d7;
+  border-radius: 14px;
+  color: var(--ink);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+.entry-dialog::backdrop {
+  background: rgba(8, 35, 42, 0.5);
+}
+.entry-dialog header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.entry-dialog h2 {
+  margin: 0;
+  font-size: 18px;
+  overflow-wrap: anywhere;
+}
+.entry-dialog h2 .callout-bubble,
+.entry-dialog h2 .entry-badge,
+.entry-dialog h2 .repair-priority {
+  margin-right: 8px;
+  vertical-align: 3px;
+}
+.entry-dialog dl {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  font-size: 14px;
+}
+.entry-dialog dl > div {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 12px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--line);
+}
+.entry-dialog dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.entry-dialog dd {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.entry-dialog button,
+.entry-dialog select {
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f4fafb;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.entry-dialog select {
+  background: white;
+}
+.entry-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
 @media (max-width: 650px) {
+  .entry-dialog dl > div {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
   .entry-list li {
     flex-wrap: wrap;
   }
