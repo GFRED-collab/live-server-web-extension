@@ -17,6 +17,14 @@ import CustomerAccounts from './customer-accounts';
 import ImportReview from './import-review';
 import type { ImportWarning } from '../lib/import-duplicates';
 import Fieldwork, { CalloutNav } from './fieldwork';
+import {
+  AppointmentInvitations,
+  AppointmentResponse,
+  appointmentsUpdated,
+  CalendarNav,
+  ResponseBadge,
+  responseLabel
+} from './appointment-responses';
 import { brandPrintWindow } from './print-layout';
 import { openServiceReport } from './service-report';
 import { EntryList } from './entry-list';
@@ -109,6 +117,10 @@ type Appointment = {
   notes: string;
   assignedUserId: string | null;
   assignedUserName: string | null;
+  responseStatus?: AppointmentResponse;
+  responseNote?: string;
+  respondedAt?: string | null;
+  createdByName?: string | null;
 };
 type Client = {
   id: string;
@@ -355,12 +367,11 @@ function AppSidebar({
         }}
       >
         <nav aria-label="Main navigation">
-          <button
-            className={page === 'calendar' ? 'active' : ''}
+          <CalendarNav
+            active={page === 'calendar'}
             onClick={() => navigate('calendar')}
-          >
-            <b>▣</b>Calendar
-          </button>
+            superUser={user.role === 'super_user'}
+          />
           <button
             className={page === 'clients' ? 'active' : ''}
             onClick={() => navigate('clients')}
@@ -1354,7 +1365,7 @@ export default function HomePage() {
     const form = event.currentTarget,
       values = new FormData(form);
     try {
-      await api('/api/appointments', {
+      const saved = await api<{ responseStatus: string | null }>('/api/appointments', {
         method: 'POST',
         body: JSON.stringify({
           appointmentDate: values.get('appointmentDate') || selectedAppointmentDate,
@@ -1368,8 +1379,12 @@ export default function HomePage() {
         })
       });
       await loadAppointments();
-
-      setNotice('Appointment added to the calendar.');
+      appointmentsUpdated();
+      setNotice(
+        saved.responseStatus === 'pending'
+          ? 'Appointment added. The engineer has been asked to accept it.'
+          : 'Appointment added to the calendar.'
+      );
       setError('');
       setSelectedAppointmentDate(null);
       form.reset();
@@ -1384,7 +1399,7 @@ export default function HomePage() {
     if (!appointment) return;
     const values = new FormData(event.currentTarget);
     try {
-      await api('/api/appointments', {
+      const saved = await api<{ responseStatus: string | null }>('/api/appointments', {
         method: 'PATCH',
         body: JSON.stringify({
           id: appointment.id,
@@ -1399,8 +1414,13 @@ export default function HomePage() {
         })
       });
       await loadAppointments();
+      appointmentsUpdated();
       setEditingAppointmentId(null);
-      setNotice('Appointment updated.');
+      setNotice(
+        saved.responseStatus === 'pending'
+          ? 'Appointment updated. The engineer has been asked to accept it.'
+          : 'Appointment updated.'
+      );
       setError('');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not update the appointment.');
@@ -1415,6 +1435,7 @@ export default function HomePage() {
         body: JSON.stringify({ id: appointment.id })
       });
       await loadAppointments();
+      appointmentsUpdated();
       setEditingAppointmentId(null);
       setNotice('Appointment deleted.');
       setError('');
@@ -2881,6 +2902,13 @@ export default function HomePage() {
             ← Back to dashboard
           </button>
         </header>
+        <AppointmentInvitations
+          onChanged={() =>
+            void loadAppointments().catch(reason =>
+              setError(reason instanceof Error ? reason.message : 'Could not load the calendar.')
+            )
+          }
+        />
         <section className="calendar-card standalone-card">
           <div className="calendar-heading">
             <div>
@@ -2941,7 +2969,11 @@ export default function HomePage() {
                     .filter(appointment => coversDate(appointment, localDateKey(date)))
                     .slice(0, 3)
                     .map(appointment => (
-                      <span key={appointment.id}>
+                      <span
+                        key={appointment.id}
+                        className={appointment.responseStatus}
+                        title={responseLabel(appointment.responseStatus) || undefined}
+                      >
                         {appointment.startTime || 'Any time'} · {appointment.title}
                       </span>
                     ))}
@@ -3063,8 +3095,19 @@ export default function HomePage() {
               ['Client', appointment.clientName],
               ['Location', appointment.location],
               ['Assigned to', appointment.assignedUserName],
+              ['Assigned by', appointment.createdByName],
+              ['Engineer reply', responseLabel(appointment.responseStatus)],
+              [
+                appointment.responseStatus === 'rejected' ? 'Reason for rejecting' : 'Reply note',
+                appointment.responseNote
+              ],
+              [
+                'Replied',
+                appointment.respondedAt ? new Date(appointment.respondedAt).toLocaleString() : ''
+              ],
               ['Notes', appointment.notes]
             ]}
+            badge={appointment => <ResponseBadge status={appointment.responseStatus} />}
             empty="No appointments this month."
             line={appointment => [
               appointment.appointmentDate +

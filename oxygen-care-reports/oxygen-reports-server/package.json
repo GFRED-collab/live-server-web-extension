@@ -10,7 +10,7 @@
     "build": "next build --webpack",
     "start": "next start",
     "lint": "tsc --noEmit",
-    "test": "node scripts/check-untrusted-input.cjs && node scripts/check-hardening.cjs && node scripts/check-reports-enhancements.cjs && node scripts/check-admin-entries.cjs && node scripts/check-fieldwork.cjs && node scripts/check-regressions.cjs && node scripts/check-release-cleanup.cjs && node scripts/check-service-status.cjs && node scripts/check-service-attachments.cjs && node scripts/check-customer-portal.cjs && node scripts/check-import-duplicates.cjs && node scripts/check-customer-requests.cjs",
+    "test": "node scripts/check-untrusted-input.cjs && node scripts/check-hardening.cjs && node scripts/check-reports-enhancements.cjs && node scripts/check-admin-entries.cjs && node scripts/check-fieldwork.cjs && node scripts/check-regressions.cjs && node scripts/check-release-cleanup.cjs && node scripts/check-service-status.cjs && node scripts/check-service-attachments.cjs && node scripts/check-customer-portal.cjs && node scripts/check-import-duplicates.cjs && node scripts/check-customer-requests.cjs && node scripts/check-appointment-responses.cjs",
     "clean": "node scripts/clean-generated.mjs",
     "check": "npm run clean && npm run lint && npm run build",
     "db:migrate": "node scripts/migrate.mjs",

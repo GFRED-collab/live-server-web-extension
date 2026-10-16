@@ -96,6 +96,11 @@ const db = {
     if (mode === 'booking') {
       if (sql.startsWith('INSERT INTO appointments') || sql.startsWith('UPDATE appointments'))
         return { rows: [{ id }], rowCount: 1 };
+      if (sql.startsWith('SELECT appointment_date::text'))
+        return {
+          rows: [{ start: '2026-10-31', end: '2026-11-02', time: null, assigned: id }],
+          rowCount: 1
+        };
       return { rows: [], rowCount: 0 };
     }
     if (mode === 'field') {
@@ -235,7 +240,9 @@ function reset(next) {
   );
   const update = queries.find(q => q.sql.startsWith('UPDATE appointments'));
   assert.equal(update.params[8], id);
-  assert.match(update.sql, /assigned_user_id=\$11 OR created_by=\$11/);
+  const access = queries.find(q => q.sql.startsWith('SELECT appointment_date::text'));
+  assert.match(access.sql, /assigned_user_id=\$3 OR created_by=\$3\) FOR UPDATE/);
+  assert.deepEqual(Array.from(access.params), [id, 'engineer', id]);
   reset('field');
   assert.equal((await field.DELETE(req({ name: 'Serial Number' }, 'DELETE'))).status, 403);
   assert.equal(queries.length, 0);

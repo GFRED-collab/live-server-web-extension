@@ -1,0 +1,118 @@
+.appointment-response {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+.appointment-response.pending {
+  background: #fff1d6;
+  color: #7a4b00;
+}
+.appointment-response.accepted {
+  background: #dff3ec;
+  color: #1d6a54;
+}
+.appointment-response.rejected {
+  background: #fde2e4;
+  color: #a1202d;
+}
+.calendar-day span.pending {
+  background: #fff1d6;
+  color: #7a4b00;
+}
+.calendar-day span.rejected {
+  background: #fde2e4;
+  color: #a1202d;
+  text-decoration: line-through;
+}
+.appointment-invitations {
+  border-color: #f6b84d;
+}
+.appointment-invitations ul {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.appointment-invitations li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  background: var(--soft);
+}
+.invitation-summary {
+  display: grid;
+  flex: 1 1 260px;
+  gap: 3px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+.invitation-summary small,
+.invitation-notes {
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.invitation-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.invitation-actions button {
+  border: 1px solid var(--brand);
+  border-radius: 8px;
+  padding: 7px 14px;
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.invitation-actions button[type='button']:not(.danger):not(:first-child),
+.invitation-reject .invitation-actions button[type='button'] {
+  background: #fff;
+  color: var(--ink);
+}
+.invitation-actions button.danger {
+  border-color: #cf2838;
+  background: #fff;
+  color: #a1202d;
+}
+.invitation-reject button.danger {
+  background: #cf2838;
+  color: #fff;
+}
+.invitation-actions button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.invitation-reject {
+  display: grid;
+  flex: 1 1 260px;
+  gap: 8px;
+}
+.invitation-reject label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.invitation-reject textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+}
