@@ -85,6 +85,16 @@ test('OCC durable workspace and authorisation',async t=>{
       assert.equal((await request('/folders/'+root,{method:'PATCH',user:manager,body:{parent:sub}})).status,400);
       assert.equal((await request('/folders/'+sub,{method:'DELETE',user:contributor})).status,404);
     });
+    await t.test('managers can rename and delete their own top-level folder',async()=>{
+      const top=(await request('/folders',{method:'POST',user:admin,body:{name:'Manager area'}})).body.id;
+      assert.equal((await request('/folders/'+top+'/grants',{method:'PUT',user:admin,body:{grants:{[manager.id]:'Manager',[contributor.id]:'Contributor'}}})).status,200);
+      assert.equal((await request('/folders/'+top,{method:'PATCH',user:contributor,body:{name:'Not allowed'}})).status,404);
+      assert.equal((await request('/folders/'+top,{method:'PATCH',user:manager,body:{name:'Renamed area'}})).status,200);
+      assert.equal(app.db.prepare('SELECT name FROM folders WHERE id=?').get(top).name,'Renamed area');
+      assert.equal((await request('/folders/'+top,{method:'DELETE',user:contributor})).status,404);
+      assert.equal((await request('/folders/'+top,{method:'DELETE',user:manager})).status,200);
+      assert.equal(app.db.prepare('SELECT id FROM folders WHERE id=?').get(top),undefined);
+    });
     await t.test('revocation blocks existing sessions and inherited direct links immediately',async()=>{
       assert.equal((await request('/folders/'+root+'/grants',{method:'PUT',user:manager,body:{grants:{[manager.id]:'Manager',[contributor.id]:'Contributor'}}})).status,200);
       assert.equal((await request('/files/'+fileId+'/content',{user:viewer})).status,404);assert.equal((await request('/workspace',{user:viewer})).body.folders.length,0);
