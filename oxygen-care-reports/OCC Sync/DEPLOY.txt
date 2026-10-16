@@ -1,0 +1,5 @@
+Run in your Mac Terminal to activate desktop sync on OCC:
+
+ssh -t -o UseKeychain=yes -i ~/.ssh/oxygen-care-server serveradmin@192.168.0.248 'bash /tmp/occ-cloud-release-20260930T181318Z/scripts/remote-install.sh /tmp/occ-cloud-release-20260930T181318Z 20260930T181318Z'
+
+Enter the server administrator password in Terminal when asked. The installer backs up OCC before upgrading.

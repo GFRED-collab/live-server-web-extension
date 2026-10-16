@@ -1,0 +1,7 @@
+data
+access
+test-results
+.git
+.env
+node_modules
+*.tar.gz

@@ -1,0 +1,4 @@
+Message Board and In-tray release staged; not installed.
+Run in Terminal and enter the server administrator password when prompted:
+
+ssh -t -o UseKeychain=yes -i ~/.ssh/oxygen-care-server serveradmin@192.168.0.248 'bash /tmp/occ-cloud-release-20261004T113107Z/scripts/remote-install.sh /tmp/occ-cloud-release-20261004T113107Z 20261004T113107Z'

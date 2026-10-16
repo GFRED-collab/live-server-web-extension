@@ -1,0 +1,9 @@
+File locations release is ready locally. Server staging failed because the SSH agent has no loaded identities and the key could not be loaded automatically from Keychain.
+
+Run in Terminal:
+
+cd "/Users/gurshwinfredericks/Desktop/Projects/OCC Oxygen Care Cloud Server"
+ssh-add --apple-use-keychain ~/.ssh/oxygen-care-server
+bash ./deploy-server.sh
+
+The deployment script checks and tests the source, stages a fresh release and then prompts for the server administrator password. It backs up the existing OCC data and rolls back if verification fails.

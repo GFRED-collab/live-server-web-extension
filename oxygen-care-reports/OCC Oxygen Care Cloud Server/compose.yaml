@@ -1,0 +1,31 @@
+services:
+  occ:
+    build: .
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: ${APP_ORIGIN:?Set the exact HTTPS origin in .env}
+      OCC_DATA_DIR: /data
+      HOST: 0.0.0.0
+      PORT: 3003
+      MAX_FILE_BYTES: ${MAX_FILE_BYTES:-100000000}
+      STORAGE_QUOTA_BYTES: ${STORAGE_QUOTA_BYTES:-5000000000}
+    ports:
+      - "127.0.0.1:3003:3003"
+    volumes:
+      - occ-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3003/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+volumes:
+  occ-data:

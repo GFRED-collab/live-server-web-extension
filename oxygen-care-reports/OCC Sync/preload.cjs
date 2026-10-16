@@ -1,0 +1,2 @@
+const {contextBridge,ipcRenderer}=require('electron');
+contextBridge.exposeInMainWorld('occ',{disconnect:()=>ipcRenderer.invoke('disconnect'),state:()=>ipcRenderer.invoke('state'),folders:data=>ipcRenderer.invoke('folders',data),connect:data=>ipcRenderer.invoke('connect',data),sync:()=>ipcRenderer.invoke('sync'),pause:()=>ipcRenderer.invoke('pause'),open:()=>ipcRenderer.invoke('open'),onStatus:fn=>ipcRenderer.on('status',(_,s)=>fn(s))});

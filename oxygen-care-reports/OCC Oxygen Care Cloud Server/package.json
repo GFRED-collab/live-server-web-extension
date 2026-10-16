@@ -1,0 +1,14 @@
+{
+  "name": "occ-cloud-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "check": "node --check server.mjs && node --check sync-api.mjs && node --check calendar-api.mjs && node --check groups-api.mjs && node --check updates-api.mjs && node --check public/app.js",
+    "test": "node --test test/*.test.mjs"
+  }
+}

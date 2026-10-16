@@ -1,0 +1,7 @@
+data/
+.env
+node_modules/
+test-results/
+access/
+*.tar.gz
+.DS_Store

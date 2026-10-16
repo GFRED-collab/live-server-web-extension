@@ -1,0 +1,1 @@
+ssh -t -o UseKeychain=yes -i ~/.ssh/oxygen-care-server serveradmin@192.168.0.248 'bash /tmp/occ-cloud-release-20261001T123448Z/scripts/remote-install.sh /tmp/occ-cloud-release-20261001T123448Z 20261001T123448Z'
