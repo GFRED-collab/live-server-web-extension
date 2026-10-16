@@ -13,6 +13,10 @@ TAILSCALE_HOST="expenses.fynbos-spectrum.ts.net"
 # RapidOCR lives outside the release directory so backups and rollbacks leave it alone.
 RAPIDOCR_VENV="/home/serveradmin/oxygen-care-expenses-rapidocr"
 PADDLEOCR_VENV="/home/serveradmin/oxygen-care-expenses-paddleocr"
+# PaddlePaddle only publishes packages for Python 3.9-3.13, but Ubuntu 26.04 ships 3.14.
+# uv installs a private Python 3.13 for PaddleOCR and leaves the system Python alone.
+PADDLEOCR_UV="/home/serveradmin/oxygen-care-expenses-uv"
+PADDLEOCR_PYTHON_DIR="/home/serveradmin/oxygen-care-expenses-python"
 
 [[ "$(id -un)" == "serveradmin" ]] || { echo "Run this update as serveradmin."; exit 1; }
 [[ "$(systemctl show "$APP_NAME" -p User --value)" == "serveradmin" ]] || { echo "Service user does not match the approved deployment layout."; exit 1; }
@@ -43,13 +47,27 @@ tesseract --list-langs 2>/dev/null | grep -qx eng || { echo "Tesseract English d
 # PaddleOCR is the fallback when RapidOCR cannot read a receipt. Reading one image here
 # downloads its models into the environment. A failure only warns: scanning still works
 # with RapidOCR and Tesseract, and the next deploy tries again.
+paddleocr_environment() {
+  if [[ -x "$PADDLEOCR_VENV/bin/python3" ]] \
+    && "$PADDLEOCR_VENV/bin/python3" -I -c 'import sys; sys.exit(sys.version_info[:2] != (3, 13))'; then
+    return 0
+  fi
+  # Missing, or made earlier with the system Python 3.14: rebuild it on Python 3.13.
+  rm -rf "${PADDLEOCR_VENV:?}"
+  if [[ ! -x "$PADDLEOCR_UV/bin/uv" ]]; then
+    python3 -m venv "$PADDLEOCR_UV" \
+      && "$PADDLEOCR_UV/bin/pip" install --quiet --disable-pip-version-check uv==0.13.1 || return 1
+  fi
+  UV_PYTHON_INSTALL_DIR="$PADDLEOCR_PYTHON_DIR" UV_PYTHON_PREFERENCE=only-managed "$PADDLEOCR_UV/bin/uv" -q python install 3.13 \
+    && UV_PYTHON_INSTALL_DIR="$PADDLEOCR_PYTHON_DIR" UV_PYTHON_PREFERENCE=only-managed "$PADDLEOCR_UV/bin/uv" -q venv --seed --python 3.13 "$PADDLEOCR_VENV"
+}
 PADDLEOCR_READY=0
-if { [[ -x "$PADDLEOCR_VENV/bin/python3" ]] || python3 -m venv "$PADDLEOCR_VENV"; } \
+if paddleocr_environment \
   && "$PADDLEOCR_VENV/bin/pip" install --quiet --disable-pip-version-check -r "$STAGE_DIR/scripts/paddleocr-requirements.txt" \
   && PADDLEOCR_DOWNLOAD=1 "$PADDLEOCR_VENV/bin/python3" -I "$STAGE_DIR/scripts/paddleocr_text.py" <"$STAGE_DIR/public/oxygen-care-logo-supplied.jpeg" >/dev/null; then
   PADDLEOCR_READY=1
 else
-  echo "WARNING: PaddleOCR could not be installed or could not load its models. Check access to PyPI and huggingface.co. Receipt scanning will use RapidOCR and Tesseract only."
+  echo "WARNING: PaddleOCR could not be installed or could not load its models. Check access to PyPI, github.com and huggingface.co. Receipt scanning will use RapidOCR and Tesseract only."
 fi
 
 # Back up a quiescent service. On failure restore code, never rewind live data.
