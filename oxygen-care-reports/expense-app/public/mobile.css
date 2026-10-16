@@ -1,0 +1,141 @@
+/* Phone adjustments shared by every page. Loaded after each page's own styles. */
+@media (max-width: 600px) {
+  /* iPhones zoom the page when a field's text is under 16px, and don't zoom back out. */
+  input:not([type='checkbox']):not([type='radio']):not([type='file']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+  /* Comfortable tap targets. */
+  button,
+  .link-button,
+  .primary,
+  .secondary {
+    min-height: 44px;
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 22px;
+    height: 22px;
+    flex: none;
+  }
+
+  /* Workspace navigation: one compact row of equal buttons instead of two wrapped rows. */
+  .workspace {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 6px;
+  }
+  .workspace:before {
+    display: none;
+  }
+  .workspace > * {
+    padding: 8px 4px;
+    font-size: 15px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Home: put the things people do on the go first. */
+  .content.home-order {
+    display: flex;
+    flex-direction: column;
+  }
+  .home-order > .home-add {
+    order: 1;
+  }
+  .home-order > .home-list {
+    order: 2;
+  }
+  .home-order > .home-summary {
+    order: 3;
+  }
+  .home-order > .home-mileage {
+    order: 4;
+  }
+  .home-order > .home-review {
+    order: 5;
+  }
+
+  /* Delete (×) buttons in expense rows. */
+  .expense > button {
+    min-width: 44px;
+  }
+
+  /* Report tables become one labelled card per row (labels come from table-labels.js). */
+  table.stack-table,
+  table.stack-table tbody,
+  table.stack-table tr,
+  table.stack-table td {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  table.stack-table thead {
+    display: none;
+  }
+  table.stack-table tr {
+    border: 1px solid #cfeaf2;
+    border-radius: 12px;
+    padding: 6px 12px;
+    margin: 10px 0;
+  }
+  table.stack-table td {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 6px 0;
+    border-bottom: 1px solid #eef6f8;
+    font-size: 14px;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  table.stack-table td:last-child {
+    border-bottom: 0;
+  }
+  table.stack-table td::before {
+    content: attr(data-label);
+    flex: none;
+    max-width: 45%;
+    color: #63818a;
+    font-weight: 700;
+    text-align: left;
+  }
+  table.stack-table td[colspan] {
+    justify-content: center;
+    text-align: center;
+  }
+  table.stack-table td[colspan]::before,
+  table.stack-table td:not([data-label])::before {
+    display: none;
+  }
+
+  /* Report filters: one full-width field per line. */
+  .report-filters label {
+    display: block;
+    margin: 8px 0;
+    font-weight: 700;
+  }
+  .report-filters label > input,
+  .report-filters label > select {
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+    margin: 4px 0 0;
+  }
+  .report-filters .actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .report-filters .actions button {
+    flex: 1 1 140px;
+    margin: 0;
+  }
+  .report-filters .actions label {
+    flex: 1 1 100%;
+    margin: 0;
+  }
+}
