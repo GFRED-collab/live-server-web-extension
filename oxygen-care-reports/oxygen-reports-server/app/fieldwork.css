@@ -66,6 +66,25 @@
   cursor: pointer;
   margin: 5px;
 }
+.fieldwork-form .reported-issue {
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--brand);
+  border-radius: 8px;
+  background: #f4fafb;
+  font-size: 13px;
+}
+.fieldwork-form .reported-issue strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.fieldwork-form .reported-issue p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
 .fieldwork-form .primary {
   max-width: 340px;
 }
