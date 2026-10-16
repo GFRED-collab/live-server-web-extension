@@ -25,7 +25,7 @@ The updater:
   stale files cannot survive from older releases;
 - verifies that `pdfinfo` and `pdftoppm` from `poppler-utils` are installed;
 - installs RapidOCR, the default receipt reader, in `/home/serveradmin/oxygen-care-expenses-rapidocr` and downloads its models before the service stops (the server needs access to PyPI and `www.modelscope.cn` during deployment only), then checks it can read an image;
-- installs PaddleOCR, the fallback for receipts RapidOCR can't read, in `/home/serveradmin/oxygen-care-expenses-paddleocr` with its models (PyPI and `huggingface.co` during deployment only). If that fails the deploy prints a warning and carries on; scanning then uses RapidOCR and Tesseract;
+- installs PaddleOCR, the fallback for receipts RapidOCR can't read, in `/home/serveradmin/oxygen-care-expenses-paddleocr` with its models. PaddlePaddle needs Python 3.13 or older, so the deploy uses [uv](https://docs.astral.sh/uv/) to install a private Python 3.13 in `/home/serveradmin/oxygen-care-expenses-python`; the system Python is not changed (PyPI, `github.com` and `huggingface.co` during deployment only). If that fails the deploy prints a warning and carries on; scanning then uses RapidOCR and Tesseract;
 - installs Tesseract OCR (`tesseract-ocr`, `tesseract-ocr-eng`), the last local reader, and verifies the English language data;
 - installs Nginx from Ubuntu's package repository;
 - requests sudo authentication before modifying the live release;
