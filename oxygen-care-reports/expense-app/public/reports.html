@@ -214,6 +214,7 @@
         background: #eaf7f5;
       }
     </style>
+    <link rel="stylesheet" href="/mobile.css" />
   </head>
   <body>
     <main class="app">
@@ -223,7 +224,7 @@
       </header>
       <section id="expenseReport" class="card">
         <h1>Expense report</h1>
-        <div class="no-print">
+        <div class="no-print report-filters">
           <label>From <input id="from" type="date" /> </label>
           <label>To <input id="to" type="date" /> </label>
           <label
@@ -250,7 +251,7 @@
           </div>
         </div>
         <h2 id="total">Loading…</h2>
-        <table>
+        <table class="stack-table">
           <thead>
             <tr>
               <th>Date</th>
@@ -267,7 +268,7 @@
       </section>
       <section id="odometerReport" class="card">
         <h1>Odometer report</h1>
-        <div class="no-print">
+        <div class="no-print report-filters">
           <label>From month <input id="odoFrom" type="month" /> </label>
           <label>To month <input id="odoTo" type="month" /> </label>
           <label
@@ -288,7 +289,7 @@
           </div>
         </div>
         <h2 id="odoTotal">Loading…</h2>
-        <table>
+        <table class="stack-table">
           <thead>
             <tr>
               <th>Month</th>
@@ -309,7 +310,7 @@
       <section id="reimbursementReport" class="card">
         <div id="reimbursementComposer" class="no-print"></div>
         <h1>Reimbursement lookup</h1>
-        <div class="no-print">
+        <div class="no-print report-filters">
           <label>From <input id="reimbFrom" type="date" /> </label>
           <label>To <input id="reimbTo" type="date" /> </label>
           <label
@@ -338,7 +339,7 @@
           </div>
         </div>
         <h2 id="reimbTotal">Loading…</h2>
-        <table>
+        <table class="stack-table">
           <thead>
             <tr>
               <th>Sent</th>
@@ -361,7 +362,7 @@
           Summarise filtered reporting data. Free-text fields such as merchant names and notes are
           deliberately excluded.
         </p>
-        <div class="no-print">
+        <div class="no-print report-filters">
           <label
             >Report data
             <select id="chartData">
@@ -1516,5 +1517,6 @@
         initialise().catch(error => root.replaceChildren(notice(error.message)));
       })();
     </script>
+    <script src="/table-labels.js"></script>
   </body>
 </html>

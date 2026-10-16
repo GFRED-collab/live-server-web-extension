@@ -60,6 +60,7 @@
     return element('p', { class: `notice${ok ? ' success' : ''}`, text: message });
   }
   function setContent(...children) {
+    $('#content').classList.remove('home-order');
     $('#content').replaceChildren(...children.filter(Boolean));
   }
   // The list's place (calendar level and filters) lives in the URL. Opening an expense carries
@@ -1180,13 +1181,16 @@
       resetExpenseCalendar(draw, { category: category.value === 'All' ? '' : category.value });
     draw();
     const notifications = await notificationCard();
+    // Phones show these in a different order (mobile.css): add, list, summary, mileage.
+    const tagged = (node, name) => (node?.classList.add(name), node);
     setContent(
       ...(notifications ? [notifications] : []),
-      monthlyPieCard(),
-      expenseForm(),
-      state.user.mileageEnabled ? mileageExpenseCard() : null,
-      listCard
+      tagged(monthlyPieCard(), 'home-summary'),
+      tagged(expenseForm(), 'home-add'),
+      state.user.mileageEnabled ? tagged(mileageExpenseCard(), 'home-mileage') : null,
+      tagged(listCard, 'home-list')
     );
+    $('#content').classList.add('home-order');
     if (state.user.role === 'department_head') await addDepartmentReview();
   }
   function odometerPage() {
@@ -1824,6 +1828,7 @@
       element('div', { class: 'label', text: 'DEPARTMENT HEAD · EMPLOYEE EXPENSE REVIEW' }),
       element('div', { class: 'meta', text: 'Loading employees…' })
     );
+    panel.classList.add('home-review');
     $('#content').append(panel);
     try {
       const people = (await api('/api/users')).users;
