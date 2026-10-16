@@ -693,7 +693,7 @@ export default function Fieldwork({
                       .map(c => (
                         <option key={c.id} value={c.id}>
                           {c.clientName} — {c.deviceName} {c.serialNumber} — {c.status} —{' '}
-                          {c.description.slice(0, 65)}
+                          {c.description.replace(/\s+/g, ' ').slice(0, 65)}
                         </option>
                       ))}
                   </select>
@@ -731,7 +731,7 @@ export default function Fieldwork({
                     .map(c => (
                       <option key={c.id} value={c.id}>
                         {[c.clientName, c.deviceName, c.serialNumber].filter(Boolean).join(' · ')} —{' '}
-                        {c.description.slice(0, 65)}
+                        {c.description.replace(/\s+/g, ' ').slice(0, 65)}
                       </option>
                     ))}
                 </select>
@@ -789,9 +789,10 @@ export default function Fieldwork({
             ) : (
               <>
                 {relatedCallout && (
-                  <p className="wide">
-                    Reported issue: {data.callouts.find(c => c.id === relatedCallout)?.description}
-                  </p>
+                  <div className="wide reported-issue">
+                    <strong>Reported issue</strong>
+                    <p>{data.callouts.find(c => c.id === relatedCallout)?.description}</p>
+                  </div>
                 )}
                 <label>
                   Device / machine
