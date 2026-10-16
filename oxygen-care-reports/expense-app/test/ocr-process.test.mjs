@@ -8,13 +8,13 @@ import { fileURLToPath } from 'node:url';
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
 
 let loads = 0;
-// RAPIDOCR_PYTHON is read when the code loads, so each call loads a fresh copy.
+// RAPIDOCR_PYTHON and PADDLEOCR_PYTHON are read when the code loads, so each call loads a fresh copy.
 async function loadOcrRunners() {
   const server = await readFile(join(appDir, 'server.mjs'), 'utf8');
   const start = server.indexOf('function runOcrProcess(');
   const end = server.indexOf('async function localOcrVariants(');
   assert.ok(start >= 0 && end > start);
-  const source = `// load ${(loads += 1)}\nimport { spawn } from "node:child_process";\nimport { join } from "node:path";\nconst upstreamTimeoutMs = 5000;\n${server.slice(start, end)}\nexport { tesseractText, rapidOcrText };`;
+  const source = `// load ${(loads += 1)}\nimport { spawn } from "node:child_process";\nimport { join } from "node:path";\nconst upstreamTimeoutMs = 5000;\n${server.slice(start, end)}\nexport { tesseractText, rapidOcrText, paddleOcrText };`;
   return import(`data:text/javascript,${encodeURIComponent(source)}`);
 }
 const loadTesseractText = async () => (await loadOcrRunners()).tesseractText;
@@ -36,6 +36,53 @@ test('RapidOCR failover runs the helper script with the configured Python', asyn
     process.env.RAPIDOCR_PYTHON = join(bin, 'missing-python3');
     const missing = (await loadOcrRunners()).rapidOcrText;
     await assert.rejects(missing(Buffer.from('image')), /RapidOCR is not installed on this server/);
+  } finally {
+    if (originalPython === undefined) delete process.env.RAPIDOCR_PYTHON;
+    else process.env.RAPIDOCR_PYTHON = originalPython;
+    await rm(bin, { recursive: true, force: true });
+  }
+});
+
+test('PaddleOCR fallback runs its helper script with the configured Python', async () => {
+  const bin = await mkdtemp(join(tmpdir(), 'fake-paddleocr-'));
+  const originalPython = process.env.PADDLEOCR_PYTHON;
+  try {
+    await writeFile(
+      join(bin, 'python3'),
+      '#!/bin/sh\ncase "$2" in */scripts/paddleocr_text.py) cat >/dev/null; printf "CAFE\\nTOTAL 4.50\\n";; *) exit 3;; esac\n'
+    );
+    await chmod(join(bin, 'python3'), 0o755);
+    process.env.PADDLEOCR_PYTHON = join(bin, 'python3');
+    const { paddleOcrText } = await loadOcrRunners();
+    assert.equal(await paddleOcrText(Buffer.from('image')), 'CAFE\nTOTAL 4.50\n');
+
+    process.env.PADDLEOCR_PYTHON = join(bin, 'missing-python3');
+    const missing = (await loadOcrRunners()).paddleOcrText;
+    await assert.rejects(
+      missing(Buffer.from('image')),
+      /PaddleOCR is not installed on this server/
+    );
+  } finally {
+    if (originalPython === undefined) delete process.env.PADDLEOCR_PYTHON;
+    else process.env.PADDLEOCR_PYTHON = originalPython;
+    await rm(bin, { recursive: true, force: true });
+  }
+});
+
+test('a slow OCR program is stopped at the shared scan deadline', async () => {
+  const bin = await mkdtemp(join(tmpdir(), 'slow-ocr-'));
+  const originalPython = process.env.RAPIDOCR_PYTHON;
+  try {
+    await writeFile(join(bin, 'python3'), '#!/bin/sh\ncat >/dev/null\nsleep 10\n');
+    await chmod(join(bin, 'python3'), 0o755);
+    process.env.RAPIDOCR_PYTHON = join(bin, 'python3');
+    const { rapidOcrText } = await loadOcrRunners();
+    const started = Date.now();
+    await assert.rejects(
+      rapidOcrText(Buffer.from('image'), Date.now() + 1500),
+      /RapidOCR timed out/
+    );
+    assert.ok(Date.now() - started < 4000);
   } finally {
     if (originalPython === undefined) delete process.env.RAPIDOCR_PYTHON;
     else process.env.RAPIDOCR_PYTHON = originalPython;

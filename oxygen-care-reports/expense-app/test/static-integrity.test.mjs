@@ -456,14 +456,34 @@ test('local OCR uses adaptive preprocessing without changing stored receipts', a
   const server = await readFile(join(appDir, 'server.mjs'), 'utf8');
   assert.match(server, /\.grayscale\(\)\.normalize\(\)\.sharpen\(\{ sigma: 1 \}\)/);
   assert.match(server, /\.linear\(1\.2, -18\)\.threshold\(180\)/);
-  assert.match(server, /tesseractText\(primaryImage, "6"\)/);
+  assert.match(server, /tesseractText\(primaryImage, "6", deadline\)/);
   assert.match(server, /tesseractResultScore\(primary\) < 5/);
-  assert.match(server, /tesseractText\(retryImage, "4"\)/);
+  assert.match(server, /tesseractText\(retryImage, "4", deadline\)/);
   assert.match(
     server,
     /if \(tesseractResultScore\(retry\) > tesseractResultScore\(primary\)\) best = retry/
   );
   assert.match(server, /const bytes = receipt\.bytes;\n    const preparedImage/);
+});
+
+test('local OCR tries RapidOCR first, then PaddleOCR, then Tesseract', async () => {
+  const server = await readFile(join(appDir, 'server.mjs'), 'utf8');
+  const engines = server.slice(server.indexOf('const localOcrEngines = ['));
+  const order = ['rapidocr', 'paddleocr', 'tesseract'].map(name =>
+    engines.indexOf(`name: '${name}'`)
+  );
+  assert.ok(order.every(index => index > 0));
+  assert.deepEqual(
+    [...order].sort((a, b) => a - b),
+    order
+  );
+  // Older .env files still say tesseract; both names select the same local order.
+  assert.match(server, /process\.env\.OCR_PROVIDER \|\| 'local'/);
+  assert.match(server, /provider === 'local' \|\| provider === 'tesseract'/);
+  // The engines share one deadline that fits inside the 60 second nginx timeout.
+  assert.match(server, /deadline = Date\.now\(\) \+ 50_000/);
+  const update = await readFile(join(appDir, 'scripts', 'remote-update.sh'), 'utf8');
+  assert.match(update, /proxy_read_timeout 60s;/);
 });
 
 test('Department Heads and Super Users batch approve within their role boundaries', async () => {

@@ -22,6 +22,6 @@ rsync --archive --delete "$PROJECT_DIR/test/" "$REMOTE:$STAGE_DIR/test/"
 rsync --archive "$PROJECT_DIR/server.mjs" "$PROJECT_DIR/package.json" "$PROJECT_DIR/package-lock.json" "$REMOTE:$STAGE_DIR/"
 rsync --archive "$PROJECT_DIR/scripts/remote-update.sh" "$REMOTE:$STAGE_DIR/remote-update.sh"
 rsync --archive "$PROJECT_DIR/scripts/maintenance-cleanup.mjs" "$REMOTE:$STAGE_DIR/scripts/maintenance-cleanup.mjs"
-rsync --archive "$PROJECT_DIR/scripts/rapidocr_text.py" "$PROJECT_DIR/scripts/rapidocr-requirements.txt" "$REMOTE:$STAGE_DIR/scripts/"
+rsync --archive "$PROJECT_DIR/scripts/rapidocr_text.py" "$PROJECT_DIR/scripts/rapidocr-requirements.txt" "$PROJECT_DIR/scripts/paddleocr_text.py" "$PROJECT_DIR/scripts/paddleocr-requirements.txt" "$REMOTE:$STAGE_DIR/scripts/"
 
 ssh -tt "$REMOTE" "bash '$STAGE_DIR/remote-update.sh'"

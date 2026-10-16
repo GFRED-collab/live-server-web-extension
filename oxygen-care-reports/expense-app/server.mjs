@@ -2425,7 +2425,8 @@ function parseTesseractReceipt(text) {
   };
 }
 // Runs a local OCR program that reads the image on stdin and prints text on stdout.
-function runOcrProcess(label, command, args, bytes) {
+// `deadline` (a Date.now() time) cuts the run short so the whole scan fits the proxy timeout.
+function runOcrProcess(label, command, args, bytes, deadline = Infinity) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
     let output = '',
@@ -2433,10 +2434,13 @@ function runOcrProcess(label, command, args, bytes) {
       tooLarge = false;
     const timer = setTimeout(
       () => {
+        // Answer at the deadline even if a helper process still holds the output pipe open.
         timedOut = true;
         child.kill('SIGKILL');
+        child.stdout.destroy();
+        reject(new Error(`${label} timed out.`));
       },
-      Math.min(upstreamTimeoutMs, 30_000)
+      Math.max(1000, Math.min(upstreamTimeoutMs, 30_000, deadline - Date.now()))
     );
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', chunk => {
@@ -2444,6 +2448,7 @@ function runOcrProcess(label, command, args, bytes) {
       if (output.length > 1024 * 1024) {
         tooLarge = true;
         child.kill('SIGKILL');
+        child.stdout.destroy();
       }
     });
     // The program can exit before reading all of stdin; an unhandled EPIPE here would crash the whole server.
@@ -2460,31 +2465,45 @@ function runOcrProcess(label, command, args, bytes) {
     });
     child.on('close', code => {
       clearTimeout(timer);
-      if (timedOut) return reject(new Error(`${label} timed out.`));
+      if (timedOut) return;
       if (tooLarge || code !== 0) return reject(new Error(`${label} could not read this receipt.`));
       resolve(output);
     });
     child.stdin.end(bytes);
   });
 }
-function tesseractText(bytes, pageSegmentationMode = '6') {
+function tesseractText(bytes, pageSegmentationMode = '6', deadline) {
   return runOcrProcess(
     'Tesseract OCR',
     'tesseract',
     ['stdin', 'stdout', '-l', 'eng', '--psm', pageSegmentationMode],
-    bytes
+    bytes,
+    deadline
   );
 }
-// RapidOCR is the local failover. It lives in its own Python environment, installed by
-// scripts/remote-update.sh; set RAPIDOCR_PYTHON=off to disable it.
+// RapidOCR (default) and PaddleOCR (fallback) each live in their own Python environment,
+// installed by scripts/remote-update.sh; set RAPIDOCR_PYTHON or PADDLEOCR_PYTHON to off to
+// disable one.
 const rapidOcrPython =
   process.env.RAPIDOCR_PYTHON || '/home/serveradmin/oxygen-care-expenses-rapidocr/bin/python3';
-function rapidOcrText(bytes) {
+const paddleOcrPython =
+  process.env.PADDLEOCR_PYTHON || '/home/serveradmin/oxygen-care-expenses-paddleocr/bin/python3';
+function rapidOcrText(bytes, deadline) {
   return runOcrProcess(
     'RapidOCR',
     rapidOcrPython,
     ['-I', join(process.cwd(), 'scripts', 'rapidocr_text.py')],
-    bytes
+    bytes,
+    deadline
+  );
+}
+function paddleOcrText(bytes, deadline) {
+  return runOcrProcess(
+    'PaddleOCR',
+    paddleOcrPython,
+    ['-I', join(process.cwd(), 'scripts', 'paddleocr_text.py')],
+    bytes,
+    deadline
   );
 }
 async function localOcrVariants(bytes) {
@@ -2508,25 +2527,40 @@ function tesseractResultScore(result) {
     (result.date ? 1 : 0)
   );
 }
-async function scanWithTesseract(bytes) {
+async function scanWithTesseract(bytes, deadline) {
   const [primaryImage, retryImage] = await localOcrVariants(bytes);
-  const primary = parseTesseractReceipt(await tesseractText(primaryImage, '6'));
+  const primary = parseTesseractReceipt(await tesseractText(primaryImage, '6', deadline));
   let best = primary;
   if (tesseractResultScore(primary) < 5) {
-    const retry = parseTesseractReceipt(await tesseractText(retryImage, '4'));
+    const retry = parseTesseractReceipt(await tesseractText(retryImage, '4', deadline));
     if (tesseractResultScore(retry) > tesseractResultScore(primary)) best = retry;
   }
   if (!best.merchant || !best.amount)
     throw new Error('Tesseract OCR could not confidently read this receipt.');
   return receiptResponse(best);
 }
-async function scanWithRapidOcr(bytes) {
-  if (rapidOcrPython === 'off') throw new Error('RapidOCR is turned off on this server.');
-  const result = parseTesseractReceipt(await rapidOcrText(bytes));
+async function scanWithPython(label, python, readText, bytes, deadline) {
+  if (python === 'off') throw new Error(`${label} is turned off on this server.`);
+  const result = parseTesseractReceipt(await readText(bytes, deadline));
   if (!result.merchant || !result.amount)
-    throw new Error('RapidOCR could not confidently read this receipt.');
+    throw new Error(`${label} could not confidently read this receipt.`);
   return receiptResponse(result);
 }
+// Local receipt readers, tried in order until one reads the merchant and total.
+// Tesseract stays as a last resort because it is already installed and cheap to run.
+const localOcrEngines = [
+  {
+    name: 'rapidocr',
+    scan: (bytes, deadline) =>
+      scanWithPython('RapidOCR', rapidOcrPython, rapidOcrText, bytes, deadline)
+  },
+  {
+    name: 'paddleocr',
+    scan: (bytes, deadline) =>
+      scanWithPython('PaddleOCR', paddleOcrPython, paddleOcrText, bytes, deadline)
+  },
+  { name: 'tesseract', scan: scanWithTesseract }
+];
 async function scanReceipt(req, res) {
   const user = requireUser(req, res);
   if (!user || !rateLimit(req, res, 'ocr', ocrLimit, 15 * 60_000)) return;
@@ -2552,55 +2586,54 @@ async function scanReceipt(req, res) {
     const receipt = await prepareReceipt(validatedReceipt({ image, mediaType }));
     const bytes = receipt.bytes;
     const preparedImage = bytes.toString('base64');
-    const provider = (process.env.OCR_PROVIDER || 'tesseract').toLowerCase();
-    if (provider === 'tesseract') {
-      try {
-        const result = await scanWithTesseract(bytes);
-        ocrUsage.set(usageKey, used + 1);
-        await audit('ocr_succeeded', { userId: user.id, provider: 'tesseract' });
-        return send(res, 200, result);
-      } catch (tesseractError) {
-        let rapidOcrError;
+    // 'tesseract' is the setting's old name for local scanning; existing .env files keep working.
+    const provider = (process.env.OCR_PROVIDER || 'local').toLowerCase();
+    if (provider === 'local' || provider === 'tesseract') {
+      const failures = [],
+        // Nginx waits 60 seconds; leave room to answer before it gives up.
+        deadline = Date.now() + 50_000;
+      for (const engine of localOcrEngines) {
+        if (deadline - Date.now() < 3000) break;
         try {
-          const result = await scanWithRapidOcr(bytes);
+          const result = await engine.scan(bytes, deadline);
           ocrUsage.set(usageKey, used + 1);
-          await audit('ocr_fallback_succeeded', {
-            userId: user.id,
-            primaryProvider: 'tesseract',
-            fallbackProvider: 'rapidocr'
-          });
+          await audit(
+            failures.length ? 'ocr_fallback_succeeded' : 'ocr_succeeded',
+            failures.length
+              ? {
+                  userId: user.id,
+                  primaryProvider: localOcrEngines[0].name,
+                  fallbackProvider: engine.name
+                }
+              : { userId: user.id, provider: engine.name }
+          );
           return send(res, 200, result);
         } catch (error) {
-          rapidOcrError = error;
+          failures.push(error.message);
         }
-        try {
-          const result = await scanWithAzure(preparedImage, 'image/jpeg');
-          ocrUsage.set(usageKey, used + 1);
-          await audit('ocr_fallback_succeeded', {
-            userId: user.id,
-            primaryProvider: 'tesseract',
-            fallbackProvider: 'azure'
-          });
-          return send(res, 200, result);
-        } catch (azureError) {
-          console.error(
-            'Tesseract, RapidOCR and Azure OCR failed',
-            tesseractError.message,
-            rapidOcrError.message,
-            azureError.message
-          );
-          // With cloud fallback off, show the local reasons (e.g. Tesseract not installed)
-          // instead of a generic message, so the cause is visible without the server log.
-          const cloudUnused = process.env.OCR_ALLOW_CLOUD !== 'true';
-          const localReasons = [tesseractError, rapidOcrError]
-            .map(error => error.message)
-            .filter(message => /^(Tesseract OCR|RapidOCR) /.test(message));
-          throw new Error(
-            cloudUnused && localReasons.length
-              ? `${localReasons.join(' ')} Please enter it manually.`
-              : 'Receipt could not be read automatically. Please enter it manually.'
-          );
-        }
+      }
+      try {
+        const result = await scanWithAzure(preparedImage, 'image/jpeg');
+        ocrUsage.set(usageKey, used + 1);
+        await audit('ocr_fallback_succeeded', {
+          userId: user.id,
+          primaryProvider: localOcrEngines[0].name,
+          fallbackProvider: 'azure'
+        });
+        return send(res, 200, result);
+      } catch (azureError) {
+        console.error('Local OCR and Azure OCR failed', ...failures, azureError.message);
+        // With cloud fallback off, show the local reasons (e.g. RapidOCR not installed)
+        // instead of a generic message, so the cause is visible without the server log.
+        const cloudUnused = process.env.OCR_ALLOW_CLOUD !== 'true';
+        const localReasons = failures.filter(message =>
+          /^(RapidOCR|PaddleOCR|Tesseract OCR) /.test(message)
+        );
+        throw new Error(
+          cloudUnused && localReasons.length
+            ? `${localReasons.join(' ')} Please enter it manually.`
+            : 'Receipt could not be read automatically. Please enter it manually.'
+        );
       }
     }
     if (provider === 'azure') {
@@ -2609,7 +2642,7 @@ async function scanReceipt(req, res) {
       await audit('ocr_succeeded', { userId: user.id, provider: 'azure' });
       return send(res, 200, result);
     }
-    return send(res, 503, { error: 'OCR_PROVIDER must be tesseract or azure.' });
+    return send(res, 503, { error: 'OCR_PROVIDER must be local or azure.' });
   } catch (error) {
     console.error('OCR failure', error.message);
     await audit('ocr_failed', {

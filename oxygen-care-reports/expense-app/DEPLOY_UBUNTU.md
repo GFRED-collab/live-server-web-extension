@@ -24,8 +24,9 @@ The updater:
 - recreates the disposable Ubuntu staging directory on every deployment so
   stale files cannot survive from older releases;
 - verifies that `pdfinfo` and `pdftoppm` from `poppler-utils` are installed;
-- installs Tesseract OCR (`tesseract-ocr`, `tesseract-ocr-eng`) and verifies the English language data, which receipt scanning needs;
-- installs RapidOCR, the local failover for receipts Tesseract can't read, in `/home/serveradmin/oxygen-care-expenses-rapidocr` and downloads its models before the service stops (the server needs access to PyPI and `www.modelscope.cn` during deployment only), then checks it can read an image;
+- installs RapidOCR, the default receipt reader, in `/home/serveradmin/oxygen-care-expenses-rapidocr` and downloads its models before the service stops (the server needs access to PyPI and `www.modelscope.cn` during deployment only), then checks it can read an image;
+- installs PaddleOCR, the fallback for receipts RapidOCR can't read, in `/home/serveradmin/oxygen-care-expenses-paddleocr` with its models (PyPI and `huggingface.co` during deployment only). If that fails the deploy prints a warning and carries on; scanning then uses RapidOCR and Tesseract;
+- installs Tesseract OCR (`tesseract-ocr`, `tesseract-ocr-eng`), the last local reader, and verifies the English language data;
 - installs Nginx from Ubuntu's package repository;
 - requests sudo authentication before modifying the live release;
 - creates verified code and data rollback archives in
