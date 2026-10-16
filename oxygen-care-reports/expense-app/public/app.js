@@ -62,8 +62,15 @@
   function setContent(...children) {
     $('#content').replaceChildren(...children.filter(Boolean));
   }
+  // The list's place (calendar level and filters) lives in the URL. Opening an expense carries
+  // it along so Back returns to the same place; other navigation starts fresh.
+  const listParams = () => {
+    const query = new URLSearchParams(location.search);
+    for (const key of ['view', 'expenseId', 'returnTo']) query.delete(key);
+    return query;
+  };
   function go(view, options = {}) {
-    const query = new URLSearchParams();
+    const query = new URLSearchParams(options.keep || '');
     if (view !== 'home') query.set('view', view);
     if (options.expenseId) query.set('expenseId', options.expenseId);
     if (options.returnTo && options.returnTo !== 'home') query.set('returnTo', options.returnTo);
@@ -196,7 +203,8 @@
       if (event?.target?.closest('a,button')) return;
       go('expense', {
         expenseId: expense.id,
-        returnTo: state.view === 'history' ? 'history' : 'home'
+        returnTo: state.view === 'history' ? 'history' : 'home',
+        keep: listParams()
       });
     };
     row.addEventListener('click', open);
@@ -213,7 +221,9 @@
           async () => {
             if (!confirm(`Delete ${expense.merchant}?`)) return;
             await api(`/api/expenses/${expense.id}`, { method: 'DELETE' });
-            await refreshHome();
+            // Stay on the same list, day and filters.
+            await loadExpenses();
+            render();
           },
           'secondary danger'
         )
@@ -226,10 +236,33 @@
       root.append(notice('No expenses yet.'));
       return root;
     }
-    const query = new URLSearchParams(location.search),
-      selectedYear = query.get('year'),
+    const query = new URLSearchParams(location.search);
+    let selectedYear = query.get('year'),
       selectedMonth = query.get('month'),
       selectedDay = query.get('day');
+    // Deleting the last expense of a day (or month, or year) empties that level: step back up
+    // to the nearest level that still has expenses instead of showing an empty page.
+    const inYear = expense => String(expense.date || '').startsWith(selectedYear),
+      inMonth = expense =>
+        inYear(expense) && String(expense.date || '').slice(5, 7) === selectedMonth,
+      inDay = expense =>
+        inMonth(expense) && String(expense.date || '').slice(8, 10) === selectedDay;
+    const emptied =
+      selectedYear && !records.some(inYear)
+        ? ['year', 'month', 'day']
+        : selectedMonth && !records.some(inMonth)
+          ? ['month', 'day']
+          : selectedDay && !records.some(inDay)
+            ? ['day']
+            : [];
+    if (emptied.length) {
+      const url = new URL(location.href);
+      emptied.forEach(key => url.searchParams.delete(key));
+      history.replaceState(history.state, '', `${url.pathname}${url.search}`);
+      if (emptied.includes('year')) selectedYear = null;
+      if (emptied.includes('month')) selectedMonth = null;
+      selectedDay = null;
+    }
     const push = values => {
       const url = new URL(location.href);
       for (const key of ['year', 'month', 'day']) {
@@ -1086,7 +1119,10 @@
           setTimeout(() => document.body.classList.remove('print-expense'), 1000);
         }),
         button('Back', () =>
-          go(state.returnTo === 'history' ? 'history' : 'home', { replace: true })
+          go(state.returnTo === 'history' ? 'history' : 'home', {
+            replace: true,
+            keep: listParams()
+          })
         )
       )
     );
