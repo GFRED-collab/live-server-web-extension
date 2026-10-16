@@ -60,3 +60,17 @@ The iPhone or computer opening the app must be signed into the same Tailscale
 network. After deployment, replace any old `http://192.168.0.248:3000`
 bookmark with `https://expenses.fynbos-spectrum.ts.net` and add that HTTPS page to
 the iPhone Home Screen again.
+
+## Server settings
+
+The service reads its settings (OCR, limits, Azure keys) from
+`/home/serveradmin/.config/oxygen-care-expenses/ocr.env`, not from a `.env` file in the app
+folder. `.env.example` lists the available settings. After changing the file, restart the
+service:
+
+```bash
+sudo systemctl restart oxygen-care-expenses
+```
+
+For example, `RAPIDOCR_PYTHON=off` in that file skips RapidOCR so receipts go straight to
+PaddleOCR; remove the line and restart to turn RapidOCR back on.
