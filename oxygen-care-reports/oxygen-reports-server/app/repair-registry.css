@@ -43,6 +43,8 @@
 .repair-form-grid label,
 .repair-tools label {
   display: grid;
+  align-content: start;
+  min-width: 0;
   gap: 6px;
   color: var(--muted);
   font-size: 10px;
@@ -55,12 +57,16 @@
 .repair-tools input,
 .repair-tools select {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 10px 11px;
   background: #fff;
   color: var(--ink);
   font: inherit;
+  /* The label's 10px bold capitals are inherited above; typed text stays readable. */
+  font-size: 14px;
+  font-weight: 500;
   letter-spacing: 0;
 }
 .repair-form-grid textarea {
