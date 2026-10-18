@@ -281,12 +281,17 @@
 }
 .edit-user-form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, …): a field can never widen its column into the next one (Safari date and
+     time boxes, or drop-downs with long names, otherwise do). */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 20px;
 }
 .edit-user-form label {
   display: grid;
+  /* Keep the field under its label when a taller neighbour (Notes) sets the row height. */
+  align-content: start;
+  min-width: 0;
   gap: 6px;
   color: var(--muted);
   font-size: 11px;
@@ -296,6 +301,7 @@
 .edit-user-form input,
 .edit-user-form select {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 11px;
@@ -637,12 +643,17 @@
 }
 .edit-user-form textarea {
   width: 100%;
+  min-width: 0;
   border: 1px solid var(--line);
   border-radius: 9px;
   padding: 11px;
   background: #fff;
   color: var(--ink);
   font: inherit;
+  /* The label's small bold capitals are inherited above; typed text stays readable. */
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
   resize: vertical;
 }
 @media (max-width: 700px) {
