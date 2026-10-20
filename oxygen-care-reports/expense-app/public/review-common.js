@@ -14,6 +14,12 @@
     ({ approved: 'Approved', declined: 'Declined', question: 'Questioned', pending: 'Pending' })[
       status
     ] || status;
+  const opensOn = expense =>
+    new Date(`${expense.approvalOpensOn}T12:00:00`).toLocaleDateString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
   let records = [];
   const api = window.oxygenApi;
 
@@ -93,16 +99,32 @@
     note.className = 'meta';
     note.textContent = `Note: ${expense.note || 'None'}`;
     actions.className = 'actions';
-    for (const [label, next] of [
-      ['Approve', 'approved'],
-      ['Decline', 'declined'],
-      ['Question', 'question']
-    ]) {
+    // Approved expenses are locked: no further review.
+    const reviewable = (expense.reviewStatus || 'pending') !== 'approved';
+    // Department Heads can approve once the expense's month has ended.
+    const approvalWaits = config.role === 'department_head' && expense.approvalOpen === false;
+    for (const [label, next] of reviewable
+      ? [
+          ['Approve', 'approved'],
+          ['Decline', 'declined'],
+          ['Question', 'question']
+        ]
+      : []) {
       const button = document.createElement('button');
       button.textContent = label;
       if (next === 'declined') button.className = 'decline';
-      button.onclick = () => review(expense, next);
+      if (next === 'approved' && approvalWaits) {
+        button.disabled = true;
+        button.textContent = `Approve from ${opensOn(expense)}`;
+        button.title = 'Expenses can be approved once their month has ended.';
+      } else button.onclick = () => review(expense, next);
       actions.append(button);
+    }
+    if (!reviewable) {
+      const locked = document.createElement('span');
+      locked.className = 'meta';
+      locked.textContent = 'Approved · locked';
+      actions.append(locked);
     }
     if (config.allowDelete) {
       const remove = document.createElement('button');

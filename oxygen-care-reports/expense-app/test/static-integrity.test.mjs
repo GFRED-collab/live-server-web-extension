@@ -111,7 +111,10 @@ test('saved odometer readings expose an explicit edit state', async () => {
   assert.match(app, /editableReadings\.forEach/);
   assert.match(app, /button\('Odometer', \(\) => go\('odometer'\)\)/);
   assert.match(app, /if \(state\.view === 'odometer'\) return odometerPage\(\)/);
-  assert.match(app, /function odometerPage\(\) \{ setContent\(odometerLogCard\(\)\); \}/);
+  assert.match(
+    app,
+    /function odometerPage\(\) \{ setContent\( odometerLogCard\(\), state\.user\.role === 'department_head' \? departmentOdometerCard\(\) : null \); \}/
+  );
   const home =
     /async function regularHome\(\)([\s\S]*?)\n  function odometerPage/.exec(app)?.[1] || '';
   assert.doesNotMatch(home, /odometerLogCard/);
@@ -375,7 +378,7 @@ test('Super User reports remain a printable filter-driven list', async () => {
   );
   assert.match(
     reports,
-    /for\(const id of \['from','to','dept','user','category'\]\)\$\('#'\+id\)\.onchange=\(\)=>draw\(true\)/
+    /for\(const id of \['from','to','dept','user','category','group'\]\)\$\('#'\+id\)\.onchange=\(\)=>draw\(true\)/
   );
   assert.match(reports, /const rows=selected\(\)\.sort/);
   assert.match(reports, /pageRows\('#expenseReport','expenses',rows,draw\)/);
@@ -383,7 +386,10 @@ test('Super User reports remain a printable filter-driven list', async () => {
     reports,
     /new Option\('Current page','page'\),new Option\('All filtered results','all'\)/
   );
-  assert.match(reports, /if\(printRange\.value==='all'\)\$\('#rows'\)\.replaceChildren/);
+  assert.match(
+    reports,
+    /if\(printRange\.value==='all'\)\{const rows=selected\(\)\.sort\([^;]*\);\$\('#rows'\)\.replaceChildren\(\.\.\.groupedRows\(rows,rows\)\)/
+  );
   assert.match(reports, /addEventListener\('afterprint',restore,\{once:true\}\)/);
 });
 
