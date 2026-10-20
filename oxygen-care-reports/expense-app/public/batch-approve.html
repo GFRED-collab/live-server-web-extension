@@ -255,11 +255,15 @@
               (!user || item.user.id === user) &&
               (category === 'All' || item.category === category)
           );
-          const visibleIds = new Set(visible.map(item => item.id));
+          // Department Heads can approve once the expense's month has ended.
+          const waits = item => reviewerRole === 'department_head' && item.approvalOpen === false;
+          const selectable = visible.filter(item => !waits(item));
+          const visibleIds = new Set(selectable.map(item => item.id));
           for (const id of selected) if (!visibleIds.has(id)) selected.delete(id);
           $('#selectAll').checked =
-            visible.length > 0 && visible.every(item => selected.has(item.id));
-          $('#selectAll').indeterminate = selected.size > 0 && selected.size < visible.length;
+            selectable.length > 0 && selectable.every(item => selected.has(item.id));
+          $('#selectAll').indeterminate = selected.size > 0 && selected.size < selectable.length;
+          $('#selectAll').disabled = !selectable.length;
           $('#approve').disabled = !selected.size;
           $('#approve').textContent = selected.size
             ? `Approve selected (${selected.size})`
@@ -284,6 +288,7 @@
               );
               check.type = 'checkbox';
               check.checked = selected.has(item.id);
+              check.disabled = waits(item);
               check.setAttribute(
                 'aria-label',
                 `Select ${item.merchant} expense for ${item.user.fullName || item.user.email}`
@@ -298,6 +303,12 @@
               meta.className = 'meta';
               meta.textContent = `${item.user.fullName || item.user.email} · ${item.category}${item.note ? ` · ${item.note}` : ''}`;
               body.append(merchant, meta);
+              if (waits(item)) {
+                const wait = document.createElement('div');
+                wait.className = 'meta';
+                wait.textContent = `Month not ended · can be approved from ${new Date(`${item.approvalOpensOn}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                body.append(wait);
+              }
               if (item.hasReceipt) {
                 const receipt = document.createElement('a'),
                   returnTo = `${location.pathname}${location.search}`;
@@ -388,7 +399,10 @@
             draw();
           };
         $('#selectAll').onchange = () => {
-          if ($('#selectAll').checked) visible.forEach(item => selected.add(item.id));
+          if ($('#selectAll').checked)
+            visible
+              .filter(item => !(reviewerRole === 'department_head' && item.approvalOpen === false))
+              .forEach(item => selected.add(item.id));
           else visible.forEach(item => selected.delete(item.id));
           draw();
         };

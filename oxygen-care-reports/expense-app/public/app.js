@@ -1194,7 +1194,73 @@
     if (state.user.role === 'department_head') await addDepartmentReview();
   }
   function odometerPage() {
-    setContent(odometerLogCard());
+    setContent(
+      odometerLogCard(),
+      state.user.role === 'department_head' ? departmentOdometerCard() : null
+    );
+  }
+  // Department Heads see the monthly odometer readings of everyone in their department.
+  function departmentOdometerCard() {
+    const month = element('input', { type: 'month', value: dateToday().slice(0, 7) }),
+      list = element('div', { class: 'expense-stack' }, notice('Loading readings…'));
+    const km = value => (value == null ? '—' : `${Number(value).toLocaleString()} KM`);
+    const reading = value => (value == null ? '—' : Number(value).toLocaleString());
+    let readings = [];
+    const draw = () => {
+      const rows = readings
+        .filter(item => !month.value || item.month === month.value)
+        .sort(
+          (a, b) =>
+            b.month.localeCompare(a.month) || personName(a.user).localeCompare(personName(b.user))
+        );
+      if (!rows.length) return list.replaceChildren(notice('No odometer readings for this month.'));
+      list.replaceChildren(
+        element('div', {
+          class: 'meta',
+          text: `${rows.length} reading${rows.length === 1 ? '' : 's'} · ${km(rows.reduce((sum, item) => sum + Number(item.kilometres || 0), 0))} combined`
+        }),
+        ...rows.map(item =>
+          element(
+            'div',
+            { class: 'expense' },
+            element(
+              'div',
+              { class: 'grow' },
+              element('div', {
+                class: 'merchant',
+                text: `${personName(item.user)} · ${item.month}`
+              }),
+              element('div', {
+                class: 'meta',
+                text: `Car 1: ${reading(item.car1OpeningReading)} → ${reading(item.car1ClosingReading)} (${km(item.car1Kilometres)})`
+              }),
+              item.car2OpeningReading != null || item.car2ClosingReading != null
+                ? element('div', {
+                    class: 'meta',
+                    text: `Car 2: ${reading(item.car2OpeningReading)} → ${reading(item.car2ClosingReading)} (${km(item.car2Kilometres)})`
+                  })
+                : null
+            ),
+            element('strong', { text: km(item.kilometres) })
+          )
+        )
+      );
+    };
+    month.onchange = draw;
+    api('/api/reports/odometer')
+      .then(data => {
+        readings = data.readings;
+        draw();
+      })
+      .catch(error => list.replaceChildren(notice(error.message)));
+    return card(
+      element('div', {
+        class: 'label',
+        text: `DEPARTMENT ODOMETER READINGS · ${state.user.department || ''}`
+      }),
+      element('label', { class: 'field', text: 'MONTH (CLEAR FOR ALL MONTHS)' }, month),
+      list
+    );
   }
   async function expenseHistory() {
     await Promise.all([loadExpenses(), loadSettings()]);
@@ -1419,8 +1485,69 @@
     };
     year.onchange = draw;
     department.onchange = draw;
-    setContent(panel);
+    setContent(approvalsCard(), panel);
     await draw();
+  }
+  // Super User overview: expenses due for approval (their month has ended), not yet due
+  // (current month), and approved expenses still awaiting reimbursement.
+  function approvalsCard() {
+    const body = element('div', {}, notice('Loading approvals…'));
+    const tile = (label, value, hint, tone) =>
+      element(
+        'div',
+        { class: `approval-tile ${tone}` },
+        element('div', { class: 'label', text: label }),
+        element('strong', { text: String(value.count) }),
+        element('div', { class: 'meta', text: `${euro(value.total)} · ${hint}` })
+      );
+    api('/api/dashboard/approvals')
+      .then(data => {
+        const rows = data.departments.filter(
+          row => row.due.count || row.notYetDue.count || row.awaitingReimbursement.count
+        );
+        body.replaceChildren(
+          element(
+            'div',
+            { class: 'approval-tiles' },
+            tile('DUE FOR APPROVAL', data.due, 'month ended', data.due.count ? 'warn' : ''),
+            tile('NOT YET DUE', data.notYetDue, 'current month', ''),
+            tile(
+              'APPROVED · AWAITING REIMBURSEMENT',
+              data.awaitingReimbursement,
+              'ready to pay',
+              data.awaitingReimbursement.count ? 'ok' : ''
+            )
+          ),
+          rows.length
+            ? element(
+                'div',
+                { class: 'approval-departments' },
+                ...rows.map(row =>
+                  element(
+                    'div',
+                    { class: 'expense' },
+                    element('div', { class: 'grow merchant', text: row.department }),
+                    element('div', {
+                      class: 'meta',
+                      text: `Due ${row.due.count} · Not yet due ${row.notYetDue.count} · Awaiting reimbursement ${row.awaitingReimbursement.count} (${euro(row.awaitingReimbursement.total)})`
+                    })
+                  )
+                )
+              )
+            : notice('Nothing is waiting for approval or reimbursement.', true),
+          element(
+            'div',
+            { class: 'actions' },
+            element('a', {
+              class: 'link-button',
+              href: '/batch-approve.html',
+              text: 'Batch approve'
+            })
+          )
+        );
+      })
+      .catch(error => body.replaceChildren(notice(error.message)));
+    return card(element('div', { class: 'label', text: 'APPROVALS · DUE AND APPROVED' }), body);
   }
   function userForm(existing = null) {
     const status = element('div');

@@ -618,10 +618,28 @@ function dateValidationError(value, today = todayLocal()) {
 function validDate(value) {
   return !dateValidationError(value);
 }
+// Department Heads may approve an expense only once its month has ended: from the 1st of the
+// following month (Irish time). Super Users are not limited.
+function approvalOpensOn(expense) {
+  const month = /^(\d{4})-(\d{2})/.exec(expense.mileageMonth || expense.date || '');
+  if (!month) return '';
+  const year = Number(month[1]) + (month[2] === '12' ? 1 : 0),
+    next = month[2] === '12' ? 1 : Number(month[2]) + 1;
+  return `${year}-${String(next).padStart(2, '0')}-01`;
+}
+function approvalOpen(expense, today = todayLocal()) {
+  return today >= approvalOpensOn(expense);
+}
 function publicExpense(expense) {
   const { userId, receiptFile, receiptHash, ...value } = expense;
   if (value.expenseType === 'mileage') value.category = mileageExpenseCategory;
-  return { ...value, companyPaid: isCompanyPaid(value), hasReceipt: Boolean(receiptFile) };
+  return {
+    ...value,
+    companyPaid: isCompanyPaid(value),
+    hasReceipt: Boolean(receiptFile),
+    approvalOpensOn: approvalOpensOn(value),
+    approvalOpen: approvalOpen(value)
+  };
 }
 function validatedReceipt(value) {
   if (value == null) return null;
@@ -1115,6 +1133,49 @@ async function dashboardExpenses(req, res) {
     months
   });
 }
+// Super User dashboard: what is due for approval, what is not due yet (current month), and
+// approved expenses still awaiting reimbursement, overall and per department.
+async function dashboardApprovals(req, res) {
+  if (!requireUser(req, res, 'super')) return;
+  const people = (await users()).filter(user => ['regular', 'department_head'].includes(user.role));
+  const byId = new Map(people.map(user => [user.id, user]));
+  const today = todayLocal();
+  const empty = () => ({ count: 0, total: 0 });
+  const blank = () => ({ due: empty(), notYetDue: empty(), awaitingReimbursement: empty() });
+  const overall = blank(),
+    departments = new Map();
+  for (const expense of await expenses()) {
+    const owner = byId.get(expense.userId);
+    if (!owner) continue;
+    const status = expense.reviewStatus || 'pending';
+    const bucket =
+      status === 'pending'
+        ? approvalOpen(expense, today)
+          ? 'due'
+          : 'notYetDue'
+        : status === 'approved' &&
+            owner.role === 'regular' &&
+            !expense.reimbursementId &&
+            !isCompanyPaid(expense)
+          ? 'awaitingReimbursement'
+          : null;
+    if (!bucket) continue;
+    const name = owner.department || 'Unassigned';
+    if (!departments.has(name)) departments.set(name, blank());
+    for (const target of [overall, departments.get(name)]) {
+      target[bucket].count += 1;
+      target[bucket].total =
+        Math.round((target[bucket].total + Number(expense.amount || 0)) * 100) / 100;
+    }
+  }
+  send(res, 200, {
+    today,
+    ...overall,
+    departments: [...departments]
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([department, values]) => ({ department, ...values }))
+  });
+}
 async function reportExpenses(req, res) {
   if (!requireUser(req, res, 'super')) return;
   const people = (await users()).filter(user => ['regular', 'department_head'].includes(user.role));
@@ -1129,8 +1190,16 @@ async function reportExpenses(req, res) {
   });
 }
 async function reportOdometer(req, res) {
-  if (!requireUser(req, res, 'super')) return;
-  const people = (await users()).filter(user => ['regular', 'department_head'].includes(user.role));
+  const viewer = requireUser(req, res);
+  if (!viewer) return;
+  if (!['super', 'department_head'].includes(viewer.role))
+    return send(res, 403, { error: 'Odometer report access is required.' });
+  // Department Heads see their own readings and their department's regular users.
+  const people = (await users()).filter(user =>
+    viewer.role === 'super'
+      ? ['regular', 'department_head'].includes(user.role)
+      : user.id === viewer.id || (user.role === 'regular' && user.department === viewer.department)
+  );
   const byId = new Map(people.map(user => [user.id, user]));
   const readings = (await odometerReadings())
     .filter(reading => byId.has(reading.userId))
@@ -1651,6 +1720,12 @@ async function reviewExpense(req, res, id) {
       (!owner || owner.role !== 'regular' || owner.department !== reviewer.department)
     )
       return send(res, 403, { error: 'You can only review expenses in your department.' });
+    if (target.reviewStatus === 'approved')
+      return send(res, 409, { error: 'This expense is already approved and locked.' });
+    if (status === 'approved' && reviewer.role === 'department_head' && !approvalOpen(target))
+      return send(res, 409, {
+        error: `This expense can be approved once its month has ended, from ${approvalOpensOn(target)}.`
+      });
     target.reviewStatus = status;
     target.reviewNote = status === 'approved' ? '' : note.trim();
     target.reviewedAt = new Date().toISOString();
@@ -1704,6 +1779,11 @@ async function batchApproveExpenses(req, res) {
       return send(res, 409, {
         error:
           'One or more selected expenses are no longer pending or available to you. Nothing was approved.'
+      });
+    if (reviewer.role === 'department_head' && selected.some(expense => !approvalOpen(expense)))
+      return send(res, 409, {
+        error:
+          'Expenses can be approved once their month has ended. Remove current-month expenses and try again. Nothing was approved.'
       });
     const reviewedAt = new Date().toISOString();
     for (const expense of selected)
@@ -2699,6 +2779,8 @@ async function routeRequest(req, res) {
     return removeSetting(req, res, 'department');
   if (req.method === 'GET' && pathname === '/api/dashboard/expenses')
     return dashboardExpenses(req, res);
+  if (req.method === 'GET' && pathname === '/api/dashboard/approvals')
+    return dashboardApprovals(req, res);
   if (req.method === 'GET' && pathname === '/api/reports/expenses') return reportExpenses(req, res);
   if (req.method === 'GET' && pathname === '/api/reports/odometer') return reportOdometer(req, res);
   if (req.method === 'GET' && pathname === '/api/reports/reimbursements')

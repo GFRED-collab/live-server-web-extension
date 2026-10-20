@@ -394,3 +394,37 @@ label > select,
   text-align: right;
   font-size: 18px;
 }
+.approval-tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 12px 0;
+}
+.approval-tile {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  background: #f8fcfd;
+}
+.approval-tile strong {
+  display: block;
+  margin: 4px 0;
+  font-size: 26px;
+}
+.approval-tile.warn {
+  border-color: #e9b24c;
+  background: #fffaf0;
+}
+.approval-tile.ok {
+  border-color: #9fd6c6;
+  background: #eef9f5;
+}
+.approval-departments .expense {
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+@media (max-width: 520px) {
+  .approval-tiles {
+    grid-template-columns: 1fr;
+  }
+}

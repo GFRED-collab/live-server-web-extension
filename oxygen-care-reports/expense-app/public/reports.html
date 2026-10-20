@@ -90,6 +90,12 @@
         border-radius: 50%;
         display: inline-block;
       }
+      tr.month-group td {
+        padding-top: 14px;
+        background: #f2fafc;
+        color: #183f4b;
+        font-weight: 800;
+      }
       .chart-empty {
         padding: 25px;
         text-align: center;
@@ -243,6 +249,13 @@
             >Category
             <select id="category">
               <option value="All">All</option>
+            </select>
+          </label>
+          <label
+            >Group
+            <select id="group">
+              <option value="">No grouping</option>
+              <option value="month">By month</option>
             </select>
           </label>
           <div class="actions">
@@ -585,6 +598,40 @@
         receiptCell(row, expense);
         return row;
       }
+      // "Group by month": a heading row with the month's totals before each month's expenses.
+      const monthOf = expense => String(expense.date || '').slice(0, 7);
+      const monthName = month =>
+        /^\d{4}-\d{2}$/.test(month)
+          ? new Date(`${month}-01T12:00:00`).toLocaleDateString(undefined, {
+              month: 'long',
+              year: 'numeric'
+            })
+          : 'Undated';
+      const sum = rows => rows.reduce((total, expense) => total + Number(expense.amount || 0), 0);
+      function monthSummary(month, allRows) {
+        const rows = allRows.filter(expense => monthOf(expense) === month);
+        return `${monthName(month)} · ${rows.length} expense${rows.length === 1 ? '' : 's'} · Expenses: ${money(sum(rows.filter(expense => expense.companyPaid !== true)))} · Company paid: ${money(sum(rows.filter(expense => expense.companyPaid === true)))}`;
+      }
+      function groupedRows(shown, allRows) {
+        if ($('#group').value !== 'month') return shown.map(expenseRow);
+        const out = [];
+        let previous = null;
+        for (const expense of shown) {
+          const month = monthOf(expense);
+          if (month !== previous) {
+            const heading = document.createElement('tr'),
+              td = document.createElement('td');
+            heading.className = 'month-group';
+            td.colSpan = 8;
+            td.textContent = monthSummary(month, allRows);
+            heading.append(td);
+            out.push(heading);
+            previous = month;
+          }
+          out.push(expenseRow(expense));
+        }
+        return out;
+      }
       function draw(reset = false) {
         if (reset) pages.expenses = 1;
         const rows = selected().sort((a, b) => String(b.date).localeCompare(String(a.date))),
@@ -600,13 +647,52 @@
           header.append(heading);
         }
         const visible = pageRows('#expenseReport', 'expenses', rows, draw);
-        $('#rows').replaceChildren(...visible.map(expenseRow));
+        $('#rows').replaceChildren(...groupedRows(visible, rows));
       }
       function downloadCsv() {
-        const rows = selected(),
+        const grouped = $('#group').value === 'month',
+          rows = selected().sort((a, b) =>
+            grouped ? String(b.date).localeCompare(String(a.date)) : 0
+          ),
           quote = window.oxygenCsvCell;
+        const line = expense => [
+          ...(grouped ? [monthName(monthOf(expense))] : []),
+          expense.date,
+          personName(expense.user),
+          expense.user.department,
+          expense.merchant,
+          expense.category,
+          expense.amount,
+          expense.currency || 'EUR',
+          expense.note || '',
+          expense.reviewStatus || 'pending',
+          expense.reviewNote || ''
+        ];
+        // Grouped: each month's expenses followed by a total row for that month.
+        const body = grouped
+          ? [...new Set(rows.map(monthOf))].flatMap(month => {
+              const monthRows = rows.filter(expense => monthOf(expense) === month);
+              return [
+                ...monthRows.map(line),
+                [
+                  monthName(month),
+                  '',
+                  '',
+                  '',
+                  '',
+                  `Total for ${monthName(month)}`,
+                  Math.round(sum(monthRows) * 100) / 100,
+                  'EUR',
+                  `${monthRows.length} expenses`,
+                  '',
+                  ''
+                ]
+              ];
+            })
+          : rows.map(line);
         const csv = [
           [
+            ...(grouped ? ['Month'] : []),
             'Date',
             'User',
             'Department',
@@ -618,18 +704,7 @@
             'Review status',
             'Review note'
           ],
-          ...rows.map(expense => [
-            expense.date,
-            personName(expense.user),
-            expense.user.department,
-            expense.merchant,
-            expense.category,
-            expense.amount,
-            expense.currency || 'EUR',
-            expense.note || '',
-            expense.reviewStatus || 'pending',
-            expense.reviewNote || ''
-          ])
+          ...body
         ]
           .map(row => row.map(quote).join(','))
           .join('\r\n');
@@ -719,12 +794,10 @@
         setTimeout(() => document.body.classList.remove(mode), 1000);
       }
       function printExpenses() {
-        if (printRange.value === 'all')
-          $('#rows').replaceChildren(
-            ...selected()
-              .sort((a, b) => String(b.date).localeCompare(String(a.date)))
-              .map(expenseRow)
-          );
+        if (printRange.value === 'all') {
+          const rows = selected().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+          $('#rows').replaceChildren(...groupedRows(rows, rows));
+        }
         document.body.classList.add('print-expenses');
         const restore = () => {
           document.body.classList.remove('print-expenses');
@@ -746,7 +819,7 @@
             ...new Set(all.map(expense => expense.category).filter(Boolean))
           ].sort())
             $('#category').add(new Option(category, category));
-          for (const id of ['from', 'to', 'dept', 'user', 'category'])
+          for (const id of ['from', 'to', 'dept', 'user', 'category', 'group'])
             $('#' + id).onchange = () => draw(true);
           draw(true);
           refreshChart();
