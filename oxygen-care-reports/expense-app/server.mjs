@@ -630,6 +630,15 @@ function approvalOpensOn(expense) {
 function approvalOpen(expense, today = todayLocal()) {
   return today >= approvalOpensOn(expense);
 }
+// Once an expense's month has ended it is with the reviewer, so its owner cannot change or
+// delete it (the reviewer checks a fixed record). A question or decline hands it back.
+const ownerLockedMessage =
+  'This expense is being checked now that its month has ended. You can change it if your manager questions or declines it.';
+function ownerCanChange(expense, today = todayLocal()) {
+  const status = expense.reviewStatus || 'pending';
+  if (status === 'approved') return false;
+  return status !== 'pending' || !approvalOpen(expense, today);
+}
 function publicExpense(expense) {
   const { userId, receiptFile, receiptHash, ...value } = expense;
   if (value.expenseType === 'mileage') value.category = mileageExpenseCategory;
@@ -638,7 +647,8 @@ function publicExpense(expense) {
     companyPaid: isCompanyPaid(value),
     hasReceipt: Boolean(receiptFile),
     approvalOpensOn: approvalOpensOn(value),
-    approvalOpen: approvalOpen(value)
+    approvalOpen: approvalOpen(value),
+    ownerCanChange: ownerCanChange(value)
   };
 }
 function validatedReceipt(value) {
@@ -1449,6 +1459,7 @@ async function monthlyMileage(req, res) {
     amount: record?.amount ?? null,
     submitted: Boolean(record),
     reviewStatus: record?.reviewStatus || 'pending',
+    ownerCanChange: record ? ownerCanChange(record) : true,
     mileageRate
   });
 }
@@ -1475,6 +1486,7 @@ async function saveMonthlyMileage(req, res) {
       return send(res, 403, {
         error: 'An approved mileage expense can only be deleted by a Super User.'
       });
+    if (existing && !ownerCanChange(existing)) return send(res, 409, { error: ownerLockedMessage });
     const roundedKilometres = Math.round(kilometres * 10) / 10,
       amount = Math.round(roundedKilometres * mileageRate * 100) / 100;
     const fields = {
@@ -1638,6 +1650,7 @@ async function editExpense(req, res, id) {
       return send(res, 403, { error: 'You can only edit your own expenses.' });
     if (target.reviewStatus === 'approved')
       return send(res, 403, { error: 'Approved expenses cannot be edited.' });
+    if (!ownerCanChange(target)) return send(res, 409, { error: ownerLockedMessage });
     if (target.expenseType === 'mileage')
       return send(res, 403, {
         error: 'Mileage expenses must be changed from the monthly mileage form.'
@@ -1686,6 +1699,7 @@ async function deleteExpense(req, res, id) {
       return send(res, 403, { error: 'You can only delete your own expenses.' });
     if (target.reviewStatus === 'approved')
       return send(res, 403, { error: 'Approved expenses can only be deleted by a Super User.' });
+    if (!ownerCanChange(target)) return send(res, 409, { error: ownerLockedMessage });
   }
   await saveExpenses(all.filter(expense => expense.id !== id));
   await removeReceipt(target.receiptFile);
