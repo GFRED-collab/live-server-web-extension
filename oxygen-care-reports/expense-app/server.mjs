@@ -1855,6 +1855,31 @@ async function reimbursementCandidates(req, res, userId) {
     .map(publicExpense);
   send(res, 200, { user: publicUser(target), expenses: eligible });
 }
+// One reimbursement with the expenses it paid, for the printable detail page.
+async function reimbursementDetail(req, res, userId, reimbursementId) {
+  if (!requireUser(req, res, 'super')) return;
+  const target = (await users()).find(user => user.id === userId);
+  const reimbursement = (Array.isArray(target?.notifications) ? target.notifications : []).find(
+    item => item?.type === 'reimbursement' && item.id === reimbursementId
+  );
+  if (!reimbursement) return send(res, 404, { error: 'Reimbursement not found.' });
+  const ids = Array.isArray(reimbursement.expenseIds) ? reimbursement.expenseIds : [];
+  const byId = new Map(
+    (await expenses())
+      .filter(expense => expense.userId === userId && ids.includes(expense.id))
+      .map(expense => [expense.id, expense])
+  );
+  send(res, 200, {
+    reimbursement,
+    user: publicUser(target),
+    expenses: ids
+      .filter(id => byId.has(id))
+      .map(id => publicExpense(byId.get(id)))
+      .sort((left, right) => String(left.date).localeCompare(String(right.date))),
+    // Expenses deleted after the reimbursement was sent.
+    missing: ids.filter(id => !byId.has(id)).length
+  });
+}
 async function createReimbursementBatch(req, res, userId) {
   const actor = requireUser(req, res, 'super');
   if (!actor) return;
@@ -2818,6 +2843,11 @@ async function routeRequest(req, res) {
   );
   if (req.method === 'GET' && reimbursementCandidatesMatch)
     return reimbursementCandidates(req, res, reimbursementCandidatesMatch[1]);
+  const reimbursementDetailMatch = pathname.match(
+    /^\/api\/users\/([A-Za-z0-9]+)\/reimbursements\/([A-Za-z0-9]+)$/
+  );
+  if (req.method === 'GET' && reimbursementDetailMatch)
+    return reimbursementDetail(req, res, reimbursementDetailMatch[1], reimbursementDetailMatch[2]);
   const reimbursementBatchMatch = pathname.match(/^\/api\/users\/([A-Za-z0-9]+)\/reimbursements$/);
   if (req.method === 'POST' && reimbursementBatchMatch)
     return createReimbursementBatch(req, res, reimbursementBatchMatch[1]);
