@@ -6,4 +6,4 @@ $('load').onclick=()=>run(async()=>{const folders=await window.occ.folders(data(
 $('connect').onclick=()=>run(async()=>{const roots=[...$('folders').querySelectorAll('input:checked')].map(c=>c.value);if(await window.occ.connect({...data(),roots})){$('token').value='';await refresh();}});
 $('open').onclick=()=>run(()=>window.occ.open());$('sync').onclick=()=>run(async()=>render(await window.occ.sync()));$('pause').onclick=()=>run(async()=>{$('pause').textContent=await window.occ.pause()?'Resume':'Pause';});window.occ.onStatus(render);run(refresh);
 
-$('disconnect').onclick=()=>run(async()=>{if(confirm('Disconnect this computer? Your local files remain. Revoke its connection key in OCC Desktop sync.')){await window.occ.disconnect();await refresh();}});
+$('disconnect').onclick=()=>run(async()=>{if(confirm('Disconnect this computer? Your local files remain. Revoke its connection key in IHS Cloud Desktop sync.')){await window.occ.disconnect();await refresh();}});

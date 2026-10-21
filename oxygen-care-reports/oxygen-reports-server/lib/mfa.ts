@@ -14,7 +14,7 @@ import {
  */
 
 const base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-export const ISSUER = 'Oxygen Care Reports';
+export const ISSUER = 'Irish Hospital Supplies Reports';
 const stepSeconds = 30;
 
 export function base32Encode(bytes: Buffer) {

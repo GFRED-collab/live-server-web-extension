@@ -1,6 +1,6 @@
-# OCC Oxygen Care Cloud — working server application
+# Irish Hospital Supplies Cloud — working server application
 
-The approved OCC interface connected to persistent SQLite metadata and file storage, real password authentication, and server-enforced permissions. This package is separate from the original Sites design prototype and from the other Oxygen Care applications.
+The approved OCC interface connected to persistent SQLite metadata and file storage, real password authentication, and server-enforced permissions. This package is separate from the original Sites design prototype and from the other Irish Hospital Supplies applications.
 
 ## Run locally
 
@@ -20,12 +20,12 @@ Everyone signs in with their password and then a 6-digit code from an authentica
 
 - **Lost phone:** sign in with a recovery code, or a Super User opens **User management → Edit** for that person and chooses **Reset authenticator**. They set it up again at their next sign-in. Super Users can't reset their own.
 - **Super User locked out:** on the server run `sudo -u occcloud node /opt/occ-cloud/current/scripts/reset-mfa.mjs person@example.com /var/lib/occ-cloud`.
-- **OCC Sync:** computers keep their connection keys. Connecting a new computer needs a signed-in browser session, so it is covered by the second step.
+- **IHS Sync:** computers keep their connection keys. Connecting a new computer needs a signed-in browser session, so it is covered by the second step.
 - Authenticator keys are encrypted with `MFA_ENCRYPTION_KEY` in `/etc/occ-cloud/occ-cloud.env`, which the deploy creates once. Keep a private copy of that file with the data backups and never change the key, or everyone has to set up their authenticator again. Outside production, a key is created in the data folder (`mfa-key`).
 
 ## Server layout
 
-`deploy-server.sh` targets the existing Oxygen Care build/test server `serveradmin@192.168.0.248` using `~/.ssh/oxygen-care-server`. The key must be unlocked in your SSH agent. Deployment uses its own service and storage:
+`deploy-server.sh` targets the existing Irish Hospital Supplies build/test server `serveradmin@192.168.0.248` using `~/.ssh/oxygen-care-server`. The key must be unlocked in your SSH agent. Deployment uses its own service and storage:
 
 | Item | Location |
 | --- | --- |
@@ -81,7 +81,7 @@ To migrate:
 
 ## Desktop sync preview
 
-The schema-2 server adds **Desktop sync** account controls and `/api/sync/` endpoints for the sibling OCC Sync Mac/Windows app. Device keys are stored as SHA-256 hashes, expire after 90 days, and are revoked on password changes/resets or account deactivation. Every request rechecks account and folder access. Updates and downloads require an exact file revision; uploads calculate SHA-256 and updates increment revisions. Browser renames/moves also increment revisions.
+The schema-2 server adds **Desktop sync** account controls and `/api/sync/` endpoints for the sibling IHS Sync Mac/Windows app. Device keys are stored as SHA-256 hashes, expire after 90 days, and are revoked on password changes/resets or account deactivation. Every request rechecks account and folder access. Updates and downloads require an exact file revision; uploads calculate SHA-256 and updates increment revisions. Browser renames/moves also increment revisions.
 
 This release migrates the database on startup. The remote installer saves a stopped-service backup before upgrading and restores matching data during rollback. Failed-release data is retained separately for recovery. Do not start an old server against a schema-2 database without restoring its matching backup.
 
@@ -124,10 +124,10 @@ Notes and notifications are stored in SQLite and included in existing backups. T
 
 ## File locations — 10 October 2026
 
-Host storage remains the default for uploads and drag-and-drop. **Add file location** offers Host storage, OCC Sync folder, and Existing file. Host storage opens the upload flow; the other choices save a reference with a name, OCC folder and absolute drive path. Supported path formats include `Z:\Shared\Manual.pdf`, `\\server\share\Manual.pdf`, `/Volumes/Work/Manual.pdf` and `/home/team/Manual.pdf`.
+Host storage remains the default for uploads and drag-and-drop. **Add file location** offers Host storage, IHS Sync folder, and Existing file. Host storage opens the upload flow; the other choices save a reference with a name, OCC folder and absolute drive path. Supported path formats include `Z:\Shared\Manual.pdf`, `\\server\share\Manual.pdf`, `/Volumes/Work/Manual.pdf` and `/home/team/Manual.pdf`.
 
 References appear in folder and Recent lists. Their details provide a copyable path, and they can be sent to another eligible user's In-tray. Browser pages cannot open local drive paths directly; copy the path into Finder or File Explorer on a computer with access to that location. A shared reference does not grant operating-system or network-drive access.
 
-The OCC Sync option identifies a path in the desktop app's existing offline folder. Adding a reference does not configure the desktop app or create another sync job. References are never read by the server, uploaded, downloaded or included in desktop sync snapshots. Removing a reference or its OCC parent folder does not delete the original drive file. Drive paths are shared with users who can view the OCC folder; use folder permissions accordingly.
+The IHS Sync option identifies a path in the desktop app's existing offline folder. Adding a reference does not configure the desktop app or create another sync job. References are never read by the server, uploaded, downloaded or included in desktop sync snapshots. Removing a reference or its OCC parent folder does not delete the original drive file. Drive paths are shared with users who can view the OCC folder; use folder permissions accordingly.
 
 Contributors can add references; Managers and Super Users can edit/remove them. Changes use modification checks to prevent overwriting stale edits. The additive `file_references` table and reference notifications are covered by existing SQLite backups. Hosted blobs retain their existing storage layout. The health response includes `locations: 1`.

@@ -133,7 +133,7 @@ export default function RepairRegistry({ user, sidebar }: { user: User; sidebar:
       'body{font:14px Arial;color:#183f4b;padding:32px}dl{display:grid;grid-template-columns:180px 1fr;gap:12px}dt{font-weight:bold}dd{margin:0;white-space:pre-wrap;overflow-wrap:anywhere}button{margin:0 12px 20px 0;padding:10px}@media print{button{display:none}}';
     doc.head.append(style);
     const title = doc.createElement('h1');
-    title.textContent = 'Oxygen Care — Repair Registry';
+    title.textContent = 'Irish Hospital Supplies — Repair Registry';
     doc.body.append(title);
     const print = doc.createElement('button');
     print.textContent = 'Print / Save PDF';

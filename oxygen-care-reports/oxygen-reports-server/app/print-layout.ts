@@ -1,4 +1,4 @@
-/** Apply the shared Oxygen Care stationery after a print document has been built. */
+/** Apply the shared Irish Hospital Supplies stationery after a print document has been built. */
 export function brandPrintWindow(popup: Window) {
   popup.opener = null;
   const doc = popup.document;
@@ -39,9 +39,9 @@ export function brandPrintWindow(popup: Window) {
   const brand = doc.createElement('div');
   brand.className = 'oxygen-print-brand';
   const logo = doc.createElement('img');
-  logo.alt = 'Oxygen Care — support for life';
+  logo.alt = 'Irish Hospital Supplies';
   // Embed the logo so the print document is self-contained, including Save PDF.
-  const logoReady = fetch('/oxygen-care-logo-sidebar.png')
+  const logoReady = fetch('/irish-hospital-supplies-logo.png')
     .then(response => {
       if (!response.ok) throw new Error('Logo could not be loaded.');
       return response.blob();
@@ -60,7 +60,7 @@ export function brandPrintWindow(popup: Window) {
       return logo.decode();
     });
   const date = doc.createElement('span');
-  date.textContent = 'Oxygen Care Reports\nPrepared: ' + new Date().toLocaleDateString('en-IE');
+  date.textContent = 'Irish Hospital Supplies Reports\nPrepared: ' + new Date().toLocaleDateString('en-IE');
   brand.append(logo, date);
   doc.body.prepend(brand);
   const toolbar = doc.createElement('div');
@@ -88,6 +88,6 @@ export function brandPrintWindow(popup: Window) {
   brand.before(toolbar);
   const footer = doc.createElement('footer');
   footer.className = 'oxygen-print-footer';
-  footer.textContent = 'Oxygen Care · ' + doc.title;
+  footer.textContent = 'Irish Hospital Supplies · ' + doc.title;
   doc.body.append(footer);
 }

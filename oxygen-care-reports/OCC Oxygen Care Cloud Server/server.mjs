@@ -173,7 +173,7 @@ export function createApp(options={}){
           if(id){ensure(old,404,'Reference not found.');requireFolder(s,old.folder,'manage');ensure(data.modified===old.modified,409,'This reference changed. Refresh before editing.');}
           if(method==='DELETE'){run('DELETE FROM file_references WHERE id=?',id);audit(s.user_id,'reference.deleted',id);return json(res,200,{ok:true});}
           const folder=data.folder,n=name(data.name);requireFolder(s,folder,old?'manage':'upload');
-          ensure(['occ','existing'].includes(data.source),400,'Choose OCC Sync or Existing file.');
+          ensure(['occ','existing'].includes(data.source),400,'Choose IHS Sync or Existing file.');
           ensure(typeof data.path==='string'&&data.path.length<=2048&&!/[\x00-\x1f\x7f]/.test(data.path),400,'Enter a valid drive path.');
           const path=data.path.trim();
           ensure(/^(?:[A-Za-z]:[\\/]|\\\\[^\\/]+[\\/][^\\/]+|\/[^\/])/.test(path),400,'Enter an absolute local, mapped-drive or network-share path.');
@@ -209,7 +209,7 @@ export function createApp(options={}){
         fail(404,'This operation is unavailable.');
       }
       ensure(method==='GET'||method==='HEAD',405,'Method not allowed.');
-      const assets={'/':['index.html','text/html; charset=utf-8'],'/index.html':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/styles.css':['styles.css','text/css; charset=utf-8'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/oxygen-care-logo.jpg':['oxygen-care-logo.jpg','image/jpeg']};const asset=assets[route];ensure(asset,404,'Page not found.');const content=readFileSync(join(rootDir,'public',asset[0]));res.writeHead(200,{'Content-Type':asset[1]});res.end(method==='HEAD'?undefined:content);
+      const assets={'/':['index.html','text/html; charset=utf-8'],'/index.html':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/styles.css':['styles.css','text/css; charset=utf-8'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/irish-hospital-supplies-logo.png':['irish-hospital-supplies-logo.png','image/png']};const asset=assets[route];ensure(asset,404,'Page not found.');const content=readFileSync(join(rootDir,'public',asset[0]));res.writeHead(200,{'Content-Type':asset[1]});res.end(method==='HEAD'?undefined:content);
     }catch(error){if(res.destroyed)return;if(res.headersSent){res.destroy();return}const duplicate=error.code==='ERR_SQLITE_ERROR'&&/UNIQUE constraint/.test(error.message);const foreignKey=/FOREIGN KEY constraint/.test(error.message);const status=error.status||(duplicate?409:foreignKey?409:500);if(status===500)console.error('OCC request failed:',error.message);json(res,status,{error:duplicate?'An item with this name or email already exists.':foreignKey?'The item changed. Refresh and try again.':status===500?'The request could not be completed.':error.message,...(error.code&&error.status?{code:error.code}:{})});}
   });
   server.maxHeadersCount=100;server.maxRequestsPerSocket=1000;server.setTimeout(60000);

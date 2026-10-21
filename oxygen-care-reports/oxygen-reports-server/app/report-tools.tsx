@@ -144,7 +144,7 @@ export function CsvPreview({
       ),
       link = document.createElement('a');
     link.href = url;
-    link.download = 'oxygen-care-filtered-report.csv';
+    link.download = 'irish-hospital-supplies-filtered-report.csv';
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   }

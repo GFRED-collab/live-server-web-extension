@@ -36,7 +36,7 @@ assert.equal(mfa.verifyTotp(random, '1234567', null, now), null);
 const url = new URL(mfa.otpauthUrl('anne@example.com', secret));
 assert.equal(url.protocol, 'otpauth:');
 assert.equal(url.searchParams.get('secret'), 'GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ');
-assert.equal(url.searchParams.get('issuer'), 'Oxygen Care Reports');
+assert.equal(url.searchParams.get('issuer'), 'Irish Hospital Supplies Reports');
 assert.equal(mfa.groupedKey(secret), 'GEZD GNBV GY3T QOJQ GEZD GNBV GY3T QOJQ');
 
 // Authenticator keys are encrypted at rest; tampering or a missing key fails closed.

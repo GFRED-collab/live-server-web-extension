@@ -12,7 +12,7 @@ export async function GET(_: Request, context: Context) {
   if (auth.response) return auth.response;
   if (!auth.user!.canExport)
     return Response.json(
-      { error: 'Your account cannot download service reports. Contact Oxygen Care.' },
+      { error: 'Your account cannot download service reports. Contact Irish Hospital Supplies.' },
       { status: 403 }
     );
   const { id } = await context.params;

@@ -22,7 +22,7 @@ fi
 
 cd "$PROJECT_DIR"
 
-echo "Starting Oxygen Care Reports Server at http://localhost:3002"
+echo "Starting Irish Hospital Supplies Reports Server at http://localhost:3002"
 "$NODE_BIN" node_modules/next/dist/bin/next dev --webpack --port 3002 &
 SERVER_PID=$!
 sleep 2

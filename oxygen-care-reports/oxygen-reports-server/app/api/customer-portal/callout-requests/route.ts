@@ -79,7 +79,7 @@ export async function POST(request: Request) {
       );
       if (open.rows[0].count >= maxOpenRequests)
         throw Error(
-          `You already have ${maxOpenRequests} requests waiting for review. Please call Oxygen Care if this is urgent.`
+          `You already have ${maxOpenRequests} requests waiting for review. Please call Irish Hospital Supplies if this is urgent.`
         );
       const created = await db.query(
         `INSERT INTO callout_requests(client_id,contract_id,device_id,description,priority,location,contact_name,contact_phone,requested_by)

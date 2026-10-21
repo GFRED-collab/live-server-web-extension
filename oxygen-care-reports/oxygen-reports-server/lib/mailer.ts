@@ -19,10 +19,10 @@ function testTransport() {
 let transport: ReturnType<typeof nodemailer.createTransport> | null = null;
 
 export async function sendSignInCode(to: string, code: string) {
-  const from = process.env.MAIL_FROM || 'Oxygen Care Reports <no-reply@kobalinesystems.com>';
-  const subject = `${code} is your Oxygen Care sign-in code`;
+  const from = process.env.MAIL_FROM || 'Irish Hospital Supplies Reports <no-reply@kobalinesystems.com>';
+  const subject = `${code} is your Irish Hospital Supplies sign-in code`;
   const text = [
-    `Your Oxygen Care sign-in code is ${code}.`,
+    `Your Irish Hospital Supplies sign-in code is ${code}.`,
     '',
     'It expires in 10 minutes. If you did not try to sign in, you can ignore this email;',
     'your account stays protected by your password.'

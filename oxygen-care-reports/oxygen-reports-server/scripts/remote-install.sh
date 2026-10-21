@@ -102,7 +102,7 @@ sudo -u "$APP_USER" npm --prefix "$APP_DIR" run check
 
 cat >"$STAGE_DIR/$APP_NAME.service" <<SYSTEMD
 [Unit]
-Description=Oxygen Care Reports
+Description=Irish Hospital Supplies Reports
 After=network-online.target postgresql.service
 Wants=network-online.target
 Requires=postgresql.service

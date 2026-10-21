@@ -24,7 +24,7 @@ test('two-step sign-in: setup, codes, recovery, limits, and resets',async()=>{
   const first=await password('admin@test.com','Strong-password-2026!');
   assert.equal(first.status,200);assert.equal(first.data.step,'totp_setup');assert.equal(first.data.csrf,undefined);
   assert.match(first.cookie,/^occ_challenge=[^;]+; HttpOnly; SameSite=Strict/);assert.doesNotMatch(first.cookie,/occ_session/);
-  assert.match(first.data.otpauthUrl,/^otpauth:\/\/totp\/OCC%20Oxygen%20Care%20Cloud%3Aadmin%40test\.com\?secret=/);assert.match(first.data.qrSvg,/^<svg/);
+  assert.match(first.data.otpauthUrl,/^otpauth:\/\/totp\/Irish%20Hospital%20Supplies%20Cloud%3Aadmin%40test\.com\?secret=/);assert.match(first.data.qrSvg,/^<svg/);
   assert.equal(await me(first.challenge.replace('occ_challenge','occ_session')),401);
   // 2. Setup: a wrong code is refused; the right one signs in and issues recovery codes.
   const key=first.data.key;assert.equal((await verify(first.challenge,'000000')).status,401);

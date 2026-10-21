@@ -83,7 +83,7 @@ if sudo test -f "$DATA_DIR/occ.sqlite"; then
 fi
 cat > "$STAGE_DIR/occ-cloud.service" <<SERVICE
 [Unit]
-Description=OCC Oxygen Care Cloud
+Description=Irish Hospital Supplies Cloud
 After=network-online.target
 Wants=network-online.target
 
@@ -134,4 +134,4 @@ trap - ERR
 echo
 echo "OCC is available at https://$TAILSCALE_HOST:$HTTPS_PORT"
 if sudo test -f "$DATA_DIR/setup-token"; then echo "Create your first Super User using the setup key at $DATA_DIR/setup-token (administrator access required)."; fi
-echo 'Other Oxygen Care services were not modified.'
+echo 'Other Irish Hospital Supplies services were not modified.'

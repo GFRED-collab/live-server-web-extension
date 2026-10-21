@@ -349,7 +349,7 @@ function AppSidebar({
       }}
     >
       <div className="sidebar-brand">
-        <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care — support for life" />
+        <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
       </div>
       <button
         ref={menuButton}
@@ -1327,7 +1327,7 @@ export default function HomePage() {
       );
     const { contract, devices, visits, assignedUsers } = contractDetail;
     popup.document.write(
-      `<!doctype html><title>${escape(contract.clientName)} · ${escape(contract.name)}</title><style>body{font:14px Arial;color:#173f4a;margin:32px}header{display:flex;justify-content:space-between;border-bottom:3px solid #277b91;padding-bottom:16px}h1,h2{margin:0 0 8px}p{margin:4px 0}.meta{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:22px 0}.card{border:1px solid #cfe1e5;border-radius:10px;padding:14px}table{width:100%;border-collapse:collapse;margin:12px 0 24px}th,td{border-bottom:1px solid #dce9ec;padding:8px;text-align:left;vertical-align:top}th{color:#277b91}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:45px}.signature{border-top:1px solid #173f4a;padding-top:8px;min-height:50px}@media print{body{margin:12mm}.no-print{display:none}}</style><header><div><h1>Oxygen Care</h1><p>Contract service record</p></div><button class="no-print" onclick="window.print()">Print / Save PDF</button></header><section class="meta"><div class="card"><h2>Client details</h2><p><b>${escape(contract.clientName)}</b></p><p>${escape(contract.contactName)}</p><p>${escape(contract.address)}</p><p>${escape(contract.email)}</p><p>${escape(contract.phone)}</p></div><div class="card"><h2>Contract details</h2><p><b>${escape(contract.name)}</b></p><p>Contract number: ${escape(contract.contractNumber || '—')}</p><p>Status: ${escape(contract.status)}</p><p>Assigned to: ${escape(assignedUsers.map(user => user.name).join(', ') || '—')}</p></div></section><h2>Registered devices</h2><table><thead><tr><th>Device</th><th>Serial</th><th>Asset</th><th>Lot</th><th>Status</th></tr></thead><tbody>${devices.map(device => `<tr><td>${escape(device.deviceName)}</td><td>${escape(device.serialNumber || '—')}</td><td>${escape(device.assetNumber || '—')}</td><td>${escape(device.lotNumber || '—')}</td><td>${escape(device.status)}</td></tr>`).join('')}</tbody></table><h2>Service history</h2><table><thead><tr><th>Date</th><th>Visit</th><th>Devices</th><th>Parts</th><th>Status</th></tr></thead><tbody>${visits.map(visit => `<tr><td>${escape(visit.serviceDate)}</td><td>${escape(visit.title)}<br>${escape(visit.summary)}</td><td>${visit.deviceCount}</td><td>${visit.partCount}</td><td>${escape(visit.status)}</td></tr>`).join('')}</tbody></table><div class="signatures"><div class="signature">Engineer signature / name / date</div><div class="signature">Client representative signature / name / date</div></div>`
+      `<!doctype html><title>${escape(contract.clientName)} · ${escape(contract.name)}</title><style>body{font:14px Arial;color:#173f4a;margin:32px}header{display:flex;justify-content:space-between;border-bottom:3px solid #277b91;padding-bottom:16px}h1,h2{margin:0 0 8px}p{margin:4px 0}.meta{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin:22px 0}.card{border:1px solid #cfe1e5;border-radius:10px;padding:14px}table{width:100%;border-collapse:collapse;margin:12px 0 24px}th,td{border-bottom:1px solid #dce9ec;padding:8px;text-align:left;vertical-align:top}th{color:#277b91}.signatures{display:grid;grid-template-columns:1fr 1fr;gap:30px;margin-top:45px}.signature{border-top:1px solid #173f4a;padding-top:8px;min-height:50px}@media print{body{margin:12mm}.no-print{display:none}}</style><header><div><h1>Irish Hospital Supplies</h1><p>Contract service record</p></div><button class="no-print" onclick="window.print()">Print / Save PDF</button></header><section class="meta"><div class="card"><h2>Client details</h2><p><b>${escape(contract.clientName)}</b></p><p>${escape(contract.contactName)}</p><p>${escape(contract.address)}</p><p>${escape(contract.email)}</p><p>${escape(contract.phone)}</p></div><div class="card"><h2>Contract details</h2><p><b>${escape(contract.name)}</b></p><p>Contract number: ${escape(contract.contractNumber || '—')}</p><p>Status: ${escape(contract.status)}</p><p>Assigned to: ${escape(assignedUsers.map(user => user.name).join(', ') || '—')}</p></div></section><h2>Registered devices</h2><table><thead><tr><th>Device</th><th>Serial</th><th>Asset</th><th>Lot</th><th>Status</th></tr></thead><tbody>${devices.map(device => `<tr><td>${escape(device.deviceName)}</td><td>${escape(device.serialNumber || '—')}</td><td>${escape(device.assetNumber || '—')}</td><td>${escape(device.lotNumber || '—')}</td><td>${escape(device.status)}</td></tr>`).join('')}</tbody></table><h2>Service history</h2><table><thead><tr><th>Date</th><th>Visit</th><th>Devices</th><th>Parts</th><th>Status</th></tr></thead><tbody>${visits.map(visit => `<tr><td>${escape(visit.serviceDate)}</td><td>${escape(visit.title)}<br>${escape(visit.summary)}</td><td>${visit.deviceCount}</td><td>${visit.partCount}</td><td>${escape(visit.status)}</td></tr>`).join('')}</tbody></table><div class="signatures"><div class="signature">Engineer signature / name / date</div><div class="signature">Client representative signature / name / date</div></div>`
     );
     popup.document.close();
     brandPrintWindow(popup);
@@ -2217,7 +2217,7 @@ export default function HomePage() {
       return;
     }
     popup.document.write(
-      `<!doctype html><title>${escape(report.fileName)}</title><style>body{font-family:Arial,sans-serif;color:#183f4b;padding:32px}h1{margin:0 0 6px}p{color:#63818a}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{padding:10px;border-bottom:1px solid #cfeaf2;text-align:left;vertical-align:top}th{font-size:12px;color:#277b91}</style><h1>Oxygen Care Reports</h1><p>${escape(report.fileName)} · ${escape(report.uploadedAt)}</p><table><thead><tr>${headers.map(header => `<th>${escape(header)}</th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table>`
+      `<!doctype html><title>${escape(report.fileName)}</title><style>body{font-family:Arial,sans-serif;color:#183f4b;padding:32px}h1{margin:0 0 6px}p{color:#63818a}table{border-collapse:collapse;width:100%;margin-top:24px}th,td{padding:10px;border-bottom:1px solid #cfeaf2;text-align:left;vertical-align:top}th{font-size:12px;color:#277b91}</style><h1>Irish Hospital Supplies Reports</h1><p>${escape(report.fileName)} · ${escape(report.uploadedAt)}</p><table><thead><tr>${headers.map(header => `<th>${escape(header)}</th>`).join('')}</tr></thead><tbody>${tableRows}</tbody></table>`
     );
     popup.document.close();
     brandPrintWindow(popup);
@@ -2348,7 +2348,7 @@ export default function HomePage() {
       ...reportFields.map(field => recordValue(record, field))
     ]);
     popup.document.write(
-      `<!doctype html><title>Oxygen Care filtered report</title><style>body{font-family:Arial,sans-serif;color:#183f4b;padding:28px}h1{margin:0}p{color:#63818a}table{width:100%;border-collapse:collapse;margin-top:20px;font-size:12px}th,td{padding:8px;border-bottom:1px solid #cfeaf2;text-align:left;vertical-align:top}th{color:#277b91}@media print{body{padding:0}}</style><h1>Oxygen Care Reports</h1><p>Filtered report · ${filteredRecords.length} records · ${new Date().toLocaleDateString()}</p><table><thead><tr>${headings.map(heading => `<th>${escape(heading)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(value => `<td>${escape(value || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+      `<!doctype html><title>Irish Hospital Supplies filtered report</title><style>body{font-family:Arial,sans-serif;color:#183f4b;padding:28px}h1{margin:0}p{color:#63818a}table{width:100%;border-collapse:collapse;margin-top:20px;font-size:12px}th,td{padding:8px;border-bottom:1px solid #cfeaf2;text-align:left;vertical-align:top}th{color:#277b91}@media print{body{padding:0}}</style><h1>Irish Hospital Supplies Reports</h1><p>Filtered report · ${filteredRecords.length} records · ${new Date().toLocaleDateString()}</p><table><thead><tr>${headings.map(heading => `<th>${escape(heading)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(value => `<td>${escape(value || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`
     );
     popup.document.close();
     brandPrintWindow(popup);
@@ -2358,7 +2358,7 @@ export default function HomePage() {
     return (
       <main className="login-only">
         <section className="login-card" role="status" aria-label="Checking session">
-          <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+          <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
         </section>
       </main>
     );
@@ -2367,7 +2367,7 @@ export default function HomePage() {
     return (
       <main className="login-only">
         <section className="login-card">
-          <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+          <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
           {secondStep ? (
             <SecondStep
               info={secondStep}
@@ -2423,7 +2423,7 @@ export default function HomePage() {
         />
         <header className="workspace-header">
           <a className="brand" href="#top">
-            <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+            <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
             <span>
               Reports<small>{roleLabel(sessionUser.role).toUpperCase()} WORKSPACE</small>
             </span>
@@ -2937,7 +2937,7 @@ export default function HomePage() {
         />
         <header className="workspace-header">
           <a className="brand" href="#top">
-            <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+            <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
             <span>
               Reports<small>APPOINTMENT CALENDAR</small>
             </span>
@@ -4169,7 +4169,7 @@ export default function HomePage() {
         />
         <header className="workspace-header">
           <a className="brand" href="#top">
-            <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+            <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
             <span>
               Reports<small>SUPER USER WORKSPACE</small>
             </span>
@@ -4316,7 +4316,7 @@ export default function HomePage() {
         />
         <header className="workspace-header">
           <a className="brand" href="#top">
-            <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+            <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
             <span>
               Reports<small>SUPER USER WORKSPACE</small>
             </span>
@@ -4506,7 +4506,7 @@ export default function HomePage() {
         />
         <header className="workspace-header">
           <a className="brand" href="#top">
-            <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+            <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
             <span>
               Reports<small>SUPER USER WORKSPACE</small>
             </span>
