@@ -228,9 +228,10 @@
           const person = user.fullName || user.email;
           document.title = `Reimbursement ${item.reference || ''} · ${person} · Oxygen Care`;
           const total = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+          // On phones mobile.css shows each row as a card labelled from data-label.
           const table = make(
             'table',
-            {},
+            { class: 'stack-table' },
             make(
               'thead',
               {},
@@ -246,7 +247,7 @@
               'tbody',
               {},
               ...expenses.map(expense => {
-                const receipt = make('td', { class: 'receipt-link' });
+                const receipt = make('td', { class: 'receipt-link', 'data-label': 'Receipt' });
                 if (expense.hasReceipt)
                   receipt.append(
                     make('a', {
@@ -258,11 +259,15 @@
                 return make(
                   'tr',
                   {},
-                  make('td', { text: day(expense.date) }),
-                  make('td', { text: expense.merchant }),
-                  make('td', { text: expense.category }),
-                  make('td', { text: expense.note || '—' }),
-                  make('td', { class: 'amount', text: money(expense.amount) }),
+                  make('td', { 'data-label': 'Date', text: day(expense.date) }),
+                  make('td', { 'data-label': 'Merchant', text: expense.merchant }),
+                  make('td', { 'data-label': 'Category', text: expense.category }),
+                  make('td', { 'data-label': 'Note', text: expense.note || '—' }),
+                  make('td', {
+                    class: 'amount',
+                    'data-label': 'Amount',
+                    text: money(expense.amount)
+                  }),
                   receipt
                 );
               })
@@ -274,7 +279,7 @@
                 'tr',
                 {},
                 make('td', { colspan: '4', text: `Total · ${expenses.length} expenses` }),
-                make('td', { class: 'amount', text: money(total) }),
+                make('td', { class: 'amount', 'data-label': 'Total', text: money(total) }),
                 make('td', { class: 'receipt-link' })
               )
             )
@@ -318,28 +323,30 @@
           print.onclick = () => window.print();
           download.onclick = csv;
           root.replaceChildren(
-            make('div', { class: 'label', text: 'REIMBURSEMENT' }),
-            make('h1', { text: person }),
-            make('p', { class: 'total', text: money(item.amount) }),
-            make(
-              'div',
-              { class: 'grid' },
-              field('PAYMENT DATE', day(item.paymentDate)),
-              field('REFERENCE', item.reference),
-              field('DEPARTMENT', user.department),
-              field('SENT', day(item.sentAt)),
-              field('SENT BY', item.sentBy),
-              field('STATUS', item.dismissedAt ? 'Viewed / dismissed' : 'Sent / unread'),
-              item.message ? field('MESSAGE', item.message, true) : null
-            ),
-            table,
-            missing
-              ? make('p', {
-                  class: 'notice',
-                  text: `${missing} expense${missing === 1 ? ' in this reimbursement has' : 's in this reimbursement have'} since been deleted and ${missing === 1 ? 'is' : 'are'} not listed.`
-                })
-              : null,
-            make('div', { class: 'actions' }, print, download)
+            ...[
+              make('div', { class: 'label', text: 'REIMBURSEMENT' }),
+              make('h1', { text: person }),
+              make('p', { class: 'total', text: money(item.amount) }),
+              make(
+                'div',
+                { class: 'grid' },
+                field('PAYMENT DATE', day(item.paymentDate)),
+                field('REFERENCE', item.reference),
+                field('DEPARTMENT', user.department),
+                field('SENT', day(item.sentAt)),
+                field('SENT BY', item.sentBy),
+                field('STATUS', item.dismissedAt ? 'Viewed / dismissed' : 'Sent / unread'),
+                item.message ? field('MESSAGE', item.message, true) : null
+              ),
+              table,
+              missing
+                ? make('p', {
+                    class: 'notice',
+                    text: `${missing} expense${missing === 1 ? ' in this reimbursement has' : 's in this reimbursement have'} since been deleted and ${missing === 1 ? 'is' : 'are'} not listed.`
+                  })
+                : null,
+              make('div', { class: 'actions' }, print, download)
+            ].filter(Boolean)
           );
         }
         const userId = query.get('userId') || '',
