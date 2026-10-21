@@ -1,3 +1,4 @@
+import {completeSignIn} from './sign-in-helper.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtemp,rm,readFile,readdir,cp} from 'node:fs/promises';
@@ -11,7 +12,7 @@ test('OCC durable workspace and authorisation',async t=>{
   async function start(){app=createApp({dataDir:dir,origin:'http://occ.test',setupToken:'test-setup-key',maxFile:1024,quota:2500});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+app.server.address().port;}
   async function stop(){app.server.closeAllConnections();await new Promise(resolve=>app.server.close(resolve));}
   async function request(path,{method='GET',body,user,raw,origin='http://occ.test',csrf=true}={}){const headers={Origin:origin};if(user){headers.Cookie=user.cookie;if(csrf)headers['X-CSRF-Token']=user.csrf;}if(body!==undefined)headers['Content-Type']='application/json';if(raw!==undefined)headers['Content-Type']='application/octet-stream';const response=await fetch(base+'/api'+path,{method,headers,body:raw!==undefined?raw:body===undefined?undefined:JSON.stringify(body)});const type=response.headers.get('content-type');const value=type?.startsWith('application/json')?await response.json():Buffer.from(await response.arrayBuffer());return {status:response.status,body:value,headers:response.headers};}
-  async function login(email,password){const r=await request('/login',{method:'POST',body:{email,password}});assert.equal(r.status,200,JSON.stringify(r.body));return {cookie:r.headers.get('set-cookie').split(';')[0],csrf:r.body.csrf,id:r.body.user.id,mustChange:r.body.user.mustChangePassword};}
+  async function login(email,password){const r=await request('/login',{method:'POST',body:{email,password}});assert.equal(r.status,200,JSON.stringify(r.body));const v=await completeSignIn(base,email,r.headers.get('set-cookie'),r.body,{Origin:'http://occ.test'});assert.equal(v.status,200,JSON.stringify(v.data));return {cookie:v.cookie.split(';')[0],csrf:v.data.csrf,id:v.data.user.id,mustChange:v.data.user.mustChangePassword};}
   const adminPassword='Admin-password-2026!',temporary='Temporary-password-2026!',staffPassword='Changed-password-2026!';let admin,manager,contributor,viewer,root,privateFolder,sub,fileId;
   async function createUser(label,role){const r=await request('/users',{method:'POST',user:admin,body:{name:label,email:label.toLowerCase()+'@example.test',password:temporary,account:'standard',grants:{[root]:role}}});assert.equal(r.status,201,JSON.stringify(r.body));const first=await login(label.toLowerCase()+'@example.test',temporary);assert.equal(first.mustChange,true);assert.equal((await request('/workspace',{user:first})).status,403);assert.equal((await request('/password',{method:'POST',user:first,body:{currentPassword:temporary,password:staffPassword}})).status,200);assert.equal((await request('/workspace',{user:first})).status,401);return login(label.toLowerCase()+'@example.test',staffPassword);}
   await start();
@@ -63,8 +64,8 @@ test('OCC durable workspace and authorisation',async t=>{
         copy=createApp({dataDir:restored,origin:'http://occ.test',maxFile:1024,quota:2500});await new Promise(r=>copy.server.listen(0,'127.0.0.1',r));
         const address='http://127.0.0.1:'+copy.server.address().port;
         const oldSession=await fetch(address+'/api/me',{headers:{Cookie:admin.cookie}});assert.equal(oldSession.status,401);await oldSession.arrayBuffer();
-        const signed=await fetch(address+'/api/login',{method:'POST',headers:{Origin:'http://occ.test','Content-Type':'application/json'},body:JSON.stringify({email:'admin@example.test',password:adminPassword})});assert.equal(signed.status,200);await signed.json();
-        const downloaded=await fetch(address+'/api/files/'+fileId+'/content',{headers:{Cookie:signed.headers.get('set-cookie').split(';')[0]}});assert.equal(downloaded.status,200);assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()),Buffer.from([0,255,1,2,3,99]));
+        const signed=await fetch(address+'/api/login',{method:'POST',headers:{Origin:'http://occ.test','Content-Type':'application/json'},body:JSON.stringify({email:'admin@example.test',password:adminPassword})});assert.equal(signed.status,200);const verified=await completeSignIn(address,'admin@example.test',signed.headers.get('set-cookie'),await signed.json(),{Origin:'http://occ.test'});assert.equal(verified.status,200);
+        const downloaded=await fetch(address+'/api/files/'+fileId+'/content',{headers:{Cookie:verified.cookie.split(';')[0]}});assert.equal(downloaded.status,200);assert.deepEqual(Buffer.from(await downloaded.arrayBuffer()),Buffer.from([0,255,1,2,3,99]));
       }finally{if(copy){copy.server.closeAllConnections();await new Promise(r=>copy.server.close(r));}await rm(restored,{recursive:true,force:true});await start();}
     });
     await t.test('filename MIME spoofing cannot inline active content',async()=>{
