@@ -39,7 +39,7 @@ export async function startSecondStep(
   const kind = account.role === 'customer' ? 'email' : account.mfaEnabled ? 'totp' : 'totp_setup';
   if (kind === 'email' && !emailConfigured())
     throw Object.assign(
-      new Error('Email sign-in codes are not set up yet. Please contact Oxygen Care.'),
+      new Error('Email sign-in codes are not set up yet. Please contact Irish Hospital Supplies.'),
       { status: 503 }
     );
   const token = randomBytes(32).toString('base64url');

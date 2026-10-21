@@ -1,11 +1,11 @@
-# Oxygen Care applications
+# Irish Hospital Supplies applications
 
 This repository separates the two applications previously developed together in the Codex `Review` workspace.
 
 ## Applications
 
 - [`expense-app`](./expense-app/) — the Oxygen Care expense capture, approval, reimbursement, odometer, and reporting application.
-- [`oxygen-reports-app`](./oxygen-reports-app/) — the separate Oxygen Care reports application.
+- [`oxygen-reports-app`](./oxygen-reports-app/) — the separate Irish Hospital Supplies Reports demo.
 - [`oxygen-reports-server`](./oxygen-reports-server/) — the server-backed Reports foundation with PostgreSQL, Docker, secure account bootstrapping, and deployment configuration.
 
 Each application has its own `README.md`, `package.json`, environment example, and deployment instructions. Run dependency installation and development commands from inside the application you are working on.

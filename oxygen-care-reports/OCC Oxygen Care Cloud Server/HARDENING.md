@@ -34,7 +34,7 @@ Scope: OCC application and its own Linux service. This is a code/configuration r
 
 ## Remaining operational work before public hosting
 
-- Server package metadata reports Node 22.23.2 installed and 22.23.3 available. The host also reports a required reboot. Coordinate shared runtime updates and restart with the other Oxygen Care services; this OCC release does not patch/reboot the host.
+- Server package metadata reports Node 22.23.2 installed and 22.23.3 available. The host also reports a required reboot. Coordinate shared runtime updates and restart with the other Irish Hospital Supplies services; this OCC release does not patch/reboot the host.
 - Unattended upgrades and APT timers are enabled; their repository coverage and successful patch history still need administrator review.
 - Confirm Tailscale ACLs and identity-provider MFA. Native OCC MFA, recovery flows and public-facing identity integration are not implemented.
 - Configure scheduled encrypted off-server backups, retention, alerting and a periodic restore drill. Deployment backups and the manual backup script are not a disaster-recovery service. No OCC backup timer was found during the read-only check.

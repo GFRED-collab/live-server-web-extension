@@ -157,7 +157,7 @@ export default function MachineHistory() {
   return (
     <main className="machine-history">
       <header>
-        <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+        <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
         <div>
           <h1>Machine history</h1>
           <p>History available to your account</p>

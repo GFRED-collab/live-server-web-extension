@@ -166,7 +166,7 @@ export function SecondStep({
         <>
           <h2>Enter your sign-in code</h2>
           <p>
-            Open your authenticator app and enter the 6-digit code for Oxygen Care Reports. Lost
+            Open your authenticator app and enter the 6-digit code for Irish Hospital Supplies Reports. Lost
             your phone? Enter one of your recovery codes instead.
           </p>
         </>

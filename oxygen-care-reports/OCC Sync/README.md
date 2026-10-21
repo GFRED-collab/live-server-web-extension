@@ -1,14 +1,14 @@
-# OCC Sync — internal test preview 0.1.0
+# IHS Sync — internal test preview 0.1.0
 
 Mac (Intel and Apple Silicon) and Windows x64 portable desktop builds. Requires the OCC server schema-2 upgrade and access to its private Tailscale address.
 
 ## Install and connect
 
-1. Mac: extract the appropriate ZIP and copy OCC Sync.app to Applications. Windows: extract the entire ZIP into a permanent folder and launch OCC Sync.exe. Keep all extracted files together.
+1. Mac: extract the appropriate ZIP and copy IHS Sync.app to Applications. Windows: extract the entire ZIP into a permanent folder and launch IHS Sync.exe. Keep all extracted files together.
 2. These internal builds are unsigned and not notarized. Distribution signing and Windows runtime acceptance testing remain outstanding. Do not distribute as a production release.
 3. Sign into OCC in a browser. Select **Desktop sync → Connect a computer**. Name the computer, then copy its one-time connection key.
-4. Open OCC Sync, enter the server address and connection key, then choose the shared folders to keep offline.
-5. Select a parent directory. The app creates a new **Oxygen Care Cloud** folder; it refuses to adopt an existing folder. Keys are encrypted using the operating system's secure storage. Passwords are never stored.
+4. Open IHS Sync, enter the server address and connection key, then choose the shared folders to keep offline.
+5. Select a parent directory. The app creates a new **Irish Hospital Supplies Cloud** folder; it refuses to adopt an existing folder. Keys are encrypted using the operating system's secure storage. Passwords are never stored.
 6. Keep the application running. It checks for changes every 30 seconds and after sleep. Closing the window quits the application. Reopen it to resume. This preview has no automatic startup or tray service.
 
 ## Current behavior and limits

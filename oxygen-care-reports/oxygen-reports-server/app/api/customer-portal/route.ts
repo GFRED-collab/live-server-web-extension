@@ -43,7 +43,7 @@ export async function GET() {
     );
     if (contracts.rows.length > 1000 || devices.rows.length > 10000 || services.rows.length > 10000)
       throw Error(
-        'Your portal exceeds the current record limit. Please contact Oxygen Care for an export.'
+        'Your portal exceeds the current record limit. Please contact Irish Hospital Supplies for an export.'
       );
     await db.query('COMMIT');
     return Response.json({

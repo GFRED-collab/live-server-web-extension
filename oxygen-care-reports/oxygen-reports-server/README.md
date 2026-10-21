@@ -1,6 +1,6 @@
-# Oxygen Care Reports — Server Package
+# Irish Hospital Supplies Reports — Server Package
 
-This is the active Oxygen Care Reports application. It uses PostgreSQL for operational data and runs on port 3002 in the server deployment.
+This is the active Irish Hospital Supplies Reports application. It uses PostgreSQL for operational data and runs on port 3002 in the server deployment.
 
 ## Call-out and docket lookups
 
@@ -33,7 +33,7 @@ Application API writes reject emojis in text values and field names, including a
 
 1. Copy `.env.example` to `.env.local` and replace every placeholder.
 2. Start PostgreSQL with `docker compose up -d database`, or use an existing PostgreSQL 16 database and apply `database/schema.sql`.
-3. Run `npm install` and `npm run dev`; the server package opens at `http://localhost:3002` when launched with `Start Oxygen Care Reports Server.command`.
+3. Run `npm install` and `npm run dev`; the server package opens at `http://localhost:3002` when launched with `Start Irish Hospital Supplies Reports Server.command`.
 4. Confirm the database connection at `http://localhost:3002/api/health`.
 5. Bootstrap the first administrator:
 
@@ -45,7 +45,7 @@ For a hosted environment, provision managed PostgreSQL, object storage for origi
 
 ## Important scope note
 
-The application provides authenticated reports, users and permissions, clients, contracts, service visits, appointments, stock control and a repair registry. The former prototype login and simulated MFA/reset screens have been removed. Audit records remain stored in PostgreSQL; the Activity Log screen is no longer part of the interface. Print previews use the shared Oxygen Care branded form layout.
+The application provides authenticated reports, users and permissions, clients, contracts, service visits, appointments, stock control and a repair registry. The former prototype login and simulated MFA/reset screens have been removed. Audit records remain stored in PostgreSQL; the Activity Log screen is no longer part of the interface. Print previews use the shared Irish Hospital Supplies branded form layout.
 
 ## API milestone
 
@@ -70,7 +70,7 @@ Contracts opens in a focused browser with search/status filtering. Super Users h
 
 Report upload and layout tools share one section in Contracts. Opening a contract fills the upload client and assigned users. The Reports tab retains the imported report register and exports. Clients use compact rows; client and contract lists print the current search, and contracts and repairs offer All/Open/Closed filters.
 
-All print previews use portrait A4, Courier typewriter text, the Oxygen Care logo, and no table rules. Longer documents continue onto additional A4 pages.
+All print previews use portrait A4, Courier typewriter text, the Irish Hospital Supplies logo, and no table rules. Longer documents continue onto additional A4 pages.
 
 Super Users can use Manage entries to correct or delete call-outs, clients, repairs, appointments, contracts, devices, reports and report rows, service visits and device records, fitted-part records, dockets, stock parts and stock movements. User-account and field-permission controls remain in Users. Every admin correction/deletion requires a reason, saves the original in Preserved originals, records an audit event, and rejects stale edits. Deletion is blocked while other entries reference the record; it does not cascade through linked business history.
 

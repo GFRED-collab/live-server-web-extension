@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
-[[ "$(id -u)" == 0 ]] || { echo 'Run this script with sudo on the Oxygen Care server.'; exit 1; }
+[[ "$(id -u)" == 0 ]] || { echo 'Run this script with sudo on the Irish Hospital Supplies server.'; exit 1; }
 BACKUP_DIR="${1:-/var/backups/occ-cloud}"
 install -d -m 0700 "$BACKUP_DIR"
 BACKUP_FILE="$BACKUP_DIR/occ-cloud-$(date -u +%Y%m%dT%H%M%SZ).tar.gz"

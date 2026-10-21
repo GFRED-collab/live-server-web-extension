@@ -44,7 +44,7 @@ export function createSignInApi(c){
     const token=randomBytes(32).toString('base64url');let result={step:'totp'},pending=null;
     if(!u.mfa_secret){
       const secret=randomBytes(20),text=base32(secret);pending=encrypt(secret);
-      const url=`otpauth://totp/${encodeURIComponent('OCC Oxygen Care Cloud:'+u.email)}?secret=${text}&issuer=${encodeURIComponent('OCC Oxygen Care Cloud')}&algorithm=SHA1&digits=6&period=30`;
+      const url=`otpauth://totp/${encodeURIComponent('Irish Hospital Supplies Cloud:'+u.email)}?secret=${text}&issuer=${encodeURIComponent('Irish Hospital Supplies Cloud')}&algorithm=SHA1&digits=6&period=30`;
       const qr=qrcode(0,'M');qr.addData(url);qr.make();
       result={step:'totp_setup',key:text.match(/.{1,4}/g).join(' '),otpauthUrl:url,qrSvg:qr.createSvgTag({cellSize:4,margin:4,scalable:true})};
     }

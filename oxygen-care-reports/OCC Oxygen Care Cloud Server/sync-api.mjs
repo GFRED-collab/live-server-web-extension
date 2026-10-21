@@ -8,7 +8,7 @@ export function createSyncApi(c){
   const {db,get,all,run,transaction,ensure,json,body,name,audit,dataDir,maxFile,quota,permits,requireFolder,requireFile,detectMime,acquireUpload,releaseUpload}=c;
   const digest=s=>createHash('sha256').update(s).digest('hex');
   const version=Number(get("SELECT value FROM settings WHERE key='schema_version'").value);
-  ensure(version<=2,500,'This database requires a newer OCC server.');
+  ensure(version<=2,500,'This database requires a newer IHS Cloud server.');
   transaction(()=>{
     const columns=new Set(all('PRAGMA table_info(files)').map(x=>x.name));
     if(!columns.has('revision'))db.exec('ALTER TABLE files ADD COLUMN revision INTEGER NOT NULL DEFAULT 1');
@@ -17,7 +17,7 @@ export function createSyncApi(c){
     run("UPDATE settings SET value='2' WHERE key='schema_version'");
   });
   function device(req){const token=req.headers.authorization?.match(/^Bearer (occ_[A-Za-z0-9_-]{43})$/)?.[1];if(!token)return null;const s=get('SELECT d.id device_id,d.user_id,d.expires,d.revoked,u.account,u.active,u.must_change,u.name,u.email FROM devices d JOIN users u ON u.id=d.user_id WHERE d.token_hash=?',digest(token));if(!s||s.revoked||!s.active||s.must_change||s.expires<Date.now())return null;run('UPDATE devices SET last_seen=? WHERE id=?',Date.now(),s.device_id);return s;}
-  const matchVersion=(req,f)=>ensure(req.headers['if-match']===`"${f.revision}"`,req.headers['if-match']?412:428,'This file changed on OCC. Keep both copies and retry.','VERSION_CONFLICT');
+  const matchVersion=(req,f)=>ensure(req.headers['if-match']===`"${f.revision}"`,req.headers['if-match']?412:428,'This file changed on IHS Cloud. Keep both copies and retry.','VERSION_CONFLICT');
   const describe=f=>({id:f.id,name:f.name,folder:f.folder,size:f.size,mime:f.mime,modified:f.modified,revision:f.revision,sha256:f.sha256});
   function hashed(f){if(!f.sha256){const value=fileDigest(join(dataDir,'blobs',f.storage_key));run('UPDATE files SET sha256=? WHERE id=?',value,f.id);f.sha256=value;}return f;}
   async function account(req,res,url,s){
@@ -39,7 +39,7 @@ export function createSyncApi(c){
   }
   async function handle(req,res,url){
     if(!url.pathname.startsWith('/api/sync/'))return false;
-    const s=device(req);ensure(s,401,'Reconnect this computer from your OCC account.','DEVICE_RECONNECT_REQUIRED');
+    const s=device(req);ensure(s,401,'Reconnect this computer from your IHS Cloud account.','DEVICE_RECONNECT_REQUIRED');
     if(url.pathname==='/api/sync/snapshot'&&req.method==='GET'){
       const folders=all('SELECT * FROM folders').filter(f=>permits(s,f.id)).map(f=>({...f,permission:c.permission(s,f.id)}));const ids=new Set(folders.map(f=>f.id));
       const files=all('SELECT * FROM files').filter(f=>ids.has(f.folder)).map(f=>describe(hashed(f)));

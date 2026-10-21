@@ -252,7 +252,7 @@ export default function CustomerPortal({ logout }: { logout: () => void }) {
   return (
     <main className="customer-portal">
       <header>
-        <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
+        <img src="/irish-hospital-supplies-logo.png" alt="Irish Hospital Supplies" />
         <div>
           <h1>{data?.client.name || 'Customer portal'}</h1>
           <span>My contracts</span>

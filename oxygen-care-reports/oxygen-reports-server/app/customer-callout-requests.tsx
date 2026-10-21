@@ -32,7 +32,7 @@ function statusText(request: CalloutRequest) {
   return 'Accepted · engineer assigned';
 }
 
-/** Lets a customer ask Oxygen Care for a callout and follow what happened to it. */
+/** Lets a customer ask Irish Hospital Supplies for a callout and follow what happened to it. */
 export function CustomerCalloutRequests({
   contracts,
   devices
@@ -72,7 +72,7 @@ export function CustomerCalloutRequests({
       form.reset();
       setContractId('');
       setNotice(
-        `Request ${body.reference} sent. Oxygen Care will review it and assign an engineer.`
+        `Request ${body.reference} sent. Irish Hospital Supplies will review it and assign an engineer.`
       );
       await load();
     } catch (e) {
