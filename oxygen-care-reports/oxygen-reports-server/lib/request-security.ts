@@ -1,13 +1,18 @@
 export const MAX_JSON_BYTES = 8 * 1024 * 1024;
 
-export function mutationError(request: Request, configuredOrigin?: string): string | null {
+/** `configuredOrigins` lists every address the app is served on; empty means the request's own. */
+export function mutationError(
+  request: Request,
+  configuredOrigins?: string | string[]
+): string | null {
   if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return null;
   if (request.headers.get('sec-fetch-site') === 'cross-site')
     return 'Cross-site requests are not allowed.';
   const origin = request.headers.get('origin');
   try {
-    const expected = new URL(configuredOrigin || request.url).origin;
-    if (!origin || new URL(origin).origin !== expected || origin === 'null')
+    const listed = [configuredOrigins ?? []].flat().filter(Boolean);
+    const expected = (listed.length ? listed : [request.url]).map(value => new URL(value).origin);
+    if (!origin || origin === 'null' || !expected.includes(new URL(origin).origin))
       return 'A same-origin request is required.';
   } catch {
     return 'A same-origin request is required.';

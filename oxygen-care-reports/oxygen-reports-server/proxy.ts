@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { mutationError } from './lib/request-security';
 
 export function proxy(request: NextRequest) {
-  const error = mutationError(request, process.env.APP_URL);
+  // APP_URL is the main address; APP_EXTRA_ORIGINS adds others, such as the public domain
+  // alongside the Tailscale address.
+  const origins = [process.env.APP_URL, ...(process.env.APP_EXTRA_ORIGINS || '').split(',')]
+    .map(value => value?.trim() || '')
+    .filter(Boolean);
+  const error = mutationError(request, origins);
   const response = error
     ? NextResponse.json(
         { error },

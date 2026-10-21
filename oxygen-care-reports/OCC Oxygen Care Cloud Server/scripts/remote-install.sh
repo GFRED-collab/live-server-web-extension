@@ -11,6 +11,8 @@ DATA_DIR=/var/lib/occ-cloud
 ENV_FILE=/etc/occ-cloud/occ-cloud.env
 APP_PORT=3003
 HTTPS_PORT=8444
+# Public address served through Cloudflare Tunnel, accepted alongside the Tailscale one.
+PUBLIC_HOST="cloud.kobalinesystems.com"
 TAILSCALE_HOST=expenses.fynbos-spectrum.ts.net
 for tool in node tailscale curl ss; do command -v "$tool" >/dev/null || { echo "$tool is required."; exit 1; }; done
 node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const d=new DatabaseSync(':memory:');d.close()"
@@ -33,6 +35,10 @@ STORAGE_QUOTA_BYTES=5000000000
 TRUST_PROXY=1
 ENV
   sudo install -o root -g "$APP_USER" -m 0640 "$STAGE_DIR/occ-cloud.env" "$ENV_FILE"
+fi
+# Older settings files predate the public domain: add it without touching anything else.
+if ! sudo grep -q '^APP_EXTRA_ORIGINS=' "$ENV_FILE"; then
+  echo "APP_EXTRA_ORIGINS=https://$PUBLIC_HOST" | sudo tee -a "$ENV_FILE" >/dev/null
 fi
 sudo install -d -o root -g "$APP_USER" -m 0750 "$APP_DIR/releases/$RELEASE"
 sudo cp -R "$STAGE_DIR/server.mjs" "$STAGE_DIR/sync-api.mjs" "$STAGE_DIR/calendar-api.mjs" "$STAGE_DIR/groups-api.mjs" "$STAGE_DIR/updates-api.mjs" "$STAGE_DIR/package.json" "$STAGE_DIR/public" "$STAGE_DIR/scripts" "$STAGE_DIR/README.md" "$STAGE_DIR/HARDENING.md" "$APP_DIR/releases/$RELEASE/"

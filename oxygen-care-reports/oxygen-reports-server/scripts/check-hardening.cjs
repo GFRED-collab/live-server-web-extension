@@ -119,6 +119,12 @@ const make = (headers = {}, body = '{}') =>
   assert.ok(mutationError(make({ 'content-length': String(MAX_JSON_BYTES + 1) })));
   assert.equal(mutationError(make(), 'https://reports.example'), null);
   assert.ok(mutationError(make(), 'https://other.example'));
+  // Several addresses: the Tailscale one and the public domain are both accepted.
+  const both = ['https://tailnet.example:8443', 'https://reports.example'];
+  assert.equal(mutationError(make(), both), null);
+  assert.ok(mutationError(make(), ['https://tailnet.example:8443', 'https://other.example']));
+  assert.ok(mutationError(make({ origin: 'https://evil.example' }), both));
+  assert.equal(mutationError(make(), []), null);
   assert.equal(mutationError(new Request('https://reports.example/api/test')), null);
   assert.equal((await jsonObject(make({}, '{"name":"test"}'))).name, 'test');
   for (const body of ['[]', 'null', '{']) await assert.rejects(() => jsonObject(make({}, body)));
