@@ -100,5 +100,6 @@ Authenticator, 1Password); customers enter a 6-digit code sent to their email.
   minutes. Email codes expire after 10 minutes and can be re-sent once a minute, four times.
 - `MFA_ENCRYPTION_KEY` encrypts the authenticator keys. The deploy script creates it once; never
   change it, or every staff member must set up their authenticator again.
-- Customer codes need `SMTP_URL` and `MAIL_FROM` in the server environment (see `.env.example`).
+- Customer codes need `SMTP_URL` and `MAIL_FROM` in the server environment (see `.env.example`;
+  keep the single quotes, because the deploy script reads that file with bash).
   Until they are set, customers cannot sign in; the deploy prints a note.
