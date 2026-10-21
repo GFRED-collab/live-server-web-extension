@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { mfaTestEnv, signIn } from './sign-in-helper.mjs';
 
 const serverFile = join(dirname(dirname(fileURLToPath(import.meta.url))), 'server.mjs');
 
@@ -23,7 +24,8 @@ async function startServer(t) {
       HOST: '127.0.0.1',
       PORT: String(port),
       SUPERUSER_EMAIL: 'admin@example.test',
-      SUPERUSER_PASSWORD: 'AdminPassword123!'
+      SUPERUSER_PASSWORD: 'AdminPassword123!',
+      ...mfaTestEnv
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -88,12 +90,9 @@ test('approval rules, department odometer readings and the approvals dashboard',
   const base = await startServer(t);
   const call = client(base);
   const login = async (email, password) => {
-    const response = await call('/api/auth/login', { method: 'POST', body: { email, password } });
-    assert.equal(response.status, 200);
-    const cookies = response.headers.get('set-cookie');
-    return ['oc_session', 'oc_csrf']
-      .map(name => `${name}=${new RegExp(`${name}=([^;,]+)`).exec(cookies)[1]}`)
-      .join('; ');
+    const result = await signIn(base, email, password);
+    assert.equal(result.status, 200, JSON.stringify(result.body));
+    return result.cookie;
   };
   const admin = await login('admin@example.test', 'AdminPassword123!');
   const person = async (email, role, department) => {

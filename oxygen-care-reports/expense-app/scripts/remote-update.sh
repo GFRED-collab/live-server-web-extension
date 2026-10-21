@@ -72,6 +72,21 @@ else
   echo "WARNING: PaddleOCR could not be installed or could not load its models. Check access to PyPI, github.com and huggingface.co. Receipt scanning will use RapidOCR and Tesseract only."
 fi
 
+# Authenticator keys are stored encrypted with MFA_ENCRYPTION_KEY. Create it once; never
+# change or remove it afterwards, or everyone has to set up their authenticator again.
+SERVICE_ENV="/home/serveradmin/.config/oxygen-care-expenses/ocr.env"
+install -d -m 0700 "$(dirname "$SERVICE_ENV")"
+touch "$SERVICE_ENV"
+chmod 0600 "$SERVICE_ENV"
+if ! grep -q '^MFA_ENCRYPTION_KEY=' "$SERVICE_ENV"; then
+  {
+    echo "# Encrypts authenticator keys. Never change or remove; back it up with the data."
+    echo "MFA_ENCRYPTION_KEY=$(openssl rand -base64 32)"
+  } >>"$SERVICE_ENV"
+  echo "Created MFA_ENCRYPTION_KEY in $SERVICE_ENV."
+fi
+systemctl show "$APP_NAME" -p EnvironmentFiles --value | grep -Fq "$SERVICE_ENV" || { echo "The service does not read $SERVICE_ENV, so sign-in codes cannot work. Add EnvironmentFile=$SERVICE_ENV to the service."; exit 1; }
+
 # Back up a quiescent service. On failure restore code, never rewind live data.
 BACKUP_READY=0
 HAD_SECURITY_OVERRIDE=0
