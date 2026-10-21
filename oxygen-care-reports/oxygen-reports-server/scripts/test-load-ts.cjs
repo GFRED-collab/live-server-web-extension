@@ -18,6 +18,7 @@ function loadTs(file, override) {
     Response,
     Request,
     URL,
+    URLSearchParams,
     Date,
     Buffer,
     TextDecoder,

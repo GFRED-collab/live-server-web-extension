@@ -17,6 +17,7 @@ import CustomerAccounts from './customer-accounts';
 import ImportReview from './import-review';
 import type { ImportWarning } from '../lib/import-duplicates';
 import Fieldwork, { CalloutNav } from './fieldwork';
+import { SecondStep, SecondStepInfo } from './second-step';
 import {
   AppointmentInvitations,
   AppointmentResponse,
@@ -87,6 +88,7 @@ type Account = {
   status: 'Active';
   permissions: Record<string, ColumnAccess>;
   canExport: boolean;
+  mfaEnabled?: boolean;
 };
 type FieldDefinition = {
   id: string;
@@ -667,6 +669,8 @@ export default function HomePage() {
   const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
   const [authStatus, setAuthStatus] = useState<'checking' | 'signed-out' | 'signed-in'>('checking');
   const [loginError, setLoginError] = useState('');
+  // After a correct password: the authenticator or email code step.
+  const [secondStep, setSecondStep] = useState<SecondStepInfo | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [records, setRecords] = useState<ReportRow[]>([]);
   const [notice, setNotice] = useState('');
@@ -869,6 +873,7 @@ export default function HomePage() {
           departmentName: string | null;
           canExport: boolean;
           active: boolean;
+          mfaEnabled: boolean;
           permissions: Record<string, ColumnAccess>;
         }>;
       }>('/api/users')
@@ -889,6 +894,7 @@ export default function HomePage() {
           role: roleLabel(user.role),
           status: 'Active' as const,
           canExport: user.canExport,
+          mfaEnabled: user.mfaEnabled,
           permissions: Object.fromEntries(
             Object.entries(user.permissions || {}).flatMap(([fieldId, access]) => {
               const name = namesById.get(fieldId);
@@ -1494,11 +1500,21 @@ export default function HomePage() {
     setLoginError('');
     const values = new FormData(event.currentTarget);
     try {
-      await api('/api/auth/login', {
+      const next = await api<SecondStepInfo>('/api/auth/login', {
         method: 'POST',
         body: JSON.stringify({ email: values.get('email'), password: values.get('password') })
       });
+      setSecondStep(next);
+    } catch (reason) {
+      setLoginError(reason instanceof Error ? reason.message : 'Sign-in failed.');
+    }
+  }
+
+  async function finishSignIn() {
+    setLoginError('');
+    try {
       const { user } = await api<{ user: SessionUser }>('/api/auth/me');
+      setSecondStep(null);
       setSessionUser(user);
       setSignedIn(true);
       setAuthStatus('signed-in');
@@ -1829,6 +1845,23 @@ export default function HomePage() {
       setNotice(`${name}'s user profile was updated.`);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Could not update the user.');
+    }
+  }
+
+  async function resetAuthenticator(account: Account) {
+    if (
+      !window.confirm(
+        `Reset ${account.name}'s authenticator? They will be signed out and set up a new one at their next sign-in.`
+      )
+    )
+      return;
+    try {
+      await api(`/api/users/${account.id}/mfa`, { method: 'DELETE' });
+      await loadDirectory();
+      setNotice(`${account.name}'s authenticator was reset.`);
+      setError('');
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not reset the authenticator.');
     }
   }
 
@@ -2335,24 +2368,35 @@ export default function HomePage() {
       <main className="login-only">
         <section className="login-card">
           <img src="/oxygen-care-logo-sidebar.png" alt="Oxygen Care" />
-          <form onSubmit={signIn} aria-label="Login">
-            <label>
-              EMAIL ADDRESS
-              <input name="email" type="email" autoComplete="email" required />
-            </label>
-            <label>
-              PASSWORD
-              <input name="password" type="password" autoComplete="current-password" required />
-            </label>
-            {loginError && (
-              <p className="message error" role="alert">
-                {loginError}
-              </p>
-            )}
-            <button className="primary" type="submit">
-              Sign in
-            </button>
-          </form>
+          {secondStep ? (
+            <SecondStep
+              info={secondStep}
+              onDone={() => void finishSignIn()}
+              onRestart={message => {
+                setSecondStep(null);
+                setLoginError(message);
+              }}
+            />
+          ) : (
+            <form onSubmit={signIn} aria-label="Login">
+              <label>
+                EMAIL ADDRESS
+                <input name="email" type="email" autoComplete="email" required />
+              </label>
+              <label>
+                PASSWORD
+                <input name="password" type="password" autoComplete="current-password" required />
+              </label>
+              {loginError && (
+                <p className="message error" role="alert">
+                  {loginError}
+                </p>
+              )}
+              <button className="primary" type="submit">
+                Sign in
+              </button>
+            </form>
+          )}
         </section>
       </main>
     );
@@ -4027,6 +4071,11 @@ export default function HomePage() {
                       <td>
                         <strong>{account.name}</strong>
                         <small>{account.email}</small>
+                        <small className={account.mfaEnabled ? 'mfa-on' : 'mfa-off'}>
+                          {account.mfaEnabled
+                            ? 'Authenticator set up'
+                            : 'Authenticator: set up at next sign-in'}
+                        </small>
                       </td>
                       <td>{account.department}</td>
                       <td>
@@ -4042,6 +4091,14 @@ export default function HomePage() {
                         >
                           Edit
                         </button>
+                        {account.mfaEnabled && account.id !== sessionUser.id && (
+                          <button
+                            className="access-button"
+                            onClick={() => void resetAuthenticator(account)}
+                          >
+                            Reset authenticator
+                          </button>
+                        )}
                         <button className="delete-user" onClick={() => deleteAccount(account)}>
                           Delete
                         </button>

@@ -12,6 +12,7 @@ export async function GET() {
   const result = await getDb().query(
     `SELECT u.id, u.email::text, u.display_name AS "displayName", u.role, u.department_id AS "departmentId",
             d.name AS "departmentName", u.can_export AS "canExport", u.active,
+            u.mfa_enabled_at IS NOT NULL AS "mfaEnabled",
             COALESCE(jsonb_object_agg(f.id, jsonb_build_object('read', a.can_read, 'write', a.can_write)) FILTER (WHERE f.id IS NOT NULL), '{}'::jsonb) AS permissions
        FROM users u LEFT JOIN departments d ON d.id = u.department_id
        LEFT JOIN user_field_access a ON a.user_id = u.id LEFT JOIN custom_fields f ON f.id = a.field_id
