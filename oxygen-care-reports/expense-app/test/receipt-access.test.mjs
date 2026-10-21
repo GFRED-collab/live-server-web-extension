@@ -272,6 +272,13 @@ test('company-paid category settings persist and enforce reimbursement boundarie
 });
 
 test('receipt view and download are distinct and enforce every role boundary', async t => {
+  // Expenses can be edited until their month ends, so the edited expense is dated today.
+  const today = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Dublin',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(new Date());
   const base = await startServer(t);
   const adminCookie = await login(base, 'admin@example.test', 'AdminPassword123!');
   const mileageRateSaved = await request(base, '/api/settings/categories', {
@@ -437,17 +444,23 @@ test('receipt view and download are distinct and enforce every role boundary', a
   });
   assert.equal(omittedSecondCar.status, 201);
   assert.equal((await omittedSecondCar.json()).odometer.kilometres, 0);
+  // A claim can be changed until its month ends (then it is locked while it is checked).
+  const currentMonth = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Europe/Dublin',
+    year: 'numeric',
+    month: '2-digit'
+  }).format(new Date());
   const mileageCreated = await request(base, '/api/mileage/month', {
     method: 'POST',
     cookie: ownerCookie,
-    body: { month: '2026-07', kilometres: 100 }
+    body: { month: currentMonth, kilometres: 100 }
   });
   assert.equal(mileageCreated.status, 201, await mileageCreated.clone().text());
   const mileageId = (await mileageCreated.json()).expense.id;
   const mileageUpdated = await request(base, '/api/mileage/month', {
     method: 'POST',
     cookie: ownerCookie,
-    body: { month: '2026-07', kilometres: 125 }
+    body: { month: currentMonth, kilometres: 125 }
   });
   assert.equal(mileageUpdated.status, 200, await mileageUpdated.clone().text());
   const updatedMileage = (await mileageUpdated.json()).expense;
@@ -465,7 +478,7 @@ test('receipt view and download are distinct and enforce every role boundary', a
   const lockedMileage = await request(base, '/api/mileage/month', {
     method: 'POST',
     cookie: ownerCookie,
-    body: { month: '2026-07', kilometres: 150 }
+    body: { month: currentMonth, kilometres: 150 }
   });
   assert.equal(lockedMileage.status, 403);
   const batchExpense = async (cookie, merchant, amount) => {
@@ -605,7 +618,7 @@ test('receipt view and download are distinct and enforce every role boundary', a
       amount: 10,
       currency: 'EUR',
       category: 'Other',
-      date: '2026-09-13',
+      date: today,
       note: '',
       receipt: { mediaType: 'application/pdf', image: pdf.toString('base64') }
     }
@@ -618,7 +631,7 @@ test('receipt view and download are distinct and enforce every role boundary', a
     amount: 10,
     currency: 'EUR',
     category: 'Other',
-    date: '2026-09-13',
+    date: today,
     note: '',
     receipt: { mediaType: 'application/pdf', image: pdf.toString('base64') }
   };
@@ -775,7 +788,7 @@ test('receipt view and download are distinct and enforce every role boundary', a
     amount: 12.5,
     currency: 'EUR',
     category: 'Travel',
-    date: '2026-09-13',
+    date: today,
     note: 'Corrected before approval'
   };
   const edited = await request(base, `/api/expenses/${expenseId}`, {

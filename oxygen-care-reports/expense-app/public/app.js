@@ -174,6 +174,8 @@
       );
     if (expense.reviewStatus === 'approved')
       body.append(element('div', { class: 'meta', text: 'APPROVED' }));
+    else if (expense.ownerCanChange === false)
+      body.append(element('div', { class: 'meta', text: 'BEING CHECKED · LOCKED' }));
     if (isCompanyPaid(expense))
       body.append(
         element('div', {
@@ -215,7 +217,7 @@
         open(event);
       }
     });
-    if (state.user.role !== 'super' && expense.reviewStatus !== 'approved')
+    if (state.user.role !== 'super' && expense.ownerCanChange !== false)
       row.append(
         button(
           '×',
@@ -588,7 +590,7 @@
     };
     const setEditing = editing => {
       const saved = loaded?.submitted === true,
-        locked = loaded?.reviewStatus === 'approved';
+        locked = loaded?.reviewStatus === 'approved' || loaded?.ownerCanChange === false;
       month.disabled = editing;
       kilometres.readOnly = locked || (saved && !editing);
       saveButton.hidden = locked || (saved && !editing);
@@ -607,7 +609,9 @@
             notice(
               loaded.reviewStatus === 'approved'
                 ? 'This mileage expense is approved and locked.'
-                : `This mileage expense is ${loaded.reviewStatus}. Select Edit to change it.`,
+                : loaded.ownerCanChange === false
+                  ? 'This mileage expense is being checked now that its month has ended, so it is locked.'
+                  : `This mileage expense is ${loaded.reviewStatus}. Select Edit to change it.`,
               true
             )
           );
@@ -1083,14 +1087,18 @@
         text:
           status === 'approved'
             ? 'Approved expenses are locked and cannot be edited.'
-            : 'This expense can be edited until it is approved.'
+            : expense.ownerCanChange === false
+              ? 'This expense is being checked now that its month has ended, so it is locked. You can change it if your manager questions or declines it.'
+              : status === 'pending'
+                ? 'This expense can be edited until its month ends; then it is locked while it is checked.'
+                : 'Your manager has sent this expense back. Edit it to respond; it then returns for review.'
       }),
       element('div', { class: 'grid' }, ...fields),
       expense.reviewNote ? notice(`Review message: ${expense.reviewNote}`) : null,
       element(
         'div',
         { class: 'actions' },
-        state.user.role !== 'super' && status !== 'approved'
+        state.user.role !== 'super' && expense.ownerCanChange !== false
           ? button(
               status === 'question'
                 ? 'Respond / Edit expense'

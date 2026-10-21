@@ -201,4 +201,35 @@ test('approval rules, department odometer readings and the approvals dashboard',
     dashboard.departments.map(row => row.department),
     ['Engineering']
   );
+
+  // 6. Once its month has ended an expense is locked for its owner while it is checked.
+  const change = (cookie, item, date, amount) =>
+    call(`/api/expenses/${item.id}`, {
+      method: 'PUT',
+      cookie,
+      body: { merchant: 'Changed', amount, currency: 'EUR', category: 'Other', date, note: '' }
+    });
+  const mine = async () => (await call('/api/expenses', { cookie: staff })).body.expenses;
+  assert.equal((await mine()).find(item => item.id === endedTwo.id).ownerCanChange, false);
+  const lockedEdit = await change(staff, endedTwo, `${previousMonth}-16`, 99);
+  assert.equal(lockedEdit.status, 409);
+  assert.match(lockedEdit.body.error, /being checked/);
+  assert.equal(
+    (await call(`/api/expenses/${endedTwo.id}`, { method: 'DELETE', cookie: staff })).status,
+    409
+  );
+  // A question hands it back; the employee's change returns it for review.
+  assert.equal((await review(head, endedTwo.id, 'question', 'Receipt?')).status, 200);
+  assert.equal((await mine()).find(item => item.id === endedTwo.id).ownerCanChange, true);
+  const answered = await change(staff, endedTwo, `${previousMonth}-16`, 31);
+  assert.equal(answered.status, 200);
+  assert.equal(answered.body.expense.reviewStatus, 'pending');
+  assert.equal(answered.body.expense.ownerCanChange, false);
+  // Current-month expenses stay editable; a Super User can still delete a locked one.
+  const fresh = await expense(staff, today, 7);
+  assert.equal((await change(staff, fresh, today, 8)).status, 200);
+  assert.equal(
+    (await call(`/api/expenses/${endedTwo.id}`, { method: 'DELETE', cookie: admin })).status,
+    200
+  );
 });
