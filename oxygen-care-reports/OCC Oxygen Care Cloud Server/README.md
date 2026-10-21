@@ -14,6 +14,15 @@ Visit http://127.0.0.1:3003. On first run, open `data/setup-token` locally and e
 
 The Super User creates accounts, assigns folder access and provides temporary passwords privately. New accounts and password resets require a password change on the next sign-in. Email invitations and password-reset emails are not configured; resets are handled by a Super User. Existing sessions expire after 12 hours, or after 30 minutes without activity. Deactivation, account-role changes and password resets invalidate sessions immediately.
 
+## Two-step sign-in
+
+Everyone signs in with their password and then a 6-digit code from an authenticator app (Google Authenticator, Microsoft Authenticator, 1Password and similar). At their first sign-in, each person scans a QR code, enters the code it shows and is given 10 one-time recovery codes to copy or print. A code can't be used twice; five wrong codes return to the password step, and ten wrong codes in 15 minutes block codes for that account for 15 minutes.
+
+- **Lost phone:** sign in with a recovery code, or a Super User opens **User management → Edit** for that person and chooses **Reset authenticator**. They set it up again at their next sign-in. Super Users can't reset their own.
+- **Super User locked out:** on the server run `sudo -u occcloud node /opt/occ-cloud/current/scripts/reset-mfa.mjs person@example.com /var/lib/occ-cloud`.
+- **OCC Sync:** computers keep their connection keys. Connecting a new computer needs a signed-in browser session, so it is covered by the second step.
+- Authenticator keys are encrypted with `MFA_ENCRYPTION_KEY` in `/etc/occ-cloud/occ-cloud.env`, which the deploy creates once. Keep a private copy of that file with the data backups and never change the key, or everyone has to set up their authenticator again. Outside production, a key is created in the data folder (`mfa-key`).
+
 ## Server layout
 
 `deploy-server.sh` targets the existing Oxygen Care build/test server `serveradmin@192.168.0.248` using `~/.ssh/oxygen-care-server`. The key must be unlocked in your SSH agent. Deployment uses its own service and storage:

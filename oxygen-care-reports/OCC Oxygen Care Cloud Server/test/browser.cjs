@@ -12,7 +12,7 @@ const os=require('node:os');
  const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  const action=async name=>(await page.locator('#modal').isVisible()?page.locator('#modal'):page).getByRole('button',{name,exact:true}).click();
  const close=()=>page.getByRole('button',{name:'Close dialog',exact:true}).click();
- async function login(email,password){await page.locator('#login-form [name=email]').fill(email);await page.locator('#login-form [name=password]').fill(password);await action('Sign in');}
+ const {browserCode}=await import('./sign-in-helper.mjs');async function login(email,password){await page.locator('#login-form [name=email]').fill(email);await page.locator('#login-form [name=password]').fill(password);await action('Sign in');await browserCode(page,email);}
  const adminPass='Browser-admin-password!',tempPass='Temporary-user-password!',userPass='Permanent-user-password!';
  try{
   await page.goto(origin);await page.getByRole('heading',{name:'Set up your workspace'}).waitFor();

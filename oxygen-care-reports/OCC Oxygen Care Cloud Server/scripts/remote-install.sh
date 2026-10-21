@@ -14,9 +14,9 @@ HTTPS_PORT=8444
 # Public address served through Cloudflare Tunnel, accepted alongside the Tailscale one.
 PUBLIC_HOST="cloud.kobalinesystems.com"
 TAILSCALE_HOST=expenses.fynbos-spectrum.ts.net
-for tool in node tailscale curl ss; do command -v "$tool" >/dev/null || { echo "$tool is required."; exit 1; }; done
+for tool in node tailscale curl ss openssl; do command -v "$tool" >/dev/null || { echo "$tool is required."; exit 1; }; done
 node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const d=new DatabaseSync(':memory:');d.close()"
-[[ -f "$STAGE_DIR/server.mjs" && -f "$STAGE_DIR/sync-api.mjs" && -f "$STAGE_DIR/updates-api.mjs" && -f "$STAGE_DIR/groups-api.mjs" && -f "$STAGE_DIR/calendar-api.mjs" && -f "$STAGE_DIR/public/app.js" ]] || { echo 'Release files are incomplete.'; exit 1; }
+[[ -f "$STAGE_DIR/server.mjs" && -f "$STAGE_DIR/sign-in-api.mjs" && -f "$STAGE_DIR/qrcode-generator.cjs" && -f "$STAGE_DIR/sync-api.mjs" && -f "$STAGE_DIR/updates-api.mjs" && -f "$STAGE_DIR/groups-api.mjs" && -f "$STAGE_DIR/calendar-api.mjs" && -f "$STAGE_DIR/public/app.js" ]] || { echo 'Release files are incomplete.'; exit 1; }
 sudo -v
 if ! sudo systemctl is-active --quiet "$APP_NAME" && ss -ltnH | awk '{print $4}' | grep -Eq ":$APP_PORT$"; then echo "Port $APP_PORT is already used. Deployment stopped."; exit 1; fi
 if ! sudo test -f "$ENV_FILE" && sudo tailscale serve status --json | grep -q "\"$HTTPS_PORT\""; then echo "HTTPS port $HTTPS_PORT is already configured. Deployment stopped."; exit 1; fi
@@ -40,13 +40,20 @@ fi
 if ! sudo grep -q '^APP_EXTRA_ORIGINS=' "$ENV_FILE"; then
   echo "APP_EXTRA_ORIGINS=https://$PUBLIC_HOST" | sudo tee -a "$ENV_FILE" >/dev/null
 fi
+# Authenticator keys are stored encrypted with MFA_ENCRYPTION_KEY. Create it once; never change or remove it,
+# or everyone has to set up their authenticator again. Keep a copy of this file with the data backups.
+if ! sudo grep -q '^MFA_ENCRYPTION_KEY=' "$ENV_FILE"; then
+  echo "MFA_ENCRYPTION_KEY=$(openssl rand -base64 32)" | sudo tee -a "$ENV_FILE" >/dev/null
+  echo "Created MFA_ENCRYPTION_KEY in $ENV_FILE."
+fi
 sudo install -d -o root -g "$APP_USER" -m 0750 "$APP_DIR/releases/$RELEASE"
-sudo cp -R "$STAGE_DIR/server.mjs" "$STAGE_DIR/sync-api.mjs" "$STAGE_DIR/calendar-api.mjs" "$STAGE_DIR/groups-api.mjs" "$STAGE_DIR/updates-api.mjs" "$STAGE_DIR/package.json" "$STAGE_DIR/public" "$STAGE_DIR/scripts" "$STAGE_DIR/README.md" "$STAGE_DIR/HARDENING.md" "$APP_DIR/releases/$RELEASE/"
+sudo cp -R "$STAGE_DIR/server.mjs" "$STAGE_DIR/sign-in-api.mjs" "$STAGE_DIR/qrcode-generator.cjs" "$STAGE_DIR/sync-api.mjs" "$STAGE_DIR/calendar-api.mjs" "$STAGE_DIR/groups-api.mjs" "$STAGE_DIR/updates-api.mjs" "$STAGE_DIR/package.json" "$STAGE_DIR/public" "$STAGE_DIR/scripts" "$STAGE_DIR/README.md" "$STAGE_DIR/HARDENING.md" "$APP_DIR/releases/$RELEASE/"
 sudo chown -R root:"$APP_USER" "$APP_DIR/releases/$RELEASE"
 sudo chmod -R u=rwX,g=rX,o= "$APP_DIR/releases/$RELEASE"
 sudo -u "$APP_USER" node --check "$APP_DIR/releases/$RELEASE/server.mjs"
 sudo -u "$APP_USER" node --check "$APP_DIR/releases/$RELEASE/public/app.js"
 sudo -u "$APP_USER" node --check "$APP_DIR/releases/$RELEASE/sync-api.mjs"
+sudo -u "$APP_USER" node --check "$APP_DIR/releases/$RELEASE/sign-in-api.mjs"
 sudo -u "$APP_USER" node --check "$APP_DIR/releases/$RELEASE/calendar-api.mjs"
 sudo -u "$APP_USER" node --check "$APP_DIR/releases/$RELEASE/groups-api.mjs"
 sudo -u "$APP_USER" node --check "$APP_DIR/releases/$RELEASE/updates-api.mjs"
