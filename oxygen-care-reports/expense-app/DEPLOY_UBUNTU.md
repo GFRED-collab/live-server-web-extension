@@ -72,5 +72,25 @@ service:
 sudo systemctl restart oxygen-care-expenses
 ```
 
+The first deploy with two-step sign-in adds `MFA_ENCRYPTION_KEY` to that file. It encrypts
+everyone's authenticator keys: back the file up with the data and never change or remove the
+line, or every person has to set up their authenticator again.
+
 For example, `RAPIDOCR_PYTHON=off` in that file skips RapidOCR so receipts go straight to
 PaddleOCR; remove the line and restart to turn RapidOCR back on.
+
+## Two-step sign-in
+
+Everyone signs in with their password and then a 6-digit code from an authenticator app
+(Google Authenticator, Microsoft Authenticator, 1Password and similar). At their first sign-in
+after this update, each person scans a QR code, enters the code it shows, and is given 10
+one-time recovery codes to print or save.
+
+- **Lost phone:** the person signs in with one of their recovery codes, or a Super User opens
+  **Users**, picks the person and chooses **Reset authenticator**. They set it up again at their
+  next sign-in. A Super User can't reset their own.
+- **Super User locked out:** set `RESET_SUPERUSER_PASSWORD` in the settings file and restart; this
+  sets the new password and also clears that Super User's authenticator. Remove the line and
+  restart again afterwards.
+- Five wrong codes send the person back to the password step; ten in 15 minutes block codes for
+  that account for 15 minutes. A code can't be used twice.

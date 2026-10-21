@@ -6,6 +6,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import sharp from 'sharp';
+import { mfaTestEnv, signIn } from './sign-in-helper.mjs';
 
 const appDir = dirname(dirname(fileURLToPath(import.meta.url)));
 const serverFile = join(appDir, 'server.mjs');
@@ -51,7 +52,8 @@ async function startServer(t, { settings, onDirectory } = {}) {
       HOST: '127.0.0.1',
       PORT: String(port),
       SUPERUSER_EMAIL: 'admin@example.test',
-      SUPERUSER_PASSWORD: 'AdminPassword123!'
+      SUPERUSER_PASSWORD: 'AdminPassword123!',
+      ...mfaTestEnv
     },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -97,18 +99,16 @@ async function request(base, path, { cookie = '', method = 'GET', body } = {}) {
   });
 }
 
+// Password plus authenticator code; the session cookies arrive with the code step.
 async function login(base, email, password) {
-  const response = await request(base, '/api/auth/login', {
-    method: 'POST',
-    body: { email, password }
-  });
-  assert.equal(response.status, 200);
-  const combined = response.headers.get('set-cookie');
+  const result = await signIn(base, email, password);
+  assert.equal(result.status, 200, JSON.stringify(result.body));
+  const combined = result.setCookie;
   const session = /oc_session=([^;,]+)/.exec(combined)?.[1];
   const csrf = /oc_csrf=([^;,]+)/.exec(combined)?.[1];
-  assert.ok(session && csrf, 'login must set session and CSRF cookies');
+  assert.ok(session && csrf, 'sign-in must set session and CSRF cookies');
   assert.match(combined, /oc_session=[^,]+;[^,]*HttpOnly;[^,]*SameSite=Lax;[^,]*Secure/);
-  return `oc_session=${session}; oc_csrf=${csrf}`;
+  return result.cookie;
 }
 
 async function createUser(base, adminCookie, values) {

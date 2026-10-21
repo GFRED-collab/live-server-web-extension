@@ -1780,6 +1780,31 @@
       )
     );
   }
+  // Shows whether someone has set up their authenticator, with a reset for lost phones.
+  function authenticatorControls(person, onError) {
+    const status = element('div', {
+      class: 'meta mfa-status',
+      text: person.mfaEnabled ? 'Authenticator set up' : 'Authenticator: set up at next sign-in'
+    });
+    if (!person.mfaEnabled || person.id === state.user.id) return [status];
+    const reset = button('Reset authenticator', async () => {
+      if (
+        !confirm(
+          `Reset ${personName(person)}'s authenticator? They will be signed out and set up a new one at their next sign-in.`
+        )
+      )
+        return;
+      try {
+        await api(`/api/users/${person.id}/mfa`, { method: 'DELETE' });
+        person.mfaEnabled = false;
+        status.textContent = 'Authenticator reset: set up at next sign-in';
+        reset.remove();
+      } catch (error) {
+        onError(error.message);
+      }
+    });
+    return [status, reset];
+  }
   async function usersPage() {
     await loadSettings();
     const [regularResult, superResult, departmentHeadResult] = await Promise.all([
@@ -1811,6 +1836,7 @@
           class: 'meta',
           text: `${person.email} · ${[person.department, person.jobDescription, person.carRegistration].filter(Boolean).join(' · ')}`
         }),
+        ...authenticatorControls(person, message => details.append(notice(message))),
         element(
           'div',
           { class: 'actions' },
@@ -1851,7 +1877,8 @@
         element('div', {
           class: 'meta',
           text: `${person.email}${person.department ? ` · ${person.department}` : ''}`
-        })
+        }),
+        ...authenticatorControls(person, message => superDetails.append(notice(message)))
       );
       if (person.id === state.user.id)
         return superDetails.append(
@@ -1903,7 +1930,8 @@
         element('div', {
           class: 'meta',
           text: `${person.email}${person.department ? ` · ${person.department}` : ''}`
-        })
+        }),
+        ...authenticatorControls(person, message => headDetails.append(notice(message)))
       );
       const act = async action => {
         const verb =
@@ -2011,11 +2039,137 @@
         method: 'POST',
         body: JSON.stringify({ email: $('#loginEmail').value, password: $('#loginPassword').value })
       });
-      resetWorkspaceRoute();
-      await start(result.user, result.idleTimeoutMinutes);
+      // The password is right; next comes the authenticator code.
+      showCodeStep(result);
     } catch (error) {
       $('#loginError').textContent = error.message;
     }
+  }
+  function backToPassword(message = '') {
+    $('#codeStep')?.remove();
+    $('#loginForm').hidden = false;
+    $('#loginPassword').value = '';
+    $('#loginError').textContent = message;
+  }
+  async function finishSignIn(result) {
+    $('#codeStep')?.remove();
+    $('#loginForm').hidden = false;
+    $('#loginForm').reset();
+    resetWorkspaceRoute();
+    await start(result.user, result.idleTimeoutMinutes);
+  }
+  function showRecoveryCodes(result) {
+    const saved = element('input', { type: 'checkbox' }),
+      done = element('button', { type: 'button', class: 'primary', text: 'Continue' });
+    done.disabled = true;
+    saved.onchange = () => (done.disabled = !saved.checked);
+    done.onclick = () => finishSignIn(result);
+    $('#codeStep').replaceChildren(
+      element('h1', { text: 'Save your recovery codes' }),
+      element('p', {
+        text: "If you lose your phone, each code lets you sign in once instead of the authenticator code. Keep them somewhere safe; they won't be shown again."
+      }),
+      element(
+        'ol',
+        { class: 'recovery-codes' },
+        ...result.recoveryCodes.map(code => element('li', {}, element('code', { text: code })))
+      ),
+      element(
+        'div',
+        { class: 'actions code-actions' },
+        button('Copy codes', () => navigator.clipboard?.writeText(result.recoveryCodes.join('\n'))),
+        button('Print', () => {
+          document.body.classList.add('printing-recovery');
+          window.print();
+          document.body.classList.remove('printing-recovery');
+        })
+      ),
+      element('label', { class: 'checkbox-field' }, saved, 'I have saved these codes'),
+      done
+    );
+  }
+  function showCodeStep(info) {
+    $('#loginForm').hidden = true;
+    $('#codeStep')?.remove();
+    const code = element('input', {
+      name: 'code',
+      autocomplete: 'one-time-code',
+      maxlength: info.step === 'totp' ? '12' : '6',
+      required: '',
+      class: 'code-input',
+      inputmode: info.step === 'totp' ? 'text' : 'numeric'
+    });
+    const error = element('p', { class: 'error', role: 'alert' });
+    const submit = element('button', {
+      type: 'submit',
+      class: 'primary',
+      text: info.step === 'totp_setup' ? 'Turn on and sign in' : 'Verify and sign in'
+    });
+    const form = element(
+      'form',
+      { id: 'codeStep', class: 'code-step' },
+      ...(info.step === 'totp_setup'
+        ? [
+            element('h1', { text: 'Set up your authenticator' }),
+            element('p', {
+              text: 'Install an authenticator app on your phone (Google Authenticator, Microsoft Authenticator or 1Password), add an account and scan this code.'
+            }),
+            element('img', {
+              class: 'setup-qr',
+              alt: 'QR code for your authenticator app',
+              src: `data:image/svg+xml;utf8,${encodeURIComponent(info.qrSvg)}`
+            }),
+            element(
+              'p',
+              { class: 'setup-key' },
+              "Can't scan? On this phone, ",
+              element('a', { href: info.otpauthUrl, text: 'open it in your authenticator app' }),
+              ', or type this key:',
+              element('code', { text: info.key })
+            ),
+            element('p', { text: 'Then enter the 6-digit code the app shows.' })
+          ]
+        : [
+            element('h1', { text: 'Enter your sign-in code' }),
+            element('p', {
+              text: 'Open your authenticator app and enter the 6-digit code for Oxygen Care Expenses. Lost your phone? Enter one of your recovery codes instead.'
+            })
+          ]),
+      element('label', { text: info.step === 'totp' ? 'Code or recovery code' : 'Code' }, code),
+      error,
+      submit,
+      element(
+        'div',
+        { class: 'actions code-actions' },
+        button('Start again', () => backToPassword())
+      )
+    );
+    form.onsubmit = async event => {
+      event.preventDefault();
+      error.textContent = '';
+      submit.disabled = true;
+      try {
+        const result = await api('/api/auth/verify', {
+          method: 'POST',
+          body: JSON.stringify({ code: code.value.replace(/\s/g, '') })
+        });
+        if (result.recoveryCodes) return showRecoveryCodes(result);
+        if (result.recoveryCodesLeft !== undefined && result.recoveryCodesLeft <= 3)
+          alert(
+            `You have ${result.recoveryCodesLeft} recovery code${result.recoveryCodesLeft === 1 ? '' : 's'} left. Ask a Super User to reset your authenticator to get new ones.`
+          );
+        await finishSignIn(result);
+      } catch (failure) {
+        if (failure.restart) return backToPassword(failure.message);
+        error.textContent = failure.message;
+        code.value = '';
+        code.focus();
+      } finally {
+        submit.disabled = false;
+      }
+    };
+    $('#loginForm').after(form);
+    code.focus();
   }
   async function start(user, idleTimeoutMinutes) {
     state.user = user;

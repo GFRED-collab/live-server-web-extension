@@ -428,3 +428,69 @@ label > select,
     grid-template-columns: 1fr;
   }
 }
+
+/* Two-step sign-in */
+.code-step {
+  display: grid;
+  gap: 10px;
+}
+.code-step h1 {
+  margin: 18px 0 0;
+  font-size: 22px;
+}
+.code-step p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.code-input {
+  font-size: 22px !important;
+  letter-spacing: 0.25em;
+  text-align: center;
+}
+.setup-qr {
+  width: 190px;
+  height: 190px;
+  margin: 4px auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.setup-key code {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--sky);
+  color: var(--ink);
+  letter-spacing: 0.05em;
+  overflow-wrap: anywhere;
+}
+.code-actions {
+  justify-content: center;
+}
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 12px 12px 12px 34px;
+  border-radius: 10px;
+  background: var(--sky);
+}
+.mfa-status {
+  margin-top: 4px;
+}
+@media print {
+  body.printing-recovery * {
+    visibility: hidden;
+  }
+  body.printing-recovery .recovery-codes,
+  body.printing-recovery .recovery-codes * {
+    visibility: visible;
+  }
+  body.printing-recovery .recovery-codes {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}

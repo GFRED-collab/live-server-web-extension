@@ -1,5 +1,14 @@
 import { createServer } from 'node:http';
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  createHmac,
+  randomBytes,
+  randomInt,
+  scryptSync,
+  timingSafeEqual
+} from 'node:crypto';
 import { spawn } from 'node:child_process';
 import {
   appendFile,
@@ -15,6 +24,7 @@ import {
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { extname, join, normalize } from 'node:path';
+import QRCode from 'qrcode';
 import sharp from 'sharp';
 
 sharp.concurrency(1);
@@ -321,6 +331,7 @@ function publicUser(user) {
     jobDescription: user.jobDescription || '',
     carRegistration: user.carRegistration || '',
     mileageEnabled: user.mileageEnabled === true,
+    mfaEnabled: Boolean(user.mfaSecret),
     createdAt: user.createdAt
   };
 }
@@ -571,8 +582,10 @@ async function bootstrapSuperUser() {
         );
       else {
         existing.passwordHash = hashPassword(reset);
+        // An emergency reset also clears the authenticator, in case the phone was lost too.
+        clearMfa(existing);
         await saveUsers(all);
-        console.log(`Reset Super User password: ${existing.email}`);
+        console.log(`Reset Super User password and authenticator: ${existing.email}`);
       }
     }
     return;
@@ -873,6 +886,128 @@ async function canViewExpense(viewer, expense) {
   return Boolean(owner && owner.role === 'regular' && owner.department === viewer.department);
 }
 
+// Two-step sign-in: after the password, a code from an authenticator app (TOTP, RFC 6238:
+// SHA-1, 30-second steps, 6 digits). Everyone sets it up at their first sign-in and receives
+// ten one-time recovery codes. Keys are stored encrypted with MFA_ENCRYPTION_KEY.
+const base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+function base32Encode(bytes) {
+  let bits = 0,
+    value = 0,
+    output = '';
+  for (const byte of bytes) {
+    value = (value << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      output += base32Alphabet[(value >>> (bits - 5)) & 31];
+      bits -= 5;
+    }
+  }
+  if (bits > 0) output += base32Alphabet[(value << (5 - bits)) & 31];
+  return output;
+}
+function totpCode(secret, step, digits = 6) {
+  const counter = Buffer.alloc(8);
+  counter.writeBigUInt64BE(BigInt(step));
+  const hmac = createHmac('sha1', secret).update(counter).digest();
+  const offset = hmac[hmac.length - 1] & 15;
+  return String((hmac.readUInt32BE(offset) & 0x7fffffff) % 10 ** digits).padStart(digits, '0');
+}
+const totpStep = (now = Date.now()) => Math.floor(now / 30_000);
+function sameText(left, right) {
+  const a = Buffer.from(String(left)),
+    b = Buffer.from(String(right));
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+// The current step or one either side (clock drift); a step already used is refused.
+function verifyTotp(secret, code, lastStep = null, now = Date.now()) {
+  if (!/^\d{6}$/.test(code)) return null;
+  const step = totpStep(now);
+  for (const candidate of [step - 1, step, step + 1]) {
+    if (lastStep !== null && candidate <= lastStep) continue;
+    if (sameText(totpCode(secret, candidate), code)) return candidate;
+  }
+  return null;
+}
+function mfaKey() {
+  const key = Buffer.from(process.env.MFA_ENCRYPTION_KEY || '', 'base64');
+  if (key.length !== 32)
+    throw Object.assign(new Error('Two-step sign-in is not configured on this server.'), {
+      status: 503
+    });
+  return key;
+}
+function encryptMfaSecret(secret) {
+  const iv = randomBytes(12),
+    cipher = createCipheriv('aes-256-gcm', mfaKey(), iv);
+  const body = Buffer.concat([cipher.update(secret), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), body]).toString('base64');
+}
+function decryptMfaSecret(stored) {
+  const raw = Buffer.from(stored, 'base64');
+  const decipher = createDecipheriv('aes-256-gcm', mfaKey(), raw.subarray(0, 12));
+  decipher.setAuthTag(raw.subarray(12, 28));
+  return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]);
+}
+const recoveryAlphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const normaliseRecoveryCode = value =>
+  String(value)
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, '');
+const recoveryHash = code =>
+  createHash('sha256')
+    .update(`recovery:${normaliseRecoveryCode(code)}`)
+    .digest('hex');
+function newRecoveryCodes() {
+  return Array.from({ length: 10 }, () => {
+    const raw = Array.from(
+      { length: 8 },
+      () => recoveryAlphabet[randomInt(recoveryAlphabet.length)]
+    ).join('');
+    return `${raw.slice(0, 4)}-${raw.slice(4)}`;
+  });
+}
+function clearMfa(user) {
+  delete user.mfaSecret;
+  delete user.mfaEnabledAt;
+  delete user.mfaLastStep;
+  delete user.mfaRecoveryHashes;
+}
+// Passwords accepted but codes still outstanding, held for 10 minutes in memory only.
+const signInChallenges = new Map();
+const challengeMinutes = 10,
+  maximumCodeAttempts = 5,
+  codeFailureLimit = 10;
+const codeFailures = new Map();
+function pruneChallenges(now = Date.now()) {
+  for (const [token, challenge] of signInChallenges)
+    if (challenge.expires < now) signInChallenges.delete(token);
+  for (const [userId, times] of codeFailures) {
+    const recent = times.filter(time => time > now - 15 * 60_000);
+    if (recent.length) codeFailures.set(userId, recent);
+    else codeFailures.delete(userId);
+  }
+}
+function challengeCookie(token, maxAge = challengeMinutes * 60) {
+  const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
+  return `oc_challenge=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`;
+}
+function startSession(res, user, extra = {}) {
+  const token = randomBytes(32).toString('base64url');
+  const csrfToken = randomBytes(32).toString('base64url');
+  const now = Date.now();
+  sessions.set(token, {
+    user: publicUser(user),
+    csrfToken,
+    expires: now + sessionHours * 3600_000,
+    idleExpires: now + sessionIdleMinutes * 60_000
+  });
+  send(
+    res,
+    200,
+    { user: publicUser(user), idleTimeoutMinutes: sessionIdleMinutes, ...extra },
+    { 'Set-Cookie': [sessionCookie(token), csrfCookie(csrfToken), challengeCookie('', 0)] }
+  );
+}
 async function login(req, res) {
   if (!requireSameOrigin(req, res) || !rateLimit(req, res, 'login', loginLimit, 15 * 60_000))
     return;
@@ -902,29 +1037,147 @@ async function login(req, res) {
       return send(res, 401, { error: 'Email or password is incorrect.' });
     }
     await clearLoginFailures(lock);
+    // The password is right; the session starts only after the code (/api/auth/verify).
+    mfaKey();
+    pruneChallenges();
+    for (const [token, challenge] of signInChallenges)
+      if (challenge.userId === user.id) signInChallenges.delete(token);
+    if (signInChallenges.size > 10_000) signInChallenges.clear();
     const token = randomBytes(32).toString('base64url');
-    const csrfToken = randomBytes(32).toString('base64url');
-    const now = Date.now();
-    sessions.set(token, {
-      user: publicUser(user),
-      csrfToken,
-      expires: now + sessionHours * 3600_000,
-      idleExpires: now + sessionIdleMinutes * 60_000
-    });
-    await audit('login_succeeded', {
+    const setup = !user.mfaSecret;
+    const secret = setup ? randomBytes(20) : null;
+    signInChallenges.set(token, {
       userId: user.id,
-      role: user.role,
+      kind: setup ? 'totp_setup' : 'totp',
+      pendingSecret: secret,
+      attempts: 0,
+      expires: Date.now() + challengeMinutes * 60_000
+    });
+    await audit('login_password_accepted', {
+      userId: user.id,
       ip: req.socket.remoteAddress || 'unknown'
     });
+    const headers = { 'Set-Cookie': challengeCookie(token) };
+    if (!setup) return send(res, 200, { step: 'totp' }, headers);
+    const otpauthUrl = `otpauth://totp/${encodeURIComponent(`Oxygen Care Expenses:${user.email}`)}?${new URLSearchParams({ secret: base32Encode(secret), issuer: 'Oxygen Care Expenses', algorithm: 'SHA1', digits: '6', period: '30' })}`;
     send(
       res,
       200,
-      { user: publicUser(user), idleTimeoutMinutes: sessionIdleMinutes },
-      { 'Set-Cookie': [sessionCookie(token), csrfCookie(csrfToken)] }
+      {
+        step: 'totp_setup',
+        key: base32Encode(secret).replace(/(.{4})(?=.)/g, '$1 '),
+        otpauthUrl,
+        qrSvg: await QRCode.toString(otpauthUrl, {
+          type: 'svg',
+          margin: 1,
+          errorCorrectionLevel: 'M'
+        })
+      },
+      headers
     );
   } catch (error) {
-    send(res, 400, { error: error.message });
+    send(res, error.status || 400, { error: error.message });
   }
+}
+async function verifySignIn(req, res) {
+  if (!requireSameOrigin(req, res) || !rateLimit(req, res, 'verify', 30, 15 * 60_000)) return;
+  const restart = (status, error) =>
+    send(res, status, { error, restart: true }, { 'Set-Cookie': challengeCookie('', 0) });
+  try {
+    pruneChallenges();
+    const { code: rawCode } = await jsonBody(req);
+    const code = String(rawCode || '').trim();
+    if (!code || code.length > 20) return send(res, 400, { error: 'Enter the code.' });
+    const token = cookieValue(req, 'oc_challenge');
+    const challenge = token && signInChallenges.get(token);
+    if (!challenge) return restart(401, 'Your sign-in has expired. Enter your password again.');
+    const all = await users();
+    const user = all.find(entry => entry.id === challenge.userId);
+    if (!user) {
+      signInChallenges.delete(token);
+      return restart(401, 'Your sign-in has expired. Enter your password again.');
+    }
+    if ((codeFailures.get(user.id) || []).length >= codeFailureLimit) {
+      signInChallenges.delete(token);
+      return restart(429, 'Too many wrong codes. Wait 15 minutes and sign in again.');
+    }
+    let step = null,
+      usedRecovery = false;
+    if (challenge.kind === 'totp_setup') step = verifyTotp(challenge.pendingSecret, code);
+    else {
+      step = verifyTotp(decryptMfaSecret(user.mfaSecret), code, user.mfaLastStep ?? null);
+      // A recovery code works once instead of the authenticator code.
+      if (step === null && normaliseRecoveryCode(code).length === 8) {
+        const hash = recoveryHash(code),
+          remaining = user.mfaRecoveryHashes || [];
+        if (remaining.includes(hash)) {
+          usedRecovery = true;
+          user.mfaRecoveryHashes = remaining.filter(value => value !== hash);
+        }
+      }
+    }
+    if (step === null && !usedRecovery) {
+      codeFailures.set(user.id, [...(codeFailures.get(user.id) || []), Date.now()]);
+      challenge.attempts += 1;
+      await audit('login_code_failed', {
+        userId: user.id,
+        ip: req.socket.remoteAddress || 'unknown'
+      });
+      if (challenge.attempts >= maximumCodeAttempts) {
+        signInChallenges.delete(token);
+        return restart(401, 'Too many wrong codes. Enter your password again.');
+      }
+      return send(res, 401, {
+        error: 'That code is not right. Use the current code from your authenticator app.'
+      });
+    }
+    signInChallenges.delete(token);
+    codeFailures.delete(user.id);
+    let recoveryCodes;
+    if (challenge.kind === 'totp_setup') {
+      recoveryCodes = newRecoveryCodes();
+      Object.assign(user, {
+        mfaSecret: encryptMfaSecret(challenge.pendingSecret),
+        mfaEnabledAt: new Date().toISOString(),
+        mfaLastStep: step,
+        mfaRecoveryHashes: recoveryCodes.map(recoveryHash)
+      });
+      await audit('mfa_enrolled', { userId: user.id });
+    } else if (step !== null) user.mfaLastStep = step;
+    await saveUsers(all);
+    await audit('login_succeeded', {
+      userId: user.id,
+      role: user.role,
+      ip: req.socket.remoteAddress || 'unknown',
+      ...(usedRecovery ? { recoveryCode: true } : {})
+    });
+    startSession(res, user, {
+      ...(recoveryCodes ? { recoveryCodes } : {}),
+      ...(usedRecovery ? { recoveryCodesLeft: user.mfaRecoveryHashes.length } : {})
+    });
+  } catch (error) {
+    send(res, error.status || 400, { error: error.message });
+  }
+}
+// A Super User resets someone's authenticator (for example a lost phone). They are signed out
+// and set up a new one at their next sign-in.
+async function resetAuthenticator(req, res, id) {
+  const actor = requireUser(req, res, 'super');
+  if (!actor) return;
+  if (id === actor.id)
+    return send(res, 400, {
+      error: 'You cannot reset your own authenticator. Ask another Super User.'
+    });
+  const all = await users();
+  const target = all.find(user => user.id === id);
+  if (!target) return send(res, 404, { error: 'User not found.' });
+  clearMfa(target);
+  await saveUsers(all);
+  invalidateUserSessions(id);
+  for (const [token, challenge] of signInChallenges)
+    if (challenge.userId === id) signInChallenges.delete(token);
+  await audit('mfa_reset', { actorId: actor.id, targetUserId: id });
+  send(res, 200, { ok: true });
 }
 async function createUser(req, res) {
   const actor = requireUser(req, res, 'super');
@@ -2790,6 +3043,7 @@ async function routeRequest(req, res) {
   )
     return;
   if (req.method === 'POST' && pathname === '/api/auth/login') return login(req, res);
+  if (req.method === 'POST' && pathname === '/api/auth/verify') return verifySignIn(req, res);
   if (
     pathname.startsWith('/api/') &&
     !['GET', 'HEAD', 'OPTIONS'].includes(req.method) &&
@@ -2859,6 +3113,9 @@ async function routeRequest(req, res) {
   const notificationMatch = pathname.match(/^\/api\/notifications\/([A-Za-z0-9]+)$/);
   if (req.method === 'PATCH' && notificationMatch)
     return dismissNotification(req, res, notificationMatch[1]);
+  const mfaResetMatch = pathname.match(/^\/api\/users\/([A-Za-z0-9]+)\/mfa$/);
+  if (req.method === 'DELETE' && mfaResetMatch)
+    return resetAuthenticator(req, res, mfaResetMatch[1]);
   const userMatch = pathname.match(/^\/api\/users\/([A-Za-z0-9]+)$/);
   if (req.method === 'PATCH' && userMatch) return updateUser(req, res, userMatch[1]);
   if (req.method === 'DELETE' && userMatch) return deleteUser(req, res, userMatch[1]);

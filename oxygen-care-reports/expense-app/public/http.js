@@ -27,6 +27,7 @@
       const error = Error(data.error || 'Request failed.');
       error.status = response.status;
       error.code = data.code || '';
+      error.restart = data.restart === true;
       throw error;
     }
     return data;
