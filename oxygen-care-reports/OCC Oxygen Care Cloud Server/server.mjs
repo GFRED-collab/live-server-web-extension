@@ -39,6 +39,10 @@ export function createApp(options={}){
   const originUrl=new URL(origin);
   ensure(origin===originUrl.origin,500,'APP_ORIGIN must be an origin without a path.');
   ensure(!production||originUrl.protocol==='https:',500,'Production requires an HTTPS APP_ORIGIN.');
+  // Other addresses the app is also reached on (for example a public domain alongside the Tailscale one).
+  const extraOrigins=(options.extraOrigins??String(process.env.APP_EXTRA_ORIGINS||'').split(',')).map(value=>value.trim()).filter(Boolean);
+  for(const extra of extraOrigins){let url;try{url=new URL(extra);}catch{url=null;}ensure(url&&url.origin===extra&&(!production||url.protocol==='https:'),500,'APP_EXTRA_ORIGINS must list HTTPS origins without paths, separated by commas.');}
+  const allowedOrigins=new Set([origin,...extraOrigins]);
   const maxFile=Number(options.maxFile??process.env.MAX_FILE_BYTES??100000000);
   const quota=Number(options.quota??process.env.STORAGE_QUOTA_BYTES??5000000000);
   ensure(Number.isSafeInteger(maxFile)&&maxFile>0&&Number.isSafeInteger(quota)&&quota>=maxFile,500,'Invalid storage limits.');
@@ -86,7 +90,7 @@ export function createApp(options={}){
   const requireFile=(s,id,action='view')=>{const f=get('SELECT * FROM files WHERE id=?',id);ensure(f&&permits(s,f.folder,action),404,'File not found or access is unavailable.');return f};
   const requireSuper=s=>{const u=get('SELECT active,account,must_change FROM users WHERE id=?',s.user_id);ensure(u?.active&&!u.must_change&&u.account==='super',403,'Super User access is required.');};
   function subtree(id){return all('WITH RECURSIVE tree(id) AS (SELECT id FROM folders WHERE id=? UNION ALL SELECT f.id FROM folders f JOIN tree t ON f.parent=t.id) SELECT id FROM tree',id).map(f=>f.id)}
-  function checkOrigin(req){ensure(req.headers.origin===origin,403,'Request origin is not allowed.');}
+  function checkOrigin(req){ensure(allowedOrigins.has(req.headers.origin),403,'Request origin is not allowed.');}
   function json(res,status,data,headers={}){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8',...headers});res.end(JSON.stringify(data));}
   async function body(req){ensure(req.headers['content-type']?.split(';')[0]==='application/json',415,'Send JSON for this request.');let size=0,chunks=[];for await(const chunk of req){size+=chunk.length;ensure(size<=65536,413,'Request is too large.');chunks.push(chunk)}if(req.occAuthenticated){const fresh=session(req);ensure(fresh,401,'Your session ended. Sign in again.');Object.assign(req.occSession,fresh);}let result;try{result=JSON.parse(Buffer.concat(chunks).toString())}catch{fail(400,'Invalid JSON request.')}ensure(result&&typeof result==='object'&&!Array.isArray(result),400,'Send a JSON object.');return result;}
   function clientAddress(req){const remote=req.socket.remoteAddress;const forwarded=process.env.TRUST_PROXY==='1'&&['127.0.0.1','::1','::ffff:127.0.0.1'].includes(remote)?String(req.headers['x-forwarded-for']||'').split(',').at(-1).trim():'';return isIP(forwarded)?forwarded:remote;}
