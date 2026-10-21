@@ -59,11 +59,21 @@ fi
 if ! sudo grep -q '^APP_EXTRA_ORIGINS=' "$ENV_FILE"; then
   echo "APP_EXTRA_ORIGINS=https://$PUBLIC_HOST" | sudo tee -a "$ENV_FILE" >/dev/null
 fi
+# Two-step sign-in: the key that encrypts staff authenticator keys. It is created once and must
+# never change, or every staff member would have to set up their authenticator again.
+if ! sudo grep -q '^MFA_ENCRYPTION_KEY=' "$ENV_FILE"; then
+  echo "MFA_ENCRYPTION_KEY=$(openssl rand -base64 32)" | sudo tee -a "$ENV_FILE" >/dev/null
+fi
 
 set -a
 # shellcheck disable=SC1090
 source <(sudo cat "$ENV_FILE")
 set +a
+# Customers sign in with an emailed code, which needs a mailbox to send from.
+if [[ -z "${SMTP_URL:-}" || -z "${MAIL_FROM:-}" ]]; then
+  echo "NOTE: SMTP_URL and MAIL_FROM are not set in $ENV_FILE. Customer accounts cannot sign in"
+  echo "      until they are (staff sign in with their authenticator app and are not affected)."
+fi
 
 if sudo -u postgres psql -d "$DB_NAME" -tAc "SELECT to_regclass('public.users') IS NOT NULL" | grep -q t; then
   BACKUP_FILE="$BACKUP_DIR/database-$(date -u +%Y%m%dT%H%M%SZ).dump"

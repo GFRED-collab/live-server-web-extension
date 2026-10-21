@@ -85,3 +85,20 @@ The login screen contains only the logo and sign-in form. New customer dockets r
 Calendar appointments a Super User assigns to an engineer wait for the engineer's reply (migration 021). The engineer sees a count on the Calendar menu item and an "Appointments assigned to you" panel on the calendar, and can accept or reject; rejecting requires a reason. The Super User sees the reply and reason on the appointment, and the Calendar count shows upcoming rejected appointments until they are reassigned, moved or deleted. Moving or reassigning an appointment asks the engineer again.
 
 Apply all migrations with `npm run db:migrate` before running this release. Migration 010 adds administrative history and docket correction status; 011 adds booking ranges and stable report-field identity; 012 adds docket work times. Apply earlier pending migrations, including 009, in sequence. The migration command requires DATABASE_URL in its environment. Verification includes `npm run check`, `node scripts/check-reports-enhancements.cjs`, `node scripts/check-admin-entries.cjs`, `node scripts/check-regressions.cjs`, and `node scripts/check-fieldwork.cjs`. These route regressions use simulated database responses; production database acceptance must follow deployment.
+
+## Two-step sign-in
+
+After the password, staff enter a code from an authenticator app (Google Authenticator, Microsoft
+Authenticator, 1Password); customers enter a 6-digit code sent to their email.
+
+- Staff set up their authenticator at their first sign-in after this release: they scan a QR code
+  and receive ten one-time recovery codes. A Super User can reset someone's authenticator from
+  **Users → Reset authenticator** (they are signed out and set it up again). If no other Super User
+  is available, run `scripts/reset-mfa.mjs --email person@example.com` on the server with the
+  production environment loaded.
+- Five wrong codes return to the password step; ten per person in 15 minutes block codes for 15
+  minutes. Email codes expire after 10 minutes and can be re-sent once a minute, four times.
+- `MFA_ENCRYPTION_KEY` encrypts the authenticator keys. The deploy script creates it once; never
+  change it, or every staff member must set up their authenticator again.
+- Customer codes need `SMTP_URL` and `MAIL_FROM` in the server environment (see `.env.example`).
+  Until they are set, customers cannot sign in; the deploy prints a note.

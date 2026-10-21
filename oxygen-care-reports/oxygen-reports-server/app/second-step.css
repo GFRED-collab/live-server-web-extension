@@ -1,0 +1,112 @@
+.second-step {
+  display: grid;
+  gap: 12px;
+  text-align: left;
+}
+.second-step h2 {
+  margin: 4px 0 0;
+  font-size: 20px;
+}
+.second-step p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.second-step b {
+  color: var(--ink);
+}
+.setup-steps {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.setup-qr {
+  width: 190px;
+  height: 190px;
+  margin: 4px auto;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.setup-key code {
+  display: block;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f2f8fa;
+  color: var(--ink);
+  font-size: 14px;
+  letter-spacing: 0.05em;
+  overflow-wrap: anywhere;
+}
+.second-step input[name='code'] {
+  font-size: 22px;
+  letter-spacing: 0.25em;
+  text-align: center;
+}
+.second-step-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.second-step-actions button {
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 9px 12px;
+  background: #fff;
+  color: var(--brand);
+  font-weight: 700;
+  cursor: pointer;
+}
+.recovery-codes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 12px 12px 12px 34px;
+  border-radius: 10px;
+  background: #f2f8fa;
+}
+.recovery-codes code {
+  font-size: 15px;
+  letter-spacing: 0.05em;
+}
+.saved-check {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink) !important;
+  font-size: 14px !important;
+  letter-spacing: 0 !important;
+}
+.saved-check input {
+  width: 18px !important;
+  height: 18px;
+}
+/* Only while "Print" is used on the recovery codes (the class is set just for that). */
+@media print {
+  body.printing-recovery * {
+    visibility: hidden;
+  }
+  body.printing-recovery .recovery-codes,
+  body.printing-recovery .recovery-codes * {
+    visibility: visible;
+  }
+  body.printing-recovery .recovery-codes {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}
+
+/* Users page: authenticator status under each person's email. */
+small.mfa-on {
+  color: #1d6a54;
+}
+small.mfa-off {
+  color: #8a5a00;
+}

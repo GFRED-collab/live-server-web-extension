@@ -1,9 +1,9 @@
 import bcrypt from 'bcryptjs';
 import { createHash, randomBytes } from 'node:crypto';
-import { createSession } from '../../../../lib/auth';
-import { writeAudit } from '../../../../lib/audit';
+import QRCode from 'qrcode';
 import { getDb } from '../../../../lib/db';
 import { errorResponse, jsonObject } from '../../../../lib/http';
+import { startSecondStep } from '../../../../lib/sign-in';
 
 const failures = new Map<string, number[]>();
 const failureWindowMs = 15 * 60 * 1000;
@@ -53,7 +53,8 @@ export async function POST(request: Request) {
     failures.set(key, [...attempts, Date.now()]);
     const db = getDb();
     const result = await db.query(
-      'SELECT id, password_hash FROM users WHERE email = $1 AND active = true',
+      `SELECT id, email::text, role::text, password_hash, mfa_enabled_at IS NOT NULL AS "mfaEnabled"
+         FROM users WHERE email = $1 AND active = true`,
       [email]
     );
     const account = result.rows[0];
@@ -63,9 +64,35 @@ export async function POST(request: Request) {
     }
     failures.delete(key);
     await db.query('DELETE FROM sessions WHERE expires_at <= now()');
-    await createSession(account.id);
-    await writeAudit(db, account.id, 'signed_in', 'session', null, {});
-    return Response.json({ ok: true });
+    // The password is right; the session starts only after the second step (/api/auth/verify).
+    let next;
+    try {
+      next = await startSecondStep(db, account);
+    } catch (error) {
+      const known = (error as { status?: number }).status === 503;
+      console.error(
+        'Sign-in second step failed:',
+        (error as { code?: string }).code || (error as Error).message
+      );
+      return Response.json(
+        {
+          error: known
+            ? (error as Error).message
+            : 'Sign-in could not be completed right now. Please try again shortly.'
+        },
+        { status: 503 }
+      );
+    }
+    if (next.step === 'totp_setup')
+      return Response.json({
+        ...next,
+        qrSvg: await QRCode.toString(next.otpauthUrl, {
+          type: 'svg',
+          margin: 1,
+          errorCorrectionLevel: 'M'
+        })
+      });
+    return Response.json(next);
   } catch (error) {
     return errorResponse(error);
   }
