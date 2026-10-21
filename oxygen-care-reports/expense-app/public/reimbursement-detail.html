@@ -1,0 +1,361 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Reimbursement details · Oxygen Care</title>
+    <style>
+      :root {
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #effbff;
+        color: #183f4b;
+        font:
+          16px system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          'Segoe UI',
+          sans-serif;
+      }
+      .app {
+        max-width: 860px;
+        min-height: 100vh;
+        margin: auto;
+        background: #fff;
+        padding: 20px;
+      }
+      .bar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #cfeaf2;
+        padding-bottom: 14px;
+      }
+      .bar img {
+        width: 136px;
+        max-width: 48%;
+      }
+      .card {
+        border: 1px solid #cfeaf2;
+        border-radius: 16px;
+        padding: 20px;
+        margin-top: 18px;
+      }
+      .label {
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        color: #63818a;
+      }
+      h1 {
+        margin: 6px 0 4px;
+        font-size: 28px;
+      }
+      .total {
+        margin: 0 0 18px;
+        font-size: 22px;
+        font-weight: 800;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .field {
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #f7fcfd;
+      }
+      .field strong,
+      .field span {
+        display: block;
+      }
+      .field strong {
+        font-size: 12px;
+        letter-spacing: 0.04em;
+        color: #63818a;
+      }
+      .field span {
+        margin-top: 4px;
+        overflow-wrap: anywhere;
+      }
+      .wide {
+        grid-column: 1/-1;
+      }
+      table {
+        width: 100%;
+        margin-top: 18px;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      th,
+      td {
+        padding: 8px;
+        border-bottom: 1px solid #e8f2f5;
+        text-align: left;
+        vertical-align: top;
+      }
+      th {
+        color: #63818a;
+        font-size: 12px;
+        letter-spacing: 0.04em;
+      }
+      td.amount,
+      th.amount {
+        text-align: right;
+        white-space: nowrap;
+      }
+      tfoot td {
+        border-bottom: 0;
+        font-weight: 800;
+      }
+      .notice {
+        margin-top: 12px;
+        padding: 10px 12px;
+        border-radius: 10px;
+        background: #fff4ef;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 18px;
+      }
+      a.button,
+      button,
+      .bar a {
+        display: inline-block;
+        padding: 9px 12px;
+        border: 1px solid #cfeaf2;
+        border-radius: 8px;
+        color: #277b91;
+        background: #fff;
+        font: inherit;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .error {
+        color: #a44b2e;
+      }
+      @media (max-width: 600px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      @media print {
+        @page {
+          margin: 10mm;
+        }
+        body {
+          background: #fff;
+        }
+        .bar a,
+        .actions,
+        .receipt-link {
+          display: none !important;
+        }
+        .app {
+          max-width: none;
+          padding: 0;
+        }
+        .card {
+          border: 0;
+          padding: 0;
+        }
+        table {
+          font-size: 11px;
+        }
+      }
+    </style>
+    <link rel="stylesheet" href="/mobile.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="bar">
+        <img src="/oxygen-care-logo-supplied.jpeg" alt="Oxygen Care" /><a
+          id="back"
+          href="/reports.html?tab=reimbursements"
+          >Back</a
+        >
+      </header>
+      <section id="content" class="card">Loading reimbursement…</section>
+    </main>
+    <script src="/csv.js"></script>
+    <script src="/http.js"></script>
+    <script>
+      (() => {
+        'use strict';
+        const query = new URLSearchParams(location.search),
+          api = window.oxygenApi,
+          root = document.querySelector('#content');
+        const money = value =>
+          new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(
+            Number(value) || 0
+          );
+        const day = value =>
+          value
+            ? new Date(value.length === 10 ? `${value}T12:00:00` : value).toLocaleDateString(
+                undefined,
+                { day: 'numeric', month: 'short', year: 'numeric' }
+              )
+            : '—';
+        const make = (tag, attributes = {}, ...children) => {
+          const node = document.createElement(tag);
+          for (const [key, value] of Object.entries(attributes))
+            if (key === 'text') node.textContent = value;
+            else if (key === 'class') node.className = value;
+            else node.setAttribute(key, value);
+          node.append(...children.filter(Boolean));
+          return node;
+        };
+        // Back returns to the report with its filters; only the reports page is allowed.
+        const requested = query.get('returnTo') || '';
+        if (requested.startsWith('/reports.html')) document.querySelector('#back').href = requested;
+        const field = (label, value, wide = false) =>
+          make(
+            'div',
+            { class: `field${wide ? ' wide' : ''}` },
+            make('strong', { text: label }),
+            make('span', { text: value || '—' })
+          );
+        function render({ reimbursement: item, user, expenses, missing }) {
+          const person = user.fullName || user.email;
+          document.title = `Reimbursement ${item.reference || ''} · ${person} · Oxygen Care`;
+          const total = expenses.reduce((sum, expense) => sum + Number(expense.amount || 0), 0);
+          const table = make(
+            'table',
+            {},
+            make(
+              'thead',
+              {},
+              make(
+                'tr',
+                {},
+                ...['Date', 'Merchant', 'Category', 'Note'].map(text => make('th', { text })),
+                make('th', { class: 'amount', text: 'Amount' }),
+                make('th', { class: 'receipt-link', text: 'Receipt' })
+              )
+            ),
+            make(
+              'tbody',
+              {},
+              ...expenses.map(expense => {
+                const receipt = make('td', { class: 'receipt-link' });
+                if (expense.hasReceipt)
+                  receipt.append(
+                    make('a', {
+                      href: `/api/expenses/${encodeURIComponent(expense.id)}/receipt/view?returnTo=${encodeURIComponent(location.pathname + location.search)}`,
+                      text: 'View receipt'
+                    })
+                  );
+                else receipt.textContent = '—';
+                return make(
+                  'tr',
+                  {},
+                  make('td', { text: day(expense.date) }),
+                  make('td', { text: expense.merchant }),
+                  make('td', { text: expense.category }),
+                  make('td', { text: expense.note || '—' }),
+                  make('td', { class: 'amount', text: money(expense.amount) }),
+                  receipt
+                );
+              })
+            ),
+            make(
+              'tfoot',
+              {},
+              make(
+                'tr',
+                {},
+                make('td', { colspan: '4', text: `Total · ${expenses.length} expenses` }),
+                make('td', { class: 'amount', text: money(total) }),
+                make('td', { class: 'receipt-link' })
+              )
+            )
+          );
+          const csv = () => {
+            const quote = window.oxygenCsvCell;
+            const rows = [
+              ['Reimbursement reference', item.reference || ''],
+              ['Employee', person],
+              ['Department', user.department || ''],
+              ['Payment date', item.paymentDate || ''],
+              ['Sent', item.sentAt || ''],
+              ['Sent by', item.sentBy || ''],
+              ['Message', item.message || ''],
+              ['Reimbursed total', item.amount ?? '', item.currency || 'EUR'],
+              [],
+              ['Date', 'Merchant', 'Category', 'Note', 'Amount', 'Currency'],
+              ...expenses.map(expense => [
+                expense.date,
+                expense.merchant,
+                expense.category,
+                expense.note || '',
+                expense.amount,
+                expense.currency || 'EUR'
+              ]),
+              ['', '', '', 'Total', Math.round(total * 100) / 100, 'EUR']
+            ];
+            const link = make('a', {
+              href: URL.createObjectURL(
+                new Blob([rows.map(row => row.map(quote).join(',')).join('\r\n')], {
+                  type: 'text/csv;charset=utf-8'
+                })
+              ),
+              download: `oxygen-care-reimbursement-${(item.reference || item.id).replace(/[^A-Za-z0-9-]+/g, '-')}.csv`
+            });
+            link.click();
+            setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+          };
+          const print = make('button', { type: 'button', text: 'Print / Save PDF' }),
+            download = make('button', { type: 'button', text: 'Download CSV' });
+          print.onclick = () => window.print();
+          download.onclick = csv;
+          root.replaceChildren(
+            make('div', { class: 'label', text: 'REIMBURSEMENT' }),
+            make('h1', { text: person }),
+            make('p', { class: 'total', text: money(item.amount) }),
+            make(
+              'div',
+              { class: 'grid' },
+              field('PAYMENT DATE', day(item.paymentDate)),
+              field('REFERENCE', item.reference),
+              field('DEPARTMENT', user.department),
+              field('SENT', day(item.sentAt)),
+              field('SENT BY', item.sentBy),
+              field('STATUS', item.dismissedAt ? 'Viewed / dismissed' : 'Sent / unread'),
+              item.message ? field('MESSAGE', item.message, true) : null
+            ),
+            table,
+            missing
+              ? make('p', {
+                  class: 'notice',
+                  text: `${missing} expense${missing === 1 ? ' in this reimbursement has' : 's in this reimbursement have'} since been deleted and ${missing === 1 ? 'is' : 'are'} not listed.`
+                })
+              : null,
+            make('div', { class: 'actions' }, print, download)
+          );
+        }
+        const userId = query.get('userId') || '',
+          id = query.get('id') || '';
+        if (!/^[A-Za-z0-9]+$/.test(userId) || !/^[A-Za-z0-9]+$/.test(id)) {
+          root.className = 'card error';
+          root.textContent = 'No reimbursement selected.';
+          return;
+        }
+        api(`/api/users/${userId}/reimbursements/${id}`)
+          .then(render)
+          .catch(error => {
+            root.className = 'card error';
+            root.textContent = error.message;
+          });
+      })();
+    </script>
+  </body>
+</html>

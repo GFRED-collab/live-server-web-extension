@@ -90,6 +90,14 @@
         border-radius: 50%;
         display: inline-block;
       }
+      tr.expense-row {
+        cursor: pointer;
+      }
+      tr.expense-row:hover,
+      tr.expense-row:focus {
+        background: #f2fafc;
+        outline: none;
+      }
       tr.month-group td {
         padding-top: 14px;
         background: #f2fafc;
@@ -865,6 +873,28 @@
         $('#reimbRows').replaceChildren(
           ...visible.map(item => {
             const row = document.createElement('tr');
+            // Opens the reimbursement with its expenses, ready to print or export.
+            const open = () => {
+              const details = new URLSearchParams({
+                userId: item.user.id,
+                id: item.id,
+                returnTo: `${location.pathname}${location.search}`
+              });
+              location.href = `/reimbursement-detail.html?${details}`;
+            };
+            row.className = 'expense-row';
+            row.tabIndex = 0;
+            row.setAttribute(
+              'aria-label',
+              `Open reimbursement ${item.reference || ''} for ${personName(item.user)}`
+            );
+            row.onclick = open;
+            row.onkeydown = event => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                open();
+              }
+            };
             cell(row, new Date(item.sentAt).toLocaleDateString());
             cell(row, personName(item.user));
             cell(row, item.user.department || '—');

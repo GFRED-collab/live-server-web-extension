@@ -232,4 +232,40 @@ test('approval rules, department odometer readings and the approvals dashboard',
     (await call(`/api/expenses/${endedTwo.id}`, { method: 'DELETE', cookie: admin })).status,
     200
   );
+  // 7. A reimbursement opens with the expenses it paid, for printing and export.
+  const staffId = (await call('/api/auth/me', { cookie: staff })).body.user.id;
+  const sent = await call(`/api/users/${staffId}/reimbursements`, {
+    method: 'POST',
+    cookie: admin,
+    body: {
+      expenseIds: [superCurrent.id, ended.id],
+      paymentDate: today,
+      reference: 'PAY-001',
+      message: 'Paid by bank transfer'
+    }
+  });
+  assert.equal(sent.status, 201, JSON.stringify(sent.body));
+  const reimbursementId = sent.body.reimbursement.id;
+  const detailPath = `/api/users/${staffId}/reimbursements/${reimbursementId}`;
+  assert.equal((await call(detailPath, { cookie: head })).status, 403);
+  assert.equal((await call(detailPath, { cookie: staff })).status, 403);
+  assert.equal((await call(`${detailPath}0`, { cookie: admin })).status, 404);
+  const detail = (await call(detailPath, { cookie: admin })).body;
+  assert.equal(detail.reimbursement.reference, 'PAY-001');
+  assert.equal(detail.reimbursement.amount, 50);
+  assert.equal(detail.user.email, 'staff@example.test');
+  // Oldest first, whatever order they were selected in.
+  assert.deepEqual(
+    detail.expenses.map(item => item.id),
+    [ended.id, superCurrent.id]
+  );
+  assert.equal(detail.missing, 0);
+  // An expense deleted later is reported as missing rather than breaking the page.
+  assert.equal(
+    (await call(`/api/expenses/${superCurrent.id}`, { method: 'DELETE', cookie: admin })).status,
+    200
+  );
+  const afterDelete = (await call(detailPath, { cookie: admin })).body;
+  assert.equal(afterDelete.expenses.length, 1);
+  assert.equal(afterDelete.missing, 1);
 });
