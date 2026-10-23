@@ -1504,7 +1504,9 @@ export default function HomePage() {
         method: 'POST',
         body: JSON.stringify({ email: values.get('email'), password: values.get('password') })
       });
-      setSecondStep(next);
+      // Two-step sign-in is switched off on this server: the password alone signs in.
+      if (next.step === 'none') await finishSignIn();
+      else setSecondStep(next);
     } catch (reason) {
       setLoginError(reason instanceof Error ? reason.message : 'Sign-in failed.');
     }

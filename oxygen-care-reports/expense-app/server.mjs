@@ -53,6 +53,9 @@ let dataWriteQueue = Promise.resolve();
 let auditWriteQueue = Promise.resolve();
 const sessionHours = 12;
 const sessionIdleMinutes = positiveInteger(process.env.SESSION_IDLE_MINUTES, 20, 12 * 60);
+// TWO_STEP_SIGN_IN=off turns the authenticator step off for everyone (temporary, until the hosting
+// migration). Saved authenticators are kept for when it is turned back on.
+const twoStepEnabled = process.env.TWO_STEP_SIGN_IN !== 'off';
 function positiveInteger(value, fallback, maximum) {
   const parsed = Number(value);
   return Number.isInteger(parsed) && parsed > 0 && parsed <= maximum ? parsed : fallback;
@@ -1037,6 +1040,15 @@ async function login(req, res) {
       return send(res, 401, { error: 'Email or password is incorrect.' });
     }
     await clearLoginFailures(lock);
+    if (!twoStepEnabled) {
+      await audit('login_succeeded', {
+        userId: user.id,
+        role: user.role,
+        ip: req.socket.remoteAddress || 'unknown',
+        secondStep: 'off'
+      });
+      return startSession(res, user, { step: 'none' });
+    }
     // The password is right; the session starts only after the code (/api/auth/verify).
     mfaKey();
     pruneChallenges();

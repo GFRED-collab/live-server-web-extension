@@ -31,6 +31,12 @@ export type SecondStep =
   | { step: 'totp_setup'; key: string; otpauthUrl: string }
   | { step: 'email'; sentTo: string };
 
+/**
+ * TWO_STEP_SIGN_IN=off in the server settings turns the second step off for everyone (a temporary
+ * measure until the hosting migration). Saved authenticators are kept for when it is turned back on.
+ */
+export const twoStepEnabled = () => process.env.TWO_STEP_SIGN_IN !== 'off';
+
 /** Staff need the authenticator app (set up on first use); customers get an email code. */
 export async function startSecondStep(
   db: Pool | PoolClient,

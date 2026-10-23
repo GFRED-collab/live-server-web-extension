@@ -67,3 +67,15 @@ test('two-step sign-in: setup, codes, recovery, limits, and resets',async()=>{
   assert.throws(()=>execFileSync(process.execPath,['scripts/reset-mfa.mjs','nobody@test.com',dir],{stdio:'pipe'}),e=>e.stderr.toString().includes('No account'));
  }finally{app.server.closeAllConnections();await new Promise(r=>app.server.close(r));await rm(dir,{recursive:true,force:true});}
 });
+
+test('with TWO_STEP_SIGN_IN off, the password alone signs in and no key is needed',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'occ-two-step-off-'));const app=createApp({dataDir:dir,origin:'https://occ.test',production:true,setupToken:'test',twoStep:false});
+ await new Promise(r=>app.server.listen(0,'127.0.0.1',r));const base='http://127.0.0.1:'+app.server.address().port,h={Origin:'https://occ.test','Content-Type':'application/json'};
+ try{
+  await fetch(base+'/api/setup',{method:'POST',headers:h,body:JSON.stringify({token:'test',name:'Admin',email:'admin@test.com',password:'Strong-password-2026!'})});
+  const r=await fetch(base+'/api/login',{method:'POST',headers:h,body:JSON.stringify({email:'admin@test.com',password:'Strong-password-2026!'})});const body=await r.json();
+  assert.equal(r.status,200);assert.equal(body.step,'none');assert.ok(body.csrf);assert.match(r.headers.get('set-cookie'),/^__Host-occ_session=/);
+  assert.equal((await fetch(base+'/api/me',{headers:{Cookie:r.headers.get('set-cookie').split(';')[0]}})).status,200);
+  assert.equal(app.db.prepare("SELECT detail FROM audit WHERE action='login.success'").get().detail,'{"secondStep":"off"}');
+ }finally{app.server.closeAllConnections();await new Promise(r=>app.server.close(r));await rm(dir,{recursive:true,force:true});}
+});

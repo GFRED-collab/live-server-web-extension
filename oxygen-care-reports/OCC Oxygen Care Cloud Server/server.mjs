@@ -44,6 +44,8 @@ export function createApp(options={}){
   const extraOrigins=(options.extraOrigins??String(process.env.APP_EXTRA_ORIGINS||'').split(',')).map(value=>value.trim()).filter(Boolean);
   for(const extra of extraOrigins){let url;try{url=new URL(extra);}catch{url=null;}ensure(url&&url.origin===extra&&(!production||url.protocol==='https:'),500,'APP_EXTRA_ORIGINS must list HTTPS origins without paths, separated by commas.');}
   const allowedOrigins=new Set([origin,...extraOrigins]);
+  // TWO_STEP_SIGN_IN=off turns the authenticator step off for everyone (temporary, until the hosting migration).
+  const twoStep=options.twoStep??process.env.TWO_STEP_SIGN_IN!=='off';
   const maxFile=Number(options.maxFile??process.env.MAX_FILE_BYTES??100000000);
   const quota=Number(options.quota??process.env.STORAGE_QUOTA_BYTES??5000000000);
   ensure(Number.isSafeInteger(maxFile)&&maxFile>0&&Number.isSafeInteger(quota)&&quota>=maxFile,500,'Invalid storage limits.');
@@ -138,7 +140,7 @@ export function createApp(options={}){
         if(!u?.active||!valid){failedAttempt(key);failedAttempt(ipKey);failedAttempt(accountKey);audit(null,'login.failed',null,{email:e});fail(401,'Email or password is incorrect, or your account is inactive.');}
         // Re-read after asynchronous password verification to honour revocation/reset.
         const fresh=get('SELECT * FROM users WHERE id=?',u.id);ensure(fresh?.active&&fresh.password_hash===u.password_hash,401,'Please sign in again.');u=fresh;if(upgraded)run('UPDATE users SET password_hash=? WHERE id=?',upgraded,u.id);run('DELETE FROM failures WHERE key=?',accountKey);
-        run('DELETE FROM failures WHERE key=?',key);return signIn.begin(res,u);
+        run('DELETE FROM failures WHERE key=?',key);if(!twoStep){const started=startSession(u,{secondStep:'off'});return json(res,200,{step:'none',user:publicUser(u),csrf:started.csrf},{'Set-Cookie':started.cookie});}return signIn.begin(res,u);
       }
       if(await signIn.handle(req,res,url))return;
       if(await sync.handle(req,res,url))return;

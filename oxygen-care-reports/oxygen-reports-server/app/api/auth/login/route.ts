@@ -3,7 +3,9 @@ import { createHash, randomBytes } from 'node:crypto';
 import QRCode from 'qrcode';
 import { getDb } from '../../../../lib/db';
 import { errorResponse, jsonObject } from '../../../../lib/http';
-import { startSecondStep } from '../../../../lib/sign-in';
+import { createSession } from '../../../../lib/auth';
+import { writeAudit } from '../../../../lib/audit';
+import { startSecondStep, twoStepEnabled } from '../../../../lib/sign-in';
 
 const failures = new Map<string, number[]>();
 const failureWindowMs = 15 * 60 * 1000;
@@ -64,6 +66,11 @@ export async function POST(request: Request) {
     }
     failures.delete(key);
     await db.query('DELETE FROM sessions WHERE expires_at <= now()');
+    if (!twoStepEnabled()) {
+      await createSession(account.id);
+      await writeAudit(db, account.id, 'signed_in', 'session', null, { secondStep: 'off' });
+      return Response.json({ step: 'none' });
+    }
     // The password is right; the session starts only after the second step (/api/auth/verify).
     let next;
     try {
