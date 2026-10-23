@@ -205,3 +205,26 @@ test('two-step sign-in: setup, codes, recovery, limits and resets', async t => {
   });
   assert.equal((await response.json()).step, 'totp_setup');
 });
+
+test('with TWO_STEP_SIGN_IN off, the password alone signs in and no key is needed', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'oxygen-expenses-mfa-off-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  await mkdir(join(directory, 'data'), { recursive: true });
+  await writeFile(
+    join(directory, 'data', 'settings.json'),
+    JSON.stringify({ categories: ['Other'], departments: ['Engineering'] })
+  );
+  const { base } = await startServer(t, directory, { TWO_STEP_SIGN_IN: 'off' });
+  const response = await fetch(`${base}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ email: 'admin@example.test', password: 'AdminPassword123!' })
+  });
+  const body = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(body.step, 'none');
+  assert.equal(body.user.email, 'admin@example.test');
+  const setCookie = response.headers.get('set-cookie');
+  const session = `oc_session=${cookie(setCookie, 'oc_session')}`;
+  assert.equal((await fetch(`${base}/api/auth/me`, { headers: { cookie: session } })).status, 200);
+});

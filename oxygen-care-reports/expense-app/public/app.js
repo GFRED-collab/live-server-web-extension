@@ -2039,8 +2039,10 @@
         method: 'POST',
         body: JSON.stringify({ email: $('#loginEmail').value, password: $('#loginPassword').value })
       });
-      // The password is right; next comes the authenticator code.
-      showCodeStep(result);
+      // Two-step sign-in is switched off on this server: the password alone signs in.
+      if (result.step === 'none') await finishSignIn(result);
+      // Otherwise the password is right; next comes the authenticator code.
+      else showCodeStep(result);
     } catch (error) {
       $('#loginError').textContent = error.message;
     }

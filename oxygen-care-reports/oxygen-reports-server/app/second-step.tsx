@@ -3,6 +3,7 @@ import { FormEvent, useState } from 'react';
 import './second-step.css';
 
 export type SecondStepInfo =
+  | { step: 'none' }
   | { step: 'totp' }
   | { step: 'totp_setup'; key: string; otpauthUrl: string; qrSvg: string }
   | { step: 'email'; sentTo: string };
@@ -166,8 +167,8 @@ export function SecondStep({
         <>
           <h2>Enter your sign-in code</h2>
           <p>
-            Open your authenticator app and enter the 6-digit code for Irish Hospital Supplies Reports. Lost
-            your phone? Enter one of your recovery codes instead.
+            Open your authenticator app and enter the 6-digit code for Irish Hospital Supplies
+            Reports. Lost your phone? Enter one of your recovery codes instead.
           </p>
         </>
       )}
