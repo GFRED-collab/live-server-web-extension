@@ -190,7 +190,7 @@ test('approval rules, department odometer readings and the approvals dashboard',
   assert.equal((await call('/api/reports/odometer', { cookie: admin })).body.readings.length, 2);
 
   // 5. The Super User dashboard counts due, not yet due and approved awaiting reimbursement.
-  assert.equal((await call('/api/dashboard/approvals', { cookie: head })).status, 403);
+  assert.equal((await call('/api/dashboard/approvals', { cookie: staff })).status, 403);
   const dashboard = (await call('/api/dashboard/approvals', { cookie: admin })).body;
   assert.deepEqual(dashboard.due, { count: 1, total: 30 });
   // The questioned current-month expense is waiting on the employee, not on approval.
@@ -199,6 +199,23 @@ test('approval rules, department odometer readings and the approvals dashboard',
   assert.deepEqual(
     dashboard.departments.map(row => row.department),
     ['Engineering']
+  );
+  // Department Heads get the same figures for their own department, per person.
+  await expense(sales, today, 99);
+  const headDashboard = (await call('/api/dashboard/approvals', { cookie: head })).body;
+  assert.equal(headDashboard.department, 'Engineering');
+  assert.deepEqual(headDashboard.due, { count: 1, total: 30 });
+  assert.deepEqual(headDashboard.notYetDue, { count: 1, total: 25 }, 'Sales is not included');
+  assert.deepEqual(headDashboard.awaitingReimbursement, { count: 2, total: 50 });
+  assert.equal(headDashboard.departments, undefined);
+  assert.deepEqual(
+    headDashboard.people.map(row => [row.user.email, row.due.count]),
+    [['staff@example.test', 1]]
+  );
+  assert.equal(
+    (await call('/api/dashboard/approvals', { cookie: admin })).body.notYetDue.count,
+    2,
+    'the Super User sees Sales too'
   );
 
   // 6. Once its month has ended an expense is locked for its owner while it is checked.

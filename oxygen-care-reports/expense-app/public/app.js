@@ -1190,6 +1190,7 @@
     // Phones show these in a different order (mobile.css): add, list, summary, mileage.
     const tagged = (node, name) => (node?.classList.add(name), node);
     setContent(
+      state.user.role === 'department_head' ? approvalsCard() : null,
       ...(notifications ? [notifications] : []),
       tagged(monthlyPieCard(), 'home-summary'),
       tagged(expenseForm(), 'home-add'),
@@ -1494,9 +1495,11 @@
     setContent(approvalsCard(), panel);
     await draw();
   }
-  // Super User overview: expenses due for approval (their month has ended), not yet due
-  // (current month), and approved expenses still awaiting reimbursement.
+  // Approvals overview: expenses due for approval (their month has ended), not yet due
+  // (current month), and approved expenses still awaiting reimbursement. Super Users see
+  // every department; Department Heads see each person in their own department.
   function approvalsCard() {
+    const head = state.user.role === 'department_head';
     const body = element('div', {}, notice('Loading approvals…'));
     const tile = (label, value, hint, tone) =>
       element(
@@ -1508,9 +1511,11 @@
       );
     api('/api/dashboard/approvals')
       .then(data => {
-        const rows = data.departments.filter(
+        const rows = (head ? data.people : data.departments).filter(
           row => row.due.count || row.notYetDue.count || row.awaitingReimbursement.count
         );
+        const rowText = row =>
+          `Due ${row.due.count} · Not yet due ${row.notYetDue.count} · Awaiting reimbursement ${row.awaitingReimbursement.count} (${euro(row.awaitingReimbursement.total)})`;
         body.replaceChildren(
           element(
             'div',
@@ -1528,17 +1533,39 @@
             ? element(
                 'div',
                 { class: 'approval-departments' },
-                ...rows.map(row =>
-                  element(
+                ...rows.map(row => {
+                  if (!head)
+                    return element(
+                      'div',
+                      { class: 'expense' },
+                      element('div', { class: 'grow merchant', text: row.department }),
+                      element('div', { class: 'meta', text: rowText(row) })
+                    );
+                  // A Department Head opens that person's expenses to review them.
+                  const open = () =>
+                    openReview(
+                      `/review-head.html?userId=${encodeURIComponent(row.user.id)}&returnTo=home`
+                    );
+                  const item = element(
                     'div',
-                    { class: 'expense' },
-                    element('div', { class: 'grow merchant', text: row.department }),
-                    element('div', {
-                      class: 'meta',
-                      text: `Due ${row.due.count} · Not yet due ${row.notYetDue.count} · Awaiting reimbursement ${row.awaitingReimbursement.count} (${euro(row.awaitingReimbursement.total)})`
-                    })
-                  )
-                )
+                    {
+                      class: 'expense expense-link',
+                      role: 'button',
+                      tabindex: '0',
+                      'aria-label': `Review expenses for ${personName(row.user)}`
+                    },
+                    element('div', { class: 'grow merchant', text: personName(row.user) }),
+                    element('div', { class: 'meta', text: rowText(row) })
+                  );
+                  item.addEventListener('click', open);
+                  item.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      open();
+                    }
+                  });
+                  return item;
+                })
               )
             : notice('Nothing is waiting for approval or reimbursement.', true),
           element(
@@ -1553,7 +1580,15 @@
         );
       })
       .catch(error => body.replaceChildren(notice(error.message)));
-    return card(element('div', { class: 'label', text: 'APPROVALS · DUE AND APPROVED' }), body);
+    return card(
+      element('div', {
+        class: 'label',
+        text: head
+          ? `MY DEPARTMENT · APPROVALS DUE${state.user.department ? ` · ${state.user.department.toUpperCase()}` : ''}`
+          : 'APPROVALS · DUE AND APPROVED'
+      }),
+      body
+    );
   }
   function userForm(existing = null) {
     const status = element('div');
