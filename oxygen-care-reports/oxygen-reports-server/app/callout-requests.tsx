@@ -1,4 +1,5 @@
 'use client';
+import { isoDateTime } from '../lib/dates';
 import { useEffect, useState } from 'react';
 import { EntryList } from './entry-list';
 
@@ -104,7 +105,7 @@ export function CalloutRequests({
         getKey={r => r.id}
         title={r => `${r.reference} · ${r.clientName}`}
         details={r => [
-          ['Sent', new Date(r.createdAt).toLocaleString('en-IE')],
+          ['Sent', isoDateTime(r.createdAt)],
           ['Client', r.clientName],
           ['Contract', [r.contractName, r.contractNumber].filter(Boolean).join(' · ')],
           ['Device', r.deviceName],
@@ -122,7 +123,7 @@ export function CalloutRequests({
         )}
         line={r => [
           r.reference,
-          new Date(r.createdAt).toLocaleString('en-IE'),
+          isoDateTime(r.createdAt),
           r.clientName,
           [r.deviceName, r.serialNumber].filter(Boolean).join(' '),
           r.description,
@@ -166,8 +167,8 @@ export function CalloutRequests({
               ['Decision', r.status === 'accepted' ? 'Accepted' : 'Declined'],
               ['Reason', r.status === 'declined' ? r.declineReason : ''],
               ['Decided by', r.decidedByName],
-              ['Decided', r.decidedAt ? new Date(r.decidedAt).toLocaleString('en-IE') : ''],
-              ['Sent', new Date(r.createdAt).toLocaleString('en-IE')],
+              ['Decided', r.decidedAt ? isoDateTime(r.decidedAt) : ''],
+              ['Sent', isoDateTime(r.createdAt)],
               ['Client', r.clientName],
               ['Device', [r.deviceName, r.serialNumber].filter(Boolean).join(' · ')],
               ['Problem', r.description],
@@ -176,7 +177,7 @@ export function CalloutRequests({
             badge={r => <span className="entry-badge">{r.status}</span>}
             line={r => [
               r.reference,
-              r.decidedAt && new Date(r.decidedAt).toLocaleString('en-IE'),
+              r.decidedAt && isoDateTime(r.decidedAt),
               r.clientName,
               r.description,
               r.status === 'declined' && `Reason: ${r.declineReason}`,

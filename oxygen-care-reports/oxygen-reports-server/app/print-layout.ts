@@ -1,3 +1,5 @@
+import { isoDate } from '../lib/dates';
+
 /** Apply the shared Irish Hospital Supplies stationery after a print document has been built. */
 export function brandPrintWindow(popup: Window) {
   popup.opener = null;
@@ -60,7 +62,7 @@ export function brandPrintWindow(popup: Window) {
       return logo.decode();
     });
   const date = doc.createElement('span');
-  date.textContent = 'Irish Hospital Supplies Reports\nPrepared: ' + new Date().toLocaleDateString('en-IE');
+  date.textContent = 'Irish Hospital Supplies Reports\nPrepared: ' + isoDate(new Date());
   brand.append(logo, date);
   doc.body.prepend(brand);
   const toolbar = doc.createElement('div');

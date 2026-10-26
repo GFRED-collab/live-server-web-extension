@@ -1,3 +1,4 @@
+import { isoDateTime } from '../lib/dates';
 import { brandPrintWindow } from './print-layout';
 import { serviceStatus } from '../lib/service-status';
 
@@ -55,7 +56,7 @@ export function serviceReportHtml({ visit: v, devices, signatures }: ServiceRepo
         s && /^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(s.signatureData)
           ? `<img src="${e(s.signatureData)}">`
           : '';
-      return `<div>${s ? `${image}<div class="line"><b>${e(s.signerName)}</b><br>${label} · ${e(new Date(s.signedAt).toLocaleString())}</div>` : `<div class="line">${label} signature</div>`}</div>`;
+      return `<div>${s ? `${image}<div class="line"><b>${e(s.signerName)}</b><br>${label} · ${e(isoDateTime(s.signedAt))}</div>` : `<div class="line">${label} signature</div>`}</div>`;
     })
     .join('')}</div>`;
 }

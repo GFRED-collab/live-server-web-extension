@@ -14,12 +14,7 @@
     ({ approved: 'Approved', declined: 'Declined', question: 'Questioned', pending: 'Pending' })[
       status
     ] || status;
-  const opensOn = expense =>
-    new Date(`${expense.approvalOpensOn}T12:00:00`).toLocaleDateString(undefined, {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric'
-    });
+  const opensOn = expense => window.isoDate(expense.approvalOpensOn);
   let records = [];
   const api = window.oxygenApi;
 

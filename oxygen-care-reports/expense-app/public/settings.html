@@ -219,12 +219,7 @@
           minimumFractionDigits: 2,
           maximumFractionDigits: 4
         }).format(Number(value) || 0);
-      const longDate = value =>
-        new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        });
+      const longDate = value => window.isoDate(value);
       function make(tag, properties = {}, ...children) {
         const node = Object.assign(document.createElement(tag), properties);
         node.append(...children);

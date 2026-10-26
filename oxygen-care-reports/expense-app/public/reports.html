@@ -641,13 +641,7 @@
       }
       // "Group by month": a heading row with the month's totals before each month's expenses.
       const monthOf = expense => String(expense.date || '').slice(0, 7);
-      const monthName = month =>
-        /^\d{4}-\d{2}$/.test(month)
-          ? new Date(`${month}-01T12:00:00`).toLocaleDateString(undefined, {
-              month: 'long',
-              year: 'numeric'
-            })
-          : 'Undated';
+      const monthName = month => (/^\d{4}-\d{2}$/.test(month) ? month : 'Undated');
       const sum = rows => rows.reduce((total, expense) => total + Number(expense.amount || 0), 0);
       function monthSummary(month, allRows) {
         const rows = allRows.filter(expense => monthOf(expense) === month);
@@ -941,7 +935,7 @@
                 open();
               }
             };
-            cell(row, new Date(item.sentAt).toLocaleDateString());
+            cell(row, window.isoDate(item.sentAt));
             cell(row, personName(item.user));
             cell(row, item.user.employeeCode || '—');
             cell(row, item.user.department || '—');
@@ -975,7 +969,7 @@
             'Viewed/dismissed at'
           ],
           ...rows.map(item => [
-            item.sentAt,
+            window.isoDateTime(item.sentAt),
             personName(item.user),
             item.user.employeeCode || '',
             item.user.department || '',
@@ -987,7 +981,7 @@
             item.expenseCount ?? '',
             Array.isArray(item.expenseIds) ? item.expenseIds.join(' ') : '',
             item.dismissedAt ? 'Viewed / dismissed' : 'Sent / unread',
-            item.dismissedAt || ''
+            window.isoDateTime(item.dismissedAt)
           ])
         ]
           .map(row => row.map(quote).join(','))
@@ -1480,7 +1474,7 @@
                   element('strong', { text: expense.merchant }),
                   element('div', {
                     class: 'meta',
-                    text: `${new Date(`${expense.date}T12:00:00`).toLocaleDateString()} · ${expense.category}${expense.note ? ` · ${expense.note}` : ''}`
+                    text: `${window.isoDate(expense.date)} · ${expense.category}${expense.note ? ` · ${expense.note}` : ''}`
                   })
                 ),
                 element('div', { class: 'amount', text: euro(expense.amount) })
@@ -1491,7 +1485,7 @@
             const selected = () =>
               selections.filter(item => item.checkbox.checked).map(item => item.expense);
             const suggestedMessage = records =>
-              `Your reimbursement of ${euro(expenseAmount(records))} for ${records.length} approved expense${records.length === 1 ? '' : 's'} was processed on ${paymentDate.value ? new Date(`${paymentDate.value}T12:00:00`).toLocaleDateString() : 'the selected payment date'}. Payment reference: ${reference.value.trim() || '[enter reference]'}.`;
+              `Your reimbursement of ${euro(expenseAmount(records))} for ${records.length} approved expense${records.length === 1 ? '' : 's'} was processed on ${paymentDate.value || 'the selected payment date'}. Payment reference: ${reference.value.trim() || '[enter reference]'}.`;
             const redraw = () => {
               const records = selected(),
                 amount = expenseAmount(records);
@@ -1550,7 +1544,7 @@
                     ),
                     element('div', {
                       class: 'meta',
-                      text: `Payment date: ${new Date(`${result.reimbursement.paymentDate}T12:00:00`).toLocaleDateString()} · Reference: ${result.reimbursement.reference}`
+                      text: `Payment date: ${window.isoDate(result.reimbursement.paymentDate)} · Reference: ${result.reimbursement.reference}`
                     }),
                     element(
                       'div',
