@@ -1588,9 +1588,19 @@ async function dashboardExpenses(req, res) {
 }
 // Super User dashboard: what is due for approval, what is not due yet (current month), and
 // approved expenses still awaiting reimbursement, overall and per department.
+// Super Users see every department; Department Heads see the regular users of their own
+// department (the expenses they approve), broken down per person.
 async function dashboardApprovals(req, res) {
-  if (!requireUser(req, res, 'super')) return;
-  const people = (await users()).filter(user => ['regular', 'department_head'].includes(user.role));
+  const viewer = requireUser(req, res);
+  if (!viewer) return;
+  if (!['super', 'department_head'].includes(viewer.role))
+    return send(res, 403, { error: 'Review access is required.' });
+  const head = viewer.role === 'department_head';
+  const people = (await users()).filter(user =>
+    head
+      ? user.role === 'regular' && user.department === viewer.department
+      : ['regular', 'department_head'].includes(user.role)
+  );
   const byId = new Map(people.map(user => [user.id, user]));
   const today = todayLocal();
   const empty = () => ({ count: 0, total: 0 });
@@ -1613,7 +1623,7 @@ async function dashboardApprovals(req, res) {
           ? 'awaitingReimbursement'
           : null;
     if (!bucket) continue;
-    const name = owner.department || 'Unassigned';
+    const name = head ? owner.id : owner.department || 'Unassigned';
     if (!departments.has(name)) departments.set(name, blank());
     for (const target of [overall, departments.get(name)]) {
       target[bucket].count += 1;
@@ -1621,6 +1631,19 @@ async function dashboardApprovals(req, res) {
         Math.round((target[bucket].total + Number(expense.amount || 0)) * 100) / 100;
     }
   }
+  if (head)
+    return send(res, 200, {
+      today,
+      department: viewer.department,
+      ...overall,
+      people: [...departments]
+        .map(([id, values]) => ({ user: publicUser(byId.get(id)), ...values }))
+        .sort((left, right) =>
+          (left.user.fullName || left.user.email).localeCompare(
+            right.user.fullName || right.user.email
+          )
+        )
+    });
   send(res, 200, {
     today,
     ...overall,
