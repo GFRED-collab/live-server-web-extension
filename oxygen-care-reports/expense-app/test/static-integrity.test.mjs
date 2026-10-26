@@ -429,7 +429,7 @@ test('editable text limits match in the browser and server', async () => {
   ]);
   assert.match(
     server,
-    /fullName: 100, email: 254, jobDescription: 120, carRegistration: 20, department: 80, category: 60, merchant: 120, note: 300, message: 300, password: 128/
+    /fullName: 100, email: 254, jobDescription: 120, carRegistration: 20, employeeCode: 20, department: 80, category: 60, merchant: 120, note: 300, message: 300, password: 128/
   );
   assert.match(server, /cleanField\(fullName, textLimits\.fullName\)/);
   assert.match(server, /validEmail\(normalised\)/);
