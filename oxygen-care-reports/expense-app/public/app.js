@@ -174,6 +174,8 @@
       );
     if (expense.reviewStatus === 'approved')
       body.append(element('div', { class: 'meta', text: 'APPROVED' }));
+    else if (expense.closed)
+      body.append(element('div', { class: 'meta', text: 'PERIOD CLOSED · LOCKED' }));
     else if (expense.ownerCanChange === false)
       body.append(element('div', { class: 'meta', text: 'BEING CHECKED · LOCKED' }));
     if (isCompanyPaid(expense))
@@ -217,7 +219,7 @@
         open(event);
       }
     });
-    if (state.user.role !== 'super' && expense.ownerCanChange !== false)
+    if (state.user.role !== 'super' && expense.ownerCanChange !== false && !expense.closed)
       row.append(
         button(
           '×',
@@ -578,6 +580,7 @@
       placeholder: 'Monthly business KM'
     });
     const reimbursement = element('input', { readonly: '', value: '—' });
+    const rateNote = element('p', { class: 'meta', text: 'Loading the mileage rate…' });
     const status = element('div');
     const saveButton = button('Save mileage expense', () => save(), 'primary');
     const editButton = button('Edit mileage expense', () => setEditing(true));
@@ -586,11 +589,14 @@
     const updatePreview = () => {
       const km = Number(kilometres.value);
       reimbursement.value =
-        Number.isFinite(km) && km > 0 ? euro(km * Number(state.settings.mileageRate || 0)) : '—';
+        Number.isFinite(km) && km > 0 ? euro(km * Number(loaded?.mileageRate || 0)) : '—';
     };
     const setEditing = editing => {
       const saved = loaded?.submitted === true,
-        locked = loaded?.reviewStatus === 'approved' || loaded?.ownerCanChange === false;
+        locked =
+          loaded?.reviewStatus === 'approved' ||
+          loaded?.ownerCanChange === false ||
+          loaded?.closed === true;
       month.disabled = editing;
       kilometres.readOnly = locked || (saved && !editing);
       saveButton.hidden = locked || (saved && !editing);
@@ -600,6 +606,9 @@
     const load = async () => {
       try {
         loaded = await api(`/api/mileage/month?month=${encodeURIComponent(month.value)}`);
+        rateNote.textContent = loaded.engineBand
+          ? `Expense claim only. Enter business kilometres for the month; reimbursement is calculated at €${Number(loaded.mileageRate || 0).toFixed(4)} per KM (${loaded.engineBandLabel}).`
+          : "Expense claim only. A Super User needs to set your car's engine size before mileage can be claimed.";
         kilometres.value = loaded.kilometres ?? '';
         reimbursement.value = loaded.amount == null ? '—' : euro(loaded.amount);
         setEditing(false);
@@ -609,9 +618,11 @@
             notice(
               loaded.reviewStatus === 'approved'
                 ? 'This mileage expense is approved and locked.'
-                : loaded.ownerCanChange === false
-                  ? 'This mileage expense is being checked now that its month has ended, so it is locked.'
-                  : `This mileage expense is ${loaded.reviewStatus}. Select Edit to change it.`,
+                : loaded.closed
+                  ? 'This month is closed for claims, so this mileage expense is locked.'
+                  : loaded.ownerCanChange === false
+                    ? 'This mileage expense is being checked now that its month has ended, so it is locked.'
+                    : `This mileage expense is ${loaded.reviewStatus}. Select Edit to change it.`,
               true
             )
           );
@@ -646,10 +657,7 @@
     load();
     return card(
       element('div', { class: 'label', text: 'MONTHLY MILEAGE EXPENSE' }),
-      element('p', {
-        class: 'meta',
-        text: `Expense claim only. Enter business kilometres for the month; reimbursement is calculated at €${Number(state.settings.mileageRate || 0).toFixed(4)} per KM.`
-      }),
+      rateNote,
       element(
         'div',
         { class: 'grid' },
@@ -1023,7 +1031,10 @@
       field('MERCHANT', expense.merchant),
       field('DATE', expense.date),
       field('AMOUNT', euro(expense.amount)),
-      field('CATEGORY', expense.category),
+      field(
+        'CATEGORY',
+        expense.categoryCode ? `${expense.category} · ${expense.categoryCode}` : expense.category
+      ),
       field('NOTE', expense.note || 'None'),
       field('REVIEW STATUS', statusLabel)
     ];
@@ -1087,18 +1098,20 @@
         text:
           status === 'approved'
             ? 'Approved expenses are locked and cannot be edited.'
-            : expense.ownerCanChange === false
-              ? 'This expense is being checked now that its month has ended, so it is locked. You can change it if your manager questions or declines it.'
-              : status === 'pending'
-                ? 'This expense can be edited until its month ends; then it is locked while it is checked.'
-                : 'Your manager has sent this expense back. Edit it to respond; it then returns for review.'
+            : expense.closed
+              ? 'This expense is dated before the cut-off date set by a Super User, so it is locked.'
+              : expense.ownerCanChange === false
+                ? 'This expense is being checked now that its month has ended, so it is locked. You can change it if your manager questions or declines it.'
+                : status === 'pending'
+                  ? 'This expense can be edited until its month ends; then it is locked while it is checked.'
+                  : 'Your manager has sent this expense back. Edit it to respond; it then returns for review.'
       }),
       element('div', { class: 'grid' }, ...fields),
       expense.reviewNote ? notice(`Review message: ${expense.reviewNote}`) : null,
       element(
         'div',
         { class: 'actions' },
-        state.user.role !== 'super' && expense.ownerCanChange !== false
+        state.user.role !== 'super' && expense.ownerCanChange !== false && !expense.closed
           ? button(
               status === 'question'
                 ? 'Respond / Edit expense'
@@ -1588,8 +1601,19 @@
     ])
       role.append(element('option', { value, text }));
     const job = element('input', { maxlength: '120', value: existing?.jobDescription || '' }),
+      employeeCode = element('input', {
+        maxlength: '20',
+        value: existing?.employeeCode || '',
+        autocomplete: 'off',
+        placeholder: 'e.g. E1024'
+      }),
       car = element('input', { maxlength: '20', value: existing?.carRegistration || '' }),
+      engineBand = element('select'),
       mileage = element('input', { type: 'checkbox' });
+    engineBand.append(element('option', { value: '', text: 'Not set' }));
+    for (const band of state.settings.engineBands || [])
+      engineBand.append(element('option', { value: band.key, text: band.label }));
+    engineBand.value = existing?.engineBand || '';
     if (existing) {
       email.disabled = true;
       department.value = existing.department;
@@ -1602,7 +1626,9 @@
         fullName: fullName.value,
         department: department.value,
         jobDescription: job.value,
+        employeeCode: employeeCode.value,
         carRegistration: car.value,
+        engineBand: engineBand.value,
         mileageEnabled: mileage.checked
       };
       if (!existing)
@@ -1629,8 +1655,10 @@
       ),
       element('label', { class: 'field', text: 'DEPARTMENT' }, department),
       element('label', { class: `field${existing ? ' hidden' : ''}`, text: 'ACCOUNT TYPE' }, role),
+      element('label', { class: 'field', text: 'EMPLOYEE CODE' }, employeeCode),
       element('label', { class: 'field', text: 'JOB DESCRIPTION' }, job),
       element('label', { class: 'field', text: 'CAR REGISTRATION' }, car),
+      element('label', { class: 'field', text: 'ENGINE SIZE (FOR MILEAGE RATE)' }, engineBand),
       element('label', { class: 'field checkbox-field', text: 'ALLOW MILEAGE EXPENSES' }, mileage),
       element(
         'div',
@@ -1660,8 +1688,14 @@
           field('FULL NAME', state.user.fullName),
           field('EMAIL ADDRESS', state.user.email),
           field('DEPARTMENT', state.user.department),
+          field('EMPLOYEE CODE', state.user.employeeCode),
           field('JOB DESCRIPTION', state.user.jobDescription),
           field('CAR REGISTRATION', state.user.carRegistration),
+          field(
+            'ENGINE SIZE',
+            (state.settings.engineBands || []).find(band => band.key === state.user.engineBand)
+              ?.label
+          ),
           element(
             'div',
             { class: 'actions' },
@@ -1821,7 +1855,9 @@
       select.append(
         element('option', {
           value: person.id,
-          text: `${personName(person)}${person.department ? ` · ${person.department}` : ''}`
+          text: [personName(person), person.employeeCode, person.department]
+            .filter(Boolean)
+            .join(' · ')
         })
       )
     );
@@ -1834,7 +1870,7 @@
         element('strong', { text: personName(person) }),
         element('div', {
           class: 'meta',
-          text: `${person.email} · ${[person.department, person.jobDescription, person.carRegistration].filter(Boolean).join(' · ')}`
+          text: `${person.email} · ${[person.employeeCode, person.department, person.jobDescription, person.carRegistration].filter(Boolean).join(' · ')}`
         }),
         ...authenticatorControls(person, message => details.append(notice(message))),
         element(
@@ -1916,7 +1952,9 @@
       headSelect.append(
         element('option', {
           value: person.id,
-          text: `${personName(person)}${person.department ? ` · ${person.department}` : ''}`
+          text: [personName(person), person.employeeCode, person.department]
+            .filter(Boolean)
+            .join(' · ')
         })
       )
     );

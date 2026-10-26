@@ -30,6 +30,13 @@ Any signed-in user can select a date range from **Export**, then download the ma
 
 When a user scans a JPEG, PNG, or WebP receipt, the image is saved only when the expense is saved. Attachments are stored privately in `data/receipts/`, outside the public web folder. Uploaded images are structurally checked and bounded by pixel dimensions; PDFs are parsed by `pdfinfo`, limited to 20 pages, and rejected if malformed or password protected. Total receipt storage is capped at 2 GiB by default and can be changed with `RECEIPT_STORAGE_MAX_BYTES`. The expense owner, a Super User, and the owner's Department Head can open an attached receipt; deleting the expense or its regular-user account also removes the stored image. PDF receipts are rendered as page images for an iPhone-safe in-app preview using `pdfinfo` and `pdftoppm` from `poppler-utils`; downloads always return the unchanged original PDF. Back up `data/` as one unit so receipt attachments and their expense records remain together.
 
+## Super User settings
+
+- **Employee codes:** each user can have an employee code (letters, numbers or hyphens, unique). It appears in the user lists, the expense and odometer reports, the reimbursement lookup and their CSV exports, and each report has a "Name or employee code" search.
+- **Categories:** each category can carry an optional 6-digit code (for example an accounts code), shown in reports and exports. Categories can be renamed from Settings; existing expenses move to the new name. Fuel Card and Mileage Expense keep their names.
+- **Cut-off date:** in Settings, a Super User can close older periods. Staff cannot add, change or delete expenses dated before the cut-off (for a mileage claim, the last day of its month). Clear it to allow any date.
+- **Mileage rates by engine size:** Settings holds a rate per KM for up to 1,200cc, 1,201–1,500cc, 1,501cc and over, and electric cars. Each mileage user's engine size is set on their profile; until it is, they cannot claim mileage. Older single-rate settings become the starting rate for every band.
+
 ## Production checklist
 
 - Use only `./deploy-server.sh` for updates to the existing Ubuntu server. See

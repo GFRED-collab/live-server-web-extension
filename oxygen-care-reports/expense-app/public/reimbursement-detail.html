@@ -261,7 +261,12 @@
                   {},
                   make('td', { 'data-label': 'Date', text: day(expense.date) }),
                   make('td', { 'data-label': 'Merchant', text: expense.merchant }),
-                  make('td', { 'data-label': 'Category', text: expense.category }),
+                  make('td', {
+                    'data-label': 'Category',
+                    text: expense.categoryCode
+                      ? `${expense.category} · ${expense.categoryCode}`
+                      : expense.category
+                  }),
                   make('td', { 'data-label': 'Note', text: expense.note || '—' }),
                   make('td', {
                     class: 'amount',
@@ -289,6 +294,7 @@
             const rows = [
               ['Reimbursement reference', item.reference || ''],
               ['Employee', person],
+              ['Employee code', user.employeeCode || ''],
               ['Department', user.department || ''],
               ['Payment date', item.paymentDate || ''],
               ['Sent', item.sentAt || ''],
@@ -296,16 +302,17 @@
               ['Message', item.message || ''],
               ['Reimbursed total', item.amount ?? '', item.currency || 'EUR'],
               [],
-              ['Date', 'Merchant', 'Category', 'Note', 'Amount', 'Currency'],
+              ['Date', 'Merchant', 'Category', 'Category code', 'Note', 'Amount', 'Currency'],
               ...expenses.map(expense => [
                 expense.date,
                 expense.merchant,
                 expense.category,
+                expense.categoryCode || '',
                 expense.note || '',
                 expense.amount,
                 expense.currency || 'EUR'
               ]),
-              ['', '', '', 'Total', Math.round(total * 100) / 100, 'EUR']
+              ['', '', '', '', 'Total', Math.round(total * 100) / 100, 'EUR']
             ];
             const link = make('a', {
               href: URL.createObjectURL(
@@ -332,6 +339,7 @@
                 { class: 'grid' },
                 field('PAYMENT DATE', day(item.paymentDate)),
                 field('REFERENCE', item.reference),
+                field('EMPLOYEE CODE', user.employeeCode),
                 field('DEPARTMENT', user.department),
                 field('SENT', day(item.sentAt)),
                 field('SENT BY', item.sentBy),

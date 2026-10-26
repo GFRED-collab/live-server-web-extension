@@ -97,6 +97,9 @@
         padding: 0;
         list-style: none;
       }
+      .list li form input {
+        margin: 4px 0;
+      }
       .list li {
         display: flex;
         align-items: center;
@@ -127,33 +130,32 @@
       <section class="card">
         <h1>Departments, categories &amp; mileage</h1>
         <p class="meta">
-          The mileage rate is the Euro amount paid per kilometre. Mileage entries are calculated
-          automatically using this rate.
+          Mileage is paid per kilometre at the rate for the engine size of each person's car (set on
+          their user profile). Mileage claims are calculated automatically.
         </p>
         <div class="grid">
           <form id="rateForm">
-            <div class="label">MILEAGE / FUEL RATE (€ PER KM)</div>
-            <input
-              name="mileageRate"
-              type="number"
-              min="0"
-              max="100"
-              step="0.0001"
-              required
-              disabled
-            />
+            <div class="label">MILEAGE RATES (€ PER KM)</div>
+            <div id="rateFields"></div>
             <div>
-              <button id="editRate" type="button">Edit rate</button>
-              <button id="saveRate" class="primary hidden" type="submit">Save rate</button>
+              <button id="editRate" type="button">Edit rates</button>
+              <button id="saveRate" class="primary hidden" type="submit">Save rates</button>
               <button id="cancelRate" class="hidden" type="button">Cancel</button>
             </div>
           </form>
-
-          <div>
-            <div class="label">CURRENT RATE</div>
-            <p id="rateSummary" class="meta">Loading…</p>
-          </div>
-
+          <form id="cutoffForm">
+            <div class="label">EXPENSE CUT-OFF DATE</div>
+            <p class="meta">
+              Staff cannot add, change or delete expenses dated before this date. Move it forward to
+              close a period; clear it to allow any date.
+            </p>
+            <input name="cutoff" type="date" />
+            <div>
+              <button class="primary" type="submit">Save cut-off</button>
+              <button id="clearCutoff" type="button">Clear</button>
+            </div>
+            <p id="cutoffSummary" class="meta">Loading…</p>
+          </form>
           <form id="departmentForm">
             <div class="label">ADD DEPARTMENT</div>
             <input
@@ -165,7 +167,6 @@
             />
             <button class="primary" type="submit">Add department</button>
           </form>
-
           <form id="categoryForm">
             <div class="label">ADD EXPENSE CATEGORY</div>
             <input
@@ -173,6 +174,14 @@
               maxlength="60"
               required
               placeholder="e.g. Training"
+              autocomplete="off"
+            />
+            <input
+              name="code"
+              inputmode="numeric"
+              maxlength="6"
+              pattern="[0-9]{6}"
+              placeholder="6-digit code (optional)"
               autocomplete="off"
             />
             <label class="company-paid-option"
@@ -183,7 +192,6 @@
         </div>
         <p id="status" class="meta" aria-live="polite"></p>
       </section>
-
       <section class="card">
         <div class="grid">
           <div>
@@ -201,9 +209,9 @@
     <script src="/http.js"></script>
     <script>
       const $ = selector => document.querySelector(selector);
-      let savedRate = 0;
       const api = window.oxygenApi;
-
+      const requiredCategories = ['Fuel Card', 'Mileage Expense'];
+      let settings = { mileageRates: {}, engineBands: [], categoryCodes: {} };
       const euro = value =>
         new Intl.NumberFormat(undefined, {
           style: 'currency',
@@ -211,61 +219,135 @@
           minimumFractionDigits: 2,
           maximumFractionDigits: 4
         }).format(Number(value) || 0);
-
+      const longDate = value =>
+        new Date(`${value}T12:00:00`).toLocaleDateString(undefined, {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        });
+      function make(tag, properties = {}, ...children) {
+        const node = Object.assign(document.createElement(tag), properties);
+        node.append(...children);
+        return node;
+      }
       function status(message, bad = false) {
         $('#status').style.color = bad ? '#a5412e' : '#176958';
         $('#status').textContent = message;
       }
-
-      function list(id, values, kind, companyPaidCategories = []) {
-        $(id).replaceChildren(
+      function departmentList(values) {
+        $('#departments').replaceChildren(
           ...values.map(value => {
-            const item = document.createElement('li');
-            const name = document.createElement('span');
-            name.textContent =
-              value +
-              (kind === 'category'
-                ? companyPaidCategories.includes(value)
-                  ? ' · Company paid'
-                  : ' · Expense'
-                : '');
-            const remove = document.createElement('button');
-            remove.type = 'button';
-            remove.className = 'delete';
-            remove.textContent = 'Delete';
-            remove.addEventListener('click', () => removeListItem(kind, value));
-            item.append(name, remove);
-            return item;
+            const remove = make('button', {
+              type: 'button',
+              className: 'delete',
+              textContent: 'Delete'
+            });
+            remove.addEventListener('click', () => removeListItem('department', value));
+            return make('li', {}, make('span', { textContent: value }), remove);
           })
         );
       }
-
+      function categoryItem(value) {
+        const code = settings.categoryCodes[value] || '',
+          kind = settings.companyPaidCategories.includes(value) ? 'Company paid' : 'Expense',
+          item = make('li'),
+          edit = make('button', { type: 'button', textContent: 'Edit' }),
+          remove = make('button', { type: 'button', className: 'delete', textContent: 'Delete' });
+        edit.addEventListener('click', () => editCategory(item, value));
+        remove.addEventListener('click', () => removeListItem('category', value));
+        item.append(
+          make('span', { textContent: [value, code, kind].filter(Boolean).join(' · ') }),
+          make('span', {}, edit, ' ', remove)
+        );
+        return item;
+      }
+      // Rename a category (its expenses follow the new name) or change its 6-digit code.
+      function editCategory(item, value) {
+        const name = make('input', { value, maxLength: 60, required: true }),
+          code = make('input', {
+            value: settings.categoryCodes[value] || '',
+            maxLength: 6,
+            inputMode: 'numeric',
+            placeholder: '6-digit code (optional)'
+          }),
+          save = make('button', { type: 'submit', className: 'primary', textContent: 'Save' }),
+          cancel = make('button', { type: 'button', textContent: 'Cancel' }),
+          form = make('form', {}, name, code, save, ' ', cancel);
+        name.setAttribute('aria-label', 'Category name');
+        code.setAttribute('aria-label', 'Category code');
+        if (requiredCategories.includes(value)) {
+          name.disabled = true;
+          name.title = 'Required categories keep their name.';
+        }
+        cancel.addEventListener('click', () => item.replaceWith(categoryItem(value)));
+        form.addEventListener('submit', async event => {
+          event.preventDefault();
+          if (code.value.trim() && !/^\d{6}$/.test(code.value.trim())) {
+            status('A category code must be exactly 6 digits.', true);
+            code.focus();
+            return;
+          }
+          try {
+            await api('/api/settings/categories', {
+              method: 'PATCH',
+              body: JSON.stringify({ name: value, newName: name.value, code: code.value })
+            });
+            await render();
+            status(`Category “${name.value.trim()}” saved.`);
+          } catch (error) {
+            status(error.message, true);
+          }
+        });
+        item.replaceChildren(form);
+        (name.disabled ? code : name).focus();
+      }
+      function rateInputs() {
+        return [...$('#rateFields').querySelectorAll('input')];
+      }
       function setRateEditing(editing) {
-        const input = $('#rateForm input[name="mileageRate"]');
-        input.disabled = !editing;
+        rateInputs().forEach(input => (input.disabled = !editing));
         $('#editRate').classList.toggle('hidden', editing);
         $('#saveRate').classList.toggle('hidden', !editing);
         $('#cancelRate').classList.toggle('hidden', !editing);
-        if (editing) input.focus();
+        if (editing) rateInputs()[0]?.focus();
       }
-
+      function showRates() {
+        $('#rateFields').replaceChildren(
+          ...settings.engineBands.map(band =>
+            make(
+              'label',
+              { className: 'meta' },
+              band.label,
+              make('input', {
+                name: band.key,
+                type: 'number',
+                min: 0,
+                max: 100,
+                step: 0.0001,
+                required: true,
+                disabled: true,
+                value: settings.mileageRates[band.key] ?? 0
+              })
+            )
+          )
+        );
+        setRateEditing(false);
+      }
+      function showCutoff() {
+        $('#cutoffForm input[name="cutoff"]').value = settings.expenseCutoffDate || '';
+        $('#cutoffSummary').textContent = settings.expenseCutoffDate
+          ? `Closed: expenses dated before ${longDate(settings.expenseCutoffDate)}.`
+          : 'No cut-off set: staff can claim expenses of any date.';
+      }
       async function render() {
         const me = await api('/api/auth/me');
         if (me.user.role !== 'super') throw Error('Super User access is required.');
-        const settings = await api('/api/settings');
-        savedRate = settings.mileageRate ?? 0;
-        list('#departments', settings.departments || [], 'department');
-        list(
-          '#categories',
-          settings.categories || [],
-          'category',
-          settings.companyPaidCategories || ['Fuel Card']
-        );
-        $('#rateForm input[name="mileageRate"]').value = savedRate;
-        $('#rateSummary').textContent = `${euro(savedRate)} per KM`;
-        setRateEditing(false);
+        settings = await api('/api/settings');
+        departmentList(settings.departments || []);
+        $('#categories').replaceChildren(...(settings.categories || []).map(categoryItem));
+        showRates();
+        showCutoff();
       }
-
       async function addListItem(form, url, label) {
         const input = form.querySelector('input[name="name"]');
         const name = input.value.trim();
@@ -280,7 +362,10 @@
             body: JSON.stringify({
               name,
               ...(label === 'Category'
-                ? { companyPaid: form.querySelector('input[name="companyPaid"]').checked }
+                ? {
+                    companyPaid: form.querySelector('input[name="companyPaid"]').checked,
+                    code: form.querySelector('input[name="code"]').value
+                  }
                 : {})
             })
           });
@@ -291,7 +376,6 @@
           status(error.message, true);
         }
       }
-
       async function removeListItem(kind, name) {
         if (!confirm(`Delete ${kind} “${name}”? This cannot be undone.`)) return;
         try {
@@ -304,28 +388,45 @@
           status(error.message, true);
         }
       }
-
-      $('#editRate').addEventListener('click', () => setRateEditing(true));
-      $('#cancelRate').addEventListener('click', () => {
-        $('#rateForm input[name="mileageRate"]').value = savedRate;
-        setRateEditing(false);
-      });
-      $('#rateForm').addEventListener('submit', async event => {
-        event.preventDefault();
-        const input = event.currentTarget.querySelector('input[name="mileageRate"]');
-        if (input.disabled) return;
+      async function saveCutoff(date) {
         try {
-          const result = await api('/api/settings/categories', {
-            method: 'POST',
-            body: JSON.stringify({ mileageRate: input.value })
+          settings = await api('/api/settings/cutoff', {
+            method: 'PUT',
+            body: JSON.stringify({ date })
           });
-          savedRate = result.mileageRate;
-          $('#rateSummary').textContent = `${euro(savedRate)} per KM`;
-          status(`Mileage rate saved: ${euro(savedRate)} per KM.`);
-          setRateEditing(false);
+          showCutoff();
+          status(date ? `Cut-off saved: ${longDate(date)}.` : 'Cut-off cleared.');
         } catch (error) {
           status(error.message, true);
         }
+      }
+      $('#editRate').addEventListener('click', () => setRateEditing(true));
+      $('#cancelRate').addEventListener('click', showRates);
+      $('#rateForm').addEventListener('submit', async event => {
+        event.preventDefault();
+        if (rateInputs()[0]?.disabled) return;
+        try {
+          settings = await api('/api/settings/categories', {
+            method: 'POST',
+            body: JSON.stringify({
+              mileageRates: Object.fromEntries(rateInputs().map(input => [input.name, input.value]))
+            })
+          });
+          showRates();
+          status('Mileage rates saved.');
+        } catch (error) {
+          status(error.message, true);
+        }
+      });
+      $('#cutoffForm').addEventListener('submit', event => {
+        event.preventDefault();
+        const date = event.currentTarget.querySelector('input[name="cutoff"]').value;
+        if (!date) return status('Choose a date, or use Clear to remove the cut-off.', true);
+        saveCutoff(date);
+      });
+      $('#clearCutoff').addEventListener('click', () => {
+        if (confirm('Clear the cut-off date? Staff will be able to claim expenses of any date.'))
+          saveCutoff('');
       });
       $('#departmentForm').addEventListener('submit', event => {
         event.preventDefault();
@@ -342,7 +443,6 @@
         const returnTo = allowed.has(requested) ? requested : 'home';
         location.replace(returnTo === 'home' ? '/' : `/?view=${encodeURIComponent(returnTo)}`);
       });
-
       render().catch(error => status(error.message, true));
     </script>
   </body>

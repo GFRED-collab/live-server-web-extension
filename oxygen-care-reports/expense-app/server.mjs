@@ -91,6 +91,7 @@ const textLimits = Object.freeze({
   email: 254,
   jobDescription: 120,
   carRegistration: 20,
+  employeeCode: 20,
   department: 80,
   category: 60,
   merchant: 120,
@@ -118,7 +119,30 @@ let companyPaidCategories = [companyPaidCategory];
 const isCompanyPaid = expense =>
   expense.expenseType !== 'mileage' && companyPaidCategories.includes(expense.category);
 let departments = [...defaultDepartments];
-let mileageRate = 0;
+// Mileage is paid per KM at the rate for the car's engine size, set by a Super User.
+const engineBands = Object.freeze([
+  ['upTo1200', 'Up to 1,200cc'],
+  ['from1201To1500', '1,201cc to 1,500cc'],
+  ['over1500', '1,501cc and over'],
+  ['electric', 'Electric']
+]);
+const engineBandKeys = engineBands.map(([key]) => key);
+const engineBandLabel = key => engineBands.find(([band]) => band === key)?.[1] || '';
+let mileageRates = Object.fromEntries(engineBandKeys.map(key => [key, 0]));
+// Optional 6-digit code per category (e.g. an accounts code), by category name.
+let categoryCodes = {};
+// Staff cannot add, change or delete expenses dated before this date (YYYY-MM-DD, '' for none).
+let expenseCutoffDate = '';
+const settingsPayload = () => ({
+  categories,
+  departments,
+  companyPaidCategories,
+  categoryCodes,
+  mileageRates,
+  engineBands: engineBands.map(([key, label]) => ({ key, label })),
+  expenseCutoffDate
+});
+const validRate = value => Number.isFinite(value) && value >= 0 && value <= 100;
 const types = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -324,6 +348,16 @@ function requireCsrf(req, res) {
   }
   return true;
 }
+// Employee codes: letters, numbers and hyphens (stored in capitals), unique across accounts.
+function cleanEmployeeCode(value) {
+  if (value === undefined || value === null) return '';
+  if (typeof value !== 'string') return null;
+  const code = value.trim().toUpperCase();
+  return code.length <= textLimits.employeeCode && /^[A-Z0-9-]*$/.test(code) ? code : null;
+}
+const employeeCodeTaken = (all, code, exceptId) =>
+  Boolean(code) && all.some(user => user.id !== exceptId && user.employeeCode === code);
+const validEngineBand = value => value === '' || engineBandKeys.includes(value);
 function publicUser(user) {
   return {
     id: user.id,
@@ -333,6 +367,8 @@ function publicUser(user) {
     department: user.department || '',
     jobDescription: user.jobDescription || '',
     carRegistration: user.carRegistration || '',
+    employeeCode: user.employeeCode || '',
+    engineBand: user.engineBand || '',
     mileageEnabled: user.mileageEnabled === true,
     mfaEnabled: Boolean(user.mfaSecret),
     createdAt: user.createdAt
@@ -443,8 +479,21 @@ async function loadSettings() {
       ])
     ];
     departments = cleanSettingList(saved.departments, defaultDepartments, textLimits.department);
-    const savedRate = Number(saved.mileageRate);
-    mileageRate = Number.isFinite(savedRate) && savedRate >= 0 && savedRate <= 100 ? savedRate : 0;
+    // Older settings had one rate for every car: it becomes the starting rate for each band.
+    const legacyRate = Number(saved.mileageRate);
+    for (const key of engineBandKeys) {
+      const value = Number(saved.mileageRates?.[key] ?? legacyRate);
+      mileageRates[key] = validRate(value) ? value : 0;
+    }
+    categoryCodes = Object.fromEntries(
+      Object.entries(saved.categoryCodes || {}).filter(
+        ([name, code]) => categories.includes(name) && /^\d{6}$/.test(code)
+      )
+    );
+    expenseCutoffDate =
+      typeof saved.expenseCutoffDate === 'string' && validDate(saved.expenseCutoffDate)
+        ? saved.expenseCutoffDate
+        : '';
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
     await saveSettings();
@@ -455,7 +504,18 @@ async function saveSettings() {
   const temporary = `${settingsFile}.tmp`;
   await writeFile(
     temporary,
-    JSON.stringify({ categories, departments, mileageRate, companyPaidCategories }, null, 2),
+    JSON.stringify(
+      {
+        categories,
+        departments,
+        mileageRates,
+        companyPaidCategories,
+        categoryCodes,
+        expenseCutoffDate
+      },
+      null,
+      2
+    ),
     { mode: 0o600 }
   );
   await rename(temporary, settingsFile);
@@ -510,20 +570,34 @@ async function clearLoginFailures(state) {
 }
 async function appSettings(req, res) {
   if (!requireUser(req, res)) return;
-  send(res, 200, { categories, departments, mileageRate, companyPaidCategories });
+  send(res, 200, settingsPayload());
 }
 async function addSetting(req, res, kind) {
   if (!requireUser(req, res, 'super')) return;
   try {
     const input = await jsonBody(req);
-    if (kind === 'category' && Object.hasOwn(input, 'mileageRate')) {
-      const value = Number(input.mileageRate);
-      if (!Number.isFinite(value) || value < 0 || value > 100)
-        return send(res, 400, { error: 'Enter a mileage rate between 0 and 100.' });
-      mileageRate = Math.round(value * 10000) / 10000;
+    if (kind === 'category' && Object.hasOwn(input, 'mileageRates')) {
+      const rates = input.mileageRates;
+      if (!rates || typeof rates !== 'object' || Array.isArray(rates))
+        return send(res, 400, { error: 'Mileage rates are invalid.' });
+      const next = {};
+      for (const key of engineBandKeys) {
+        const value = Number(rates[key]);
+        if (!validRate(value))
+          return send(res, 400, {
+            error: `Enter a rate between 0 and 100 for ${engineBandLabel(key)}.`
+          });
+        next[key] = Math.round(value * 10000) / 10000;
+      }
+      mileageRates = next;
       await saveSettings();
-      return send(res, 200, { categories, departments, mileageRate, companyPaidCategories });
+      return send(res, 200, settingsPayload());
     }
+    const code = typeof input.code === 'string' ? input.code.trim() : '';
+    if (kind === 'category' && code && !/^\d{6}$/.test(code))
+      return send(res, 400, { error: 'A category code must be exactly 6 digits.' });
+    if (kind === 'category' && code && Object.values(categoryCodes).includes(code))
+      return send(res, 409, { error: 'Another category already uses that code.' });
     if (
       kind === 'category' &&
       Object.hasOwn(input, 'companyPaid') &&
@@ -539,8 +613,9 @@ async function addSetting(req, res, kind) {
       return send(res, 409, { error: 'That item already exists.' });
     list.push(value);
     if (kind === 'category' && input.companyPaid === true) companyPaidCategories.push(value);
+    if (kind === 'category' && code) categoryCodes[value] = code;
     await saveSettings();
-    send(res, 201, { categories, departments, mileageRate, companyPaidCategories });
+    send(res, 201, settingsPayload());
   } catch (error) {
     send(res, 400, { error: error.message });
   }
@@ -565,11 +640,83 @@ async function removeSetting(req, res, kind) {
       error: 'This category is used by existing expenses and cannot be deleted.'
     });
   const removed = list.splice(index, 1)[0];
-  if (kind === 'category')
+  if (kind === 'category') {
     companyPaidCategories = companyPaidCategories.filter(name => name !== removed);
+    delete categoryCodes[removed];
+  }
   await saveSettings();
   await audit(`${kind}_deleted`, { actorId: actor.id, name: removed });
-  send(res, 200, { categories, departments, mileageRate, companyPaidCategories });
+  send(res, 200, settingsPayload());
+}
+// Renames a category (existing expenses follow the new name) and/or sets its 6-digit code.
+async function updateCategory(req, res) {
+  const actor = requireUser(req, res, 'super');
+  if (!actor) return;
+  try {
+    const input = await jsonBody(req);
+    const name = typeof input.name === 'string' ? input.name.trim() : '';
+    const current = categories.find(item => item.toLowerCase() === name.toLowerCase());
+    if (!current) return send(res, 404, { error: 'That category does not exist.' });
+    const newName = typeof input.newName === 'string' ? input.newName.trim() : current;
+    const code =
+      typeof input.code === 'string' ? input.code.trim() : (categoryCodes[current] ?? '');
+    if (!newName || newName.length > textLimits.category)
+      return send(res, 400, {
+        error: `Enter a category name of 1–${textLimits.category} characters.`
+      });
+    if (newName !== current && [companyPaidCategory, mileageExpenseCategory].includes(current))
+      return send(res, 409, { error: `${current} is a required category and cannot be renamed.` });
+    if (
+      newName.toLowerCase() !== current.toLowerCase() &&
+      categories.some(item => item.toLowerCase() === newName.toLowerCase())
+    )
+      return send(res, 409, { error: 'Another category already has that name.' });
+    if (code && !/^\d{6}$/.test(code))
+      return send(res, 400, { error: 'A category code must be exactly 6 digits.' });
+    if (
+      code &&
+      Object.entries(categoryCodes).some(([other, value]) => other !== current && value === code)
+    )
+      return send(res, 409, { error: 'Another category already uses that code.' });
+    if (newName !== current) {
+      const all = await expenses();
+      let renamed = 0;
+      for (const expense of all)
+        if (expense.category === current && expense.expenseType !== 'mileage') {
+          expense.category = newName;
+          renamed++;
+        }
+      if (renamed) await saveExpenses(all);
+      categories[categories.indexOf(current)] = newName;
+      companyPaidCategories = companyPaidCategories.map(item =>
+        item === current ? newName : item
+      );
+      delete categoryCodes[current];
+    }
+    if (code) categoryCodes[newName] = code;
+    else delete categoryCodes[newName];
+    await saveSettings();
+    await audit('category_updated', { actorId: actor.id, name: current, newName, code });
+    send(res, 200, settingsPayload());
+  } catch (error) {
+    send(res, 400, { error: error.message });
+  }
+}
+// The Super User closes older periods: expenses dated before this date are locked for staff.
+async function setExpenseCutoff(req, res) {
+  const actor = requireUser(req, res, 'super');
+  if (!actor) return;
+  try {
+    const { date = '' } = await jsonBody(req);
+    if (date !== '' && dateValidationError(date))
+      return send(res, 400, { error: 'Choose a valid cut-off date that is not in the future.' });
+    expenseCutoffDate = date;
+    await saveSettings();
+    await audit('expense_cutoff_changed', { actorId: actor.id, date });
+    send(res, 200, settingsPayload());
+  } catch (error) {
+    send(res, 400, { error: error.message });
+  }
 }
 async function bootstrapSuperUser() {
   const all = await users();
@@ -634,6 +781,22 @@ function dateValidationError(value, today = todayLocal()) {
 function validDate(value) {
   return !dateValidationError(value);
 }
+const lastDayOfMonth = month => {
+  const [year, number] = month.split('-').map(Number);
+  return new Date(Date.UTC(year, number, 0)).toISOString().slice(0, 10);
+};
+// Staff cannot add, change or delete an expense dated before the Super User's cut-off date. A
+// mileage claim counts from the last day of its month.
+function expenseClosed(expense) {
+  if (!expenseCutoffDate) return false;
+  const date =
+    expense.expenseType === 'mileage' && /^\d{4}-\d{2}$/.test(expense.mileageMonth || '')
+      ? lastDayOfMonth(expense.mileageMonth)
+      : expense.date;
+  return typeof date === 'string' && date < expenseCutoffDate;
+}
+const closedMessage = () =>
+  `Expenses dated before ${new Date(`${expenseCutoffDate}T12:00:00Z`).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })} are closed. Contact a Super User if this needs to change.`;
 // Department Heads may approve an expense only once its month has ended: from the 1st of the
 // following month (Irish time). Super Users are not limited.
 function approvalOpensOn(expense) {
@@ -661,6 +824,8 @@ function publicExpense(expense) {
   return {
     ...value,
     companyPaid: isCompanyPaid(value),
+    categoryCode: categoryCodes[value.category] || '',
+    closed: expenseClosed(value),
     hasReceipt: Boolean(receiptFile),
     approvalOpensOn: approvalOpensOn(value),
     approvalOpen: approvalOpen(value),
@@ -1203,8 +1368,17 @@ async function createUser(req, res) {
       department = '',
       jobDescription = '',
       carRegistration = '',
+      employeeCode: rawEmployeeCode = '',
+      engineBand = '',
       mileageEnabled = false
     } = await jsonBody(req);
+    const employeeCode = cleanEmployeeCode(rawEmployeeCode);
+    if (employeeCode === null)
+      return send(res, 400, {
+        error: 'Employee codes use up to 20 letters, numbers or hyphens.'
+      });
+    if (!validEngineBand(engineBand))
+      return send(res, 400, { error: 'Choose a valid engine size.' });
     const normalised = cleanEmail(email);
     const cleanField = (value, limit) =>
       typeof value === 'string' && value.trim().length <= limit ? value.trim() : null;
@@ -1227,12 +1401,16 @@ async function createUser(req, res) {
     const all = await users();
     if (all.some(user => user.email === normalised))
       return send(res, 409, { error: 'That email already has an account.' });
+    if (employeeCodeTaken(all, employeeCode))
+      return send(res, 409, { error: 'Another account already uses that employee code.' });
     const user = {
       id: randomBytes(16).toString('hex'),
       email: normalised,
       passwordHash: hashPassword(password),
       role,
       ...fields,
+      employeeCode,
+      engineBand: role === 'super' ? '' : engineBand,
       mileageEnabled: role !== 'super' && mileageEnabled === true,
       createdAt: new Date().toISOString()
     };
@@ -1702,6 +1880,9 @@ function isMileageUser(user) {
     user && ['regular', 'department_head'].includes(user.role) && user.mileageEnabled === true
   );
 }
+// The per-KM rate for a user's car, from its engine band (null until a Super User sets the band).
+const mileageRateFor = user =>
+  engineBandKeys.includes(user?.engineBand) ? mileageRates[user.engineBand] : null;
 function mileageExpense(records, userId, month) {
   return records.find(
     record =>
@@ -1725,7 +1906,10 @@ async function monthlyMileage(req, res) {
     submitted: Boolean(record),
     reviewStatus: record?.reviewStatus || 'pending',
     ownerCanChange: record ? ownerCanChange(record) : true,
-    mileageRate
+    closed: expenseClosed({ expenseType: 'mileage', mileageMonth: month }),
+    mileageRate: mileageRateFor(account) ?? 0,
+    engineBand: account.engineBand || '',
+    engineBandLabel: engineBandLabel(account.engineBand)
   });
 }
 async function saveMonthlyMileage(req, res) {
@@ -1741,9 +1925,16 @@ async function saveMonthlyMileage(req, res) {
     const kilometres = Number(inputKilometres);
     if (!Number.isFinite(kilometres) || kilometres <= 0 || kilometres > 10000)
       return send(res, 400, { error: 'Enter a monthly distance between 0.1 and 10,000 KM.' });
+    if (expenseClosed({ expenseType: 'mileage', mileageMonth: month }))
+      return send(res, 409, { code: 'period_closed', error: closedMessage() });
+    const mileageRate = mileageRateFor(account);
+    if (mileageRate === null)
+      return send(res, 400, {
+        error: "A Super User must set your car's engine size before mileage can be claimed."
+      });
     if (mileageRate <= 0)
       return send(res, 400, {
-        error: 'A Super User must set a mileage rate before a mileage expense can be saved.'
+        error: `A Super User must set the mileage rate for ${engineBandLabel(account.engineBand)} cars before a mileage expense can be saved.`
       });
     const all = await expenses(),
       existing = mileageExpense(all, user.id, month);
@@ -1760,9 +1951,10 @@ async function saveMonthlyMileage(req, res) {
       currency: 'EUR',
       category: mileageExpenseCategory,
       date: `${month}-01`,
-      note: `${roundedKilometres} KM at €${mileageRate.toFixed(4)} per KM.`,
+      note: `${roundedKilometres} KM at €${mileageRate.toFixed(4)} per KM (${engineBandLabel(account.engineBand)}).`,
       kilometres: roundedKilometres,
       mileageRate,
+      engineBand: account.engineBand,
       mileageMonth: month,
       expenseType: 'mileage',
       reviewStatus: 'pending',
@@ -1810,6 +2002,8 @@ async function createExpense(req, res) {
     let receipt = validatedReceipt(input.receipt);
     const dateError = dateValidationError(input.date);
     if (dateError) return send(res, 400, { code: 'invalid_date', error: dateError });
+    if (expenseClosed({ date: input.date }))
+      return send(res, 409, { code: 'period_closed', error: closedMessage() });
     if (
       typeof input.merchant !== 'string' ||
       !input.merchant.trim() ||
@@ -1922,6 +2116,8 @@ async function editExpense(req, res, id) {
       });
     const dateError = dateValidationError(input.date);
     if (dateError) return send(res, 400, { code: 'invalid_date', error: dateError });
+    if (expenseClosed(target) || expenseClosed({ date: input.date }))
+      return send(res, 409, { code: 'period_closed', error: closedMessage() });
     if (
       typeof input.merchant !== 'string' ||
       !input.merchant.trim() ||
@@ -1965,6 +2161,8 @@ async function deleteExpense(req, res, id) {
     if (target.reviewStatus === 'approved')
       return send(res, 403, { error: 'Approved expenses can only be deleted by a Super User.' });
     if (!ownerCanChange(target)) return send(res, 409, { error: ownerLockedMessage });
+    if (expenseClosed(target))
+      return send(res, 409, { code: 'period_closed', error: closedMessage() });
   }
   await saveExpenses(all.filter(expense => expense.id !== id));
   await removeReceipt(target.receiptFile);
@@ -2323,6 +2521,16 @@ async function updateUser(req, res, id) {
     const carRegistration = clean(input.carRegistration, textLimits.carRegistration);
     if (!fullName || jobDescription === null || carRegistration === null)
       return send(res, 400, { error: 'Profile details are invalid.' });
+    const employeeCode =
+      input.employeeCode === undefined
+        ? target.employeeCode || ''
+        : cleanEmployeeCode(input.employeeCode);
+    if (employeeCode === null)
+      return send(res, 400, {
+        error: 'Employee codes use up to 20 letters, numbers or hyphens.'
+      });
+    if (employeeCodeTaken(all, employeeCode, target.id))
+      return send(res, 409, { error: 'Another account already uses that employee code.' });
 
     let reloginRequired = false;
     if (editingSelf) {
@@ -2357,13 +2565,17 @@ async function updateUser(req, res, id) {
         return send(res, 400, { error: 'Choose a valid department.' });
       if (input.mileageEnabled !== undefined && typeof input.mileageEnabled !== 'boolean')
         return send(res, 400, { error: 'Mileage allocation is invalid.' });
+      if (input.engineBand !== undefined && !validEngineBand(input.engineBand))
+        return send(res, 400, { error: 'Choose a valid engine size.' });
       target.department = input.department;
       if (input.mileageEnabled !== undefined) target.mileageEnabled = input.mileageEnabled;
+      if (input.engineBand !== undefined) target.engineBand = input.engineBand;
     }
 
     target.fullName = fullName;
     target.jobDescription = jobDescription;
     target.carRegistration = carRegistration;
+    target.employeeCode = employeeCode;
     target.updatedAt = new Date().toISOString();
     await saveUsers(all);
     if (!editingSelf || reloginRequired) invalidateUserSessions(id);
@@ -3078,6 +3290,10 @@ async function routeRequest(req, res) {
     return addSetting(req, res, 'category');
   if (req.method === 'POST' && pathname === '/api/settings/departments')
     return addSetting(req, res, 'department');
+  if (req.method === 'PATCH' && pathname === '/api/settings/categories')
+    return updateCategory(req, res);
+  if (req.method === 'PUT' && pathname === '/api/settings/cutoff')
+    return setExpenseCutoff(req, res);
   if (req.method === 'DELETE' && pathname === '/api/settings/categories')
     return removeSetting(req, res, 'category');
   if (req.method === 'DELETE' && pathname === '/api/settings/departments')

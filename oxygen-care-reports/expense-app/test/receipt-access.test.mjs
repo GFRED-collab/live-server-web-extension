@@ -284,7 +284,7 @@ test('receipt view and download are distinct and enforce every role boundary', a
   const mileageRateSaved = await request(base, '/api/settings/categories', {
     method: 'POST',
     cookie: adminCookie,
-    body: { mileageRate: 0.5 }
+    body: { mileageRates: { upTo1200: 0.4, from1201To1500: 0.5, over1500: 0.6, electric: 0.5 } }
   });
   assert.equal(mileageRateSaved.status, 200);
   const sessionOnly = adminCookie.split(';', 1)[0];
@@ -316,6 +316,7 @@ test('receipt view and download are distinct and enforce every role boundary', a
     fullName: 'Receipt Owner',
     role: 'regular',
     department: 'Engineering',
+    engineBand: 'from1201To1500',
     mileageEnabled: true
   });
   await createUser(base, adminCookie, {

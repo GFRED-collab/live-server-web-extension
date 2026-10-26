@@ -254,6 +254,10 @@
             </select>
           </label>
           <label
+            >Name or employee code
+            <input id="person" type="search" placeholder="e.g. E1024" autocomplete="off" />
+          </label>
+          <label
             >Category
             <select id="category">
               <option value="All">All</option>
@@ -277,6 +281,7 @@
             <tr>
               <th>Date</th>
               <th>User</th>
+              <th>Employee code</th>
               <th>Department</th>
               <th>Merchant</th>
               <th>Category</th>
@@ -304,6 +309,10 @@
               <option value="">All</option>
             </select>
           </label>
+          <label
+            >Name or employee code
+            <input id="odoPerson" type="search" placeholder="e.g. E1024" autocomplete="off" />
+          </label>
           <div class="actions">
             <button id="odoCsv">Download CSV</button>
             <button id="odoPrint">Print / Save PDF</button>
@@ -315,6 +324,7 @@
             <tr>
               <th>Month</th>
               <th>User</th>
+              <th>Employee code</th>
               <th>Department</th>
               <th>Car 1 Opening</th>
               <th>Car 1 Closing</th>
@@ -347,6 +357,10 @@
             </select>
           </label>
           <label
+            >Name or employee code
+            <input id="reimbPerson" type="search" placeholder="e.g. E1024" autocomplete="off" />
+          </label>
+          <label
             >Status
             <select id="reimbStatus">
               <option value="All">All</option>
@@ -365,6 +379,7 @@
             <tr>
               <th>Sent</th>
               <th>User</th>
+              <th>Employee code</th>
               <th>Department</th>
               <th>Message</th>
               <th>Amount</th>
@@ -523,10 +538,27 @@
             (!$('#to').value || expense.date <= $('#to').value) &&
             ($('#dept').value === 'All' || expense.user.department === $('#dept').value) &&
             (!$('#user').value || expense.user.id === $('#user').value) &&
+            personMatches(expense.user, $('#person').value) &&
             ($('#category').value === 'All' || expense.category === $('#category').value)
         );
       }
       const personName = user => user.fullName || user.email;
+      const personOption = user =>
+        user.employeeCode ? `${personName(user)} · ${user.employeeCode}` : personName(user);
+      // The name-or-code search box: matches the employee code, name or email.
+      const personMatches = (user, query) => {
+        const wanted = query.trim().toLowerCase();
+        return (
+          !wanted ||
+          [user.employeeCode, user.fullName, user.email].some(value =>
+            String(value || '')
+              .toLowerCase()
+              .includes(wanted)
+          )
+        );
+      };
+      const categoryLabel = expense =>
+        expense.categoryCode ? `${expense.category} · ${expense.categoryCode}` : expense.category;
       const pageSize = 20,
         pages = { expenses: 1, odometer: 1, reimbursements: 1 };
       function pageRows(sectionId, key, rows, draw) {
@@ -598,9 +630,10 @@
         };
         cell(row, expense.date);
         cell(row, personName(expense.user));
+        cell(row, expense.user.employeeCode || '—');
         cell(row, expense.user.department);
         cell(row, expense.merchant);
-        cell(row, expense.category);
+        cell(row, categoryLabel(expense));
         cell(row, expense.note || '—');
         cell(row, money(expense.amount));
         receiptCell(row, expense);
@@ -630,7 +663,7 @@
             const heading = document.createElement('tr'),
               td = document.createElement('td');
             heading.className = 'month-group';
-            td.colSpan = 8;
+            td.colSpan = 9;
             td.textContent = monthSummary(month, allRows);
             heading.append(td);
             out.push(heading);
@@ -667,9 +700,11 @@
           ...(grouped ? [monthName(monthOf(expense))] : []),
           expense.date,
           personName(expense.user),
+          expense.user.employeeCode || '',
           expense.user.department,
           expense.merchant,
           expense.category,
+          expense.categoryCode || '',
           expense.amount,
           expense.currency || 'EUR',
           expense.note || '',
@@ -688,7 +723,9 @@
                   '',
                   '',
                   '',
+                  '',
                   `Total for ${monthName(month)}`,
+                  '',
                   Math.round(sum(monthRows) * 100) / 100,
                   'EUR',
                   `${monthRows.length} expenses`,
@@ -703,9 +740,11 @@
             ...(grouped ? ['Month'] : []),
             'Date',
             'User',
+            'Employee code',
             'Department',
             'Merchant',
             'Category',
+            'Category code',
             'Amount',
             'Currency',
             'Note',
@@ -729,7 +768,8 @@
             (!$('#odoFrom').value || reading.month >= $('#odoFrom').value) &&
             (!$('#odoTo').value || reading.month <= $('#odoTo').value) &&
             ($('#odoDept').value === 'All' || reading.user.department === $('#odoDept').value) &&
-            (!$('#odoUser').value || reading.user.id === $('#odoUser').value)
+            (!$('#odoUser').value || reading.user.id === $('#odoUser').value) &&
+            personMatches(reading.user, $('#odoPerson').value)
         );
       }
       function drawOdometer(reset = false) {
@@ -744,6 +784,7 @@
             const row = document.createElement('tr');
             cell(row, reading.month);
             cell(row, personName(reading.user));
+            cell(row, reading.user.employeeCode || '—');
             cell(row, reading.user.department || '—');
             for (const value of [
               reading.car1OpeningReading,
@@ -766,6 +807,7 @@
           [
             'Month',
             'User',
+            'Employee code',
             'Department',
             'Car 1 opening KM',
             'Car 1 closing KM',
@@ -778,6 +820,7 @@
           ...rows.map(reading => [
             reading.month,
             personName(reading.user),
+            reading.user.employeeCode || '',
             reading.user.department || '',
             reading.car1OpeningReading,
             reading.car1ClosingReading,
@@ -822,13 +865,14 @@
           all = data.expenses;
           for (const value of data.departments) $('#dept').add(new Option(value, value));
           for (const person of data.users)
-            $('#user').add(new Option(personName(person), person.id));
+            $('#user').add(new Option(personOption(person), person.id));
           for (const category of [
             ...new Set(all.map(expense => expense.category).filter(Boolean))
           ].sort())
             $('#category').add(new Option(category, category));
           for (const id of ['from', 'to', 'dept', 'user', 'category', 'group'])
             $('#' + id).onchange = () => draw(true);
+          $('#person').oninput = () => draw(true);
           draw(true);
           refreshChart();
         })
@@ -838,9 +882,10 @@
           odometer = data.readings;
           for (const value of data.departments) $('#odoDept').add(new Option(value, value));
           for (const person of data.users)
-            $('#odoUser').add(new Option(personName(person), person.id));
+            $('#odoUser').add(new Option(personOption(person), person.id));
           for (const id of ['odoFrom', 'odoTo', 'odoDept', 'odoUser'])
             $('#' + id).onchange = () => drawOdometer(true);
+          $('#odoPerson').oninput = () => drawOdometer(true);
           drawOdometer(true);
           refreshChart();
         })
@@ -853,6 +898,7 @@
             (!$('#reimbTo').value || item.sentAt.slice(0, 10) <= $('#reimbTo').value) &&
             ($('#reimbDept').value === 'All' || item.user.department === $('#reimbDept').value) &&
             (!$('#reimbUser').value || item.user.id === $('#reimbUser').value) &&
+            personMatches(item.user, $('#reimbPerson').value) &&
             ($('#reimbStatus').value === 'All' ||
               ($('#reimbStatus').value === 'dismissed') === Boolean(item.dismissedAt))
         );
@@ -897,6 +943,7 @@
             };
             cell(row, new Date(item.sentAt).toLocaleDateString());
             cell(row, personName(item.user));
+            cell(row, item.user.employeeCode || '—');
             cell(row, item.user.department || '—');
             cell(row, item.message);
             cell(row, item.amount == null ? '—' : money(item.amount));
@@ -915,6 +962,7 @@
           [
             'Sent',
             'User',
+            'Employee code',
             'Department',
             'Message',
             'Amount',
@@ -929,6 +977,7 @@
           ...rows.map(item => [
             item.sentAt,
             personName(item.user),
+            item.user.employeeCode || '',
             item.user.department || '',
             item.message,
             item.amount ?? '',
@@ -1302,9 +1351,10 @@
           reimbursements = data.reimbursements;
           for (const value of data.departments) $('#reimbDept').add(new Option(value, value));
           for (const person of data.users)
-            $('#reimbUser').add(new Option(personName(person), person.id));
+            $('#reimbUser').add(new Option(personOption(person), person.id));
           for (const id of ['reimbFrom', 'reimbTo', 'reimbDept', 'reimbUser', 'reimbStatus'])
             $('#' + id).onchange = () => drawReimbursements(true);
+          $('#reimbPerson').oninput = () => drawReimbursements(true);
           drawReimbursements(true);
           refreshChart();
         })
