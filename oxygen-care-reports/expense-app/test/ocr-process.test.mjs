@@ -11,7 +11,7 @@ let loads = 0;
 // RAPIDOCR_PYTHON and PADDLEOCR_PYTHON are read when the code loads, so each call loads a fresh copy.
 async function loadOcrRunners() {
   const server = await readFile(join(appDir, 'server.mjs'), 'utf8');
-  const start = server.indexOf('function runOcrProcess(');
+  const start = server.indexOf('function startHelper(');
   const end = server.indexOf('async function localOcrVariants(');
   assert.ok(start >= 0 && end > start);
   const source = `// load ${(loads += 1)}\nimport { spawn } from "node:child_process";\nimport { join } from "node:path";\nconst upstreamTimeoutMs = 5000;\n${server.slice(start, end)}\nexport { tesseractText, rapidOcrText, paddleOcrText };`;
@@ -144,4 +144,37 @@ test('a total below an item price is flagged so the second OCR pass runs', async
   const parse = await loadReceiptParser();
   assert.equal(parse('SHOP LTD\nPaper 12.99\nTOTAL 7.49').totalBelowItem, true);
   assert.equal(parse('SHOP LTD\nPaper 12.99\nTOTAL 17.49').totalBelowItem, false);
+});
+
+test('a timed-out OCR program is stopped together with the processes it started', async () => {
+  const bin = await mkdtemp(join(tmpdir(), 'fake-ocr-tree-'));
+  const marker = join(bin, 'worker.pid');
+  const originalPython = process.env.RAPIDOCR_PYTHON;
+  try {
+    // Starts a long-running worker (like an OCR engine's helper), records its PID and waits.
+    await writeFile(join(bin, 'python3'), `#!/bin/sh\nsleep 300 &\necho $! > "${marker}"\nwait\n`);
+    await chmod(join(bin, 'python3'), 0o755);
+    process.env.RAPIDOCR_PYTHON = join(bin, 'python3');
+    const { rapidOcrText } = await loadOcrRunners();
+    await assert.rejects(rapidOcrText(Buffer.from('image'), Date.now() + 1000), /timed out/);
+    const worker = Number((await readFile(marker, 'utf8')).trim());
+    await new Promise(resolve => setTimeout(resolve, 200));
+    // Gone, or (where nothing reaps it, as in some containers) dead and only awaiting cleanup.
+    const running = await readFile(`/proc/${worker}/stat`, 'utf8').then(
+      stat => !/^\d+ \(.*\) Z/.test(stat),
+      () => {
+        try {
+          process.kill(worker, 0);
+          return process.platform !== 'linux';
+        } catch {
+          return false;
+        }
+      }
+    );
+    assert.equal(running, false, 'the worker process was left running');
+  } finally {
+    if (originalPython === undefined) delete process.env.RAPIDOCR_PYTHON;
+    else process.env.RAPIDOCR_PYTHON = originalPython;
+    await rm(bin, { recursive: true, force: true });
+  }
 });

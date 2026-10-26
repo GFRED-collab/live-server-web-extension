@@ -94,3 +94,18 @@ one-time recovery codes to print or save.
   restart again afterwards.
 - Five wrong codes send the person back to the password step; ten in 15 minutes block codes for
   that account for 15 minutes. A code can't be used twice.
+
+## Orphaned receipts
+
+Each deploy installs `scripts/maintenance-cleanup.mjs`, but it never runs on its own. It moves
+receipt files that no expense refers to into a quarantine folder (nothing is deleted) and removes
+old review-history data from `expenses.json`. Run it with the service stopped:
+
+```bash
+sudo systemctl stop oxygen-care-expenses
+cd /home/serveradmin/expense-ocr-app
+node scripts/maintenance-cleanup.mjs . /home/serveradmin/oxygen-care-expenses-quarantine
+sudo systemctl start oxygen-care-expenses
+```
+
+Check the quarantine folder before deleting anything in it.

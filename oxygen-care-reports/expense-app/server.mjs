@@ -1703,32 +1703,6 @@ async function reportReimbursements(req, res) {
     departments: [...new Set(people.map(user => user.department).filter(Boolean))].sort()
   });
 }
-async function activityLog(req, res) {
-  if (!requireUser(req, res, 'super')) return;
-  const limit = Math.max(
-    1,
-    Math.min(500, Number(new URL(req.url, 'http://local').searchParams.get('limit') || 200))
-  );
-  try {
-    const entries = (await readFile(auditFile, 'utf8'))
-      .split('\n')
-      .filter(Boolean)
-      .map(line => {
-        try {
-          return JSON.parse(line);
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean)
-      .slice(-limit)
-      .reverse();
-    send(res, 200, { entries });
-  } catch (error) {
-    if (error.code === 'ENOENT') return send(res, 200, { entries: [] });
-    throw error;
-  }
-}
 async function listExpenses(req, res) {
   const viewer = requireUser(req, res);
   if (!viewer) return;
@@ -2449,44 +2423,6 @@ async function createReimbursementBatch(req, res, userId) {
     send(res, 400, { error: error.message });
   }
 }
-async function sendReimbursementNotification(req, res, userId) {
-  const actor = requireUser(req, res, 'super');
-  if (!actor) return;
-  try {
-    const input = await jsonBody(req);
-    const all = await users();
-    const target = all.find(user => user.id === userId && user.role === 'regular');
-    if (!target) return send(res, 404, { error: 'Regular user not found.' });
-    const message = typeof input.message === 'string' ? input.message.trim() : '';
-    const amount = input.amount === '' || input.amount === undefined ? null : Number(input.amount);
-    if (!message || message.length > 300)
-      return send(res, 400, { error: 'Enter a reimbursement message of up to 300 characters.' });
-    if (amount !== null && (!Number.isFinite(amount) || amount < 0 || amount > 1_000_000))
-      return send(res, 400, { error: 'Enter a valid reimbursement amount.' });
-    const notification = {
-      id: randomBytes(12).toString('hex'),
-      type: 'reimbursement',
-      message,
-      amount,
-      currency: 'EUR',
-      sentAt: new Date().toISOString(),
-      sentBy: actor.fullName || actor.email
-    };
-    target.notifications = [
-      ...(Array.isArray(target.notifications) ? target.notifications : []),
-      notification
-    ].slice(-50);
-    await saveUsers(all);
-    await audit('reimbursement_notification_sent', {
-      actorId: actor.id,
-      targetUserId: target.id,
-      notificationId: notification.id
-    });
-    send(res, 201, { notification });
-  } catch (error) {
-    send(res, 400, { error: error.message });
-  }
-}
 async function dismissNotification(req, res, id) {
   const user = requireUser(req, res);
   if (!user) return;
@@ -2689,7 +2625,7 @@ function htmlAttribute(value) {
 }
 function runPdfTool(command, args, maximumBytes = 1024 * 1024) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const child = startHelper(command, args, ['ignore', 'pipe', 'pipe']);
     const output = [],
       errors = [];
     let outputBytes = 0,
@@ -2702,13 +2638,13 @@ function runPdfTool(command, args, maximumBytes = 1024 * 1024) {
       else resolve(Buffer.concat(output));
     };
     const timer = setTimeout(() => {
-      child.kill('SIGKILL');
+      stopHelper(child);
       finish(new Error('PDF preview timed out.'));
     }, 20_000);
     child.stdout.on('data', chunk => {
       outputBytes += chunk.length;
       if (outputBytes > maximumBytes) {
-        child.kill('SIGKILL');
+        stopHelper(child);
         finish(new Error('PDF preview is too large.'));
       } else output.push(chunk);
     });
@@ -3043,11 +2979,24 @@ function parseTesseractReceipt(text) {
     totalBelowItem: Boolean(amount && itemAmounts.some(item => item > amount))
   };
 }
+// Helper programs run in their own process group so that a timeout or oversized output stops
+// the program and anything it started (OCR engines can start worker processes).
+function startHelper(command, args, stdio) {
+  return spawn(command, args, { stdio, windowsHide: true, detached: process.platform !== 'win32' });
+}
+function stopHelper(child) {
+  try {
+    if (process.platform !== 'win32' && child.pid) process.kill(-child.pid, 'SIGKILL');
+    else child.kill('SIGKILL');
+  } catch {
+    child.kill('SIGKILL');
+  }
+}
 // Runs a local OCR program that reads the image on stdin and prints text on stdout.
 // `deadline` (a Date.now() time) cuts the run short so the whole scan fits the proxy timeout.
 function runOcrProcess(label, command, args, bytes, deadline = Infinity) {
   return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
+    const child = startHelper(command, args, ['pipe', 'pipe', 'ignore']);
     let output = '',
       timedOut = false,
       tooLarge = false;
@@ -3055,7 +3004,7 @@ function runOcrProcess(label, command, args, bytes, deadline = Infinity) {
       () => {
         // Answer at the deadline even if a helper process still holds the output pipe open.
         timedOut = true;
-        child.kill('SIGKILL');
+        stopHelper(child);
         child.stdout.destroy();
         reject(new Error(`${label} timed out.`));
       },
@@ -3066,7 +3015,7 @@ function runOcrProcess(label, command, args, bytes, deadline = Infinity) {
       output += chunk;
       if (output.length > 1024 * 1024) {
         tooLarge = true;
-        child.kill('SIGKILL');
+        stopHelper(child);
         child.stdout.destroy();
       }
     });
@@ -3183,7 +3132,10 @@ const localOcrEngines = [
 async function scanReceipt(req, res) {
   const user = requireUser(req, res);
   if (!user || !rateLimit(req, res, 'ocr', ocrLimit, 15 * 60_000)) return;
-  const usageKey = `${new Date().toISOString().slice(0, 10)}:${user.id}`;
+  const day = new Date().toISOString().slice(0, 10),
+    usageKey = `${day}:${user.id}`;
+  // The counter is per day; earlier days are no longer needed.
+  for (const key of ocrUsage.keys()) if (!key.startsWith(`${day}:`)) ocrUsage.delete(key);
   const used = ocrUsage.get(usageKey) || 0;
   if (used >= ocrDailyLimit)
     return send(res, 429, {
@@ -3329,7 +3281,6 @@ async function routeRequest(req, res) {
   if (req.method === 'GET' && pathname === '/api/reports/odometer') return reportOdometer(req, res);
   if (req.method === 'GET' && pathname === '/api/reports/reimbursements')
     return reportReimbursements(req, res);
-  if (req.method === 'GET' && pathname === '/api/audit') return activityLog(req, res);
   if (req.method === 'GET' && pathname === '/api/users') return listUsers(req, res);
   if (req.method === 'POST' && pathname === '/api/users') return createUser(req, res);
   if (req.method === 'GET' && pathname === '/api/super-users') return listSuperUsers(req, res);
@@ -3356,11 +3307,6 @@ async function routeRequest(req, res) {
   const reimbursementBatchMatch = pathname.match(/^\/api\/users\/([A-Za-z0-9]+)\/reimbursements$/);
   if (req.method === 'POST' && reimbursementBatchMatch)
     return createReimbursementBatch(req, res, reimbursementBatchMatch[1]);
-  const reimbursementMatch = pathname.match(
-    /^\/api\/users\/([A-Za-z0-9]+)\/reimbursement-notifications$/
-  );
-  if (req.method === 'POST' && reimbursementMatch)
-    return sendReimbursementNotification(req, res, reimbursementMatch[1]);
   const notificationMatch = pathname.match(/^\/api\/notifications\/([A-Za-z0-9]+)$/);
   if (req.method === 'PATCH' && notificationMatch)
     return dismissNotification(req, res, notificationMatch[1]);
