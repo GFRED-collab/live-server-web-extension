@@ -135,6 +135,11 @@
         font-weight: 850;
         white-space: nowrap;
       }
+      /* Company paid (Fuel Card) is not reimbursed, so its amount is struck through. */
+      .amount.company-paid {
+        color: var(--muted);
+        text-decoration: line-through;
+      }
       .receipt {
         display: inline-block;
         margin-top: 5px;
@@ -306,7 +311,7 @@
               if (waits(item)) {
                 const wait = document.createElement('div');
                 wait.className = 'meta';
-                wait.textContent = `Month not ended · can be approved from ${new Date(`${item.approvalOpensOn}T12:00:00`).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}`;
+                wait.textContent = `Month not ended · can be approved from ${window.isoDate(item.approvalOpensOn)}`;
                 body.append(wait);
               }
               if (item.hasReceipt) {
@@ -317,8 +322,15 @@
                 receipt.textContent = 'View receipt';
                 body.append(receipt);
               }
-              amount.className = 'amount';
+              amount.className = item.companyPaid ? 'amount company-paid' : 'amount';
               amount.textContent = money(item.amount);
+              if (item.companyPaid) {
+                amount.title = 'Company paid · not reimbursed';
+                const paid = document.createElement('div');
+                paid.className = 'meta';
+                paid.textContent = 'Company paid · not reimbursed';
+                body.append(paid);
+              }
               const open = event => {
                 if (event?.target?.closest('input,a,button')) return;
                 const params = new URLSearchParams({

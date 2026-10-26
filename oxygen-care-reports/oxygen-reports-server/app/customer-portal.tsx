@@ -1,4 +1,5 @@
 'use client';
+import { isoDateTime } from '../lib/dates';
 import { useEffect, useMemo, useState } from 'react';
 import { CsvPreview } from './report-tools';
 import { brandPrintWindow } from './print-layout';
@@ -160,7 +161,7 @@ export default function CustomerPortal({ logout }: { logout: () => void }) {
                 ': ' +
                 sig.name +
                 ' · ' +
-                new Date(sig.signedAt).toLocaleString('en-IE')
+                isoDateTime(sig.signedAt)
             )
             .join('\n')
         ];

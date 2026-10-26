@@ -362,13 +362,7 @@
     const monthRecords = yearRecords.filter(
         expense => String(expense.date || '').slice(5, 7) === selectedMonth
       ),
-      monthName =
-        selectedMonth === '00'
-          ? 'Undated'
-          : new Date(`${selectedYear}-${selectedMonth}-01T12:00:00`).toLocaleDateString(undefined, {
-              month: 'long',
-              year: 'numeric'
-            });
+      monthName = selectedMonth === '00' ? 'Undated' : `${selectedYear}-${selectedMonth}`;
     if (!selectedDay) {
       root.append(heading(monthName));
       const days = monthRecords.reduce((groups, expense) => {
@@ -386,10 +380,7 @@
               tile(
                 day === '00'
                   ? 'Undated'
-                  : new Date(`${selectedYear}-${selectedMonth}-${day}T12:00:00`).toLocaleDateString(
-                      undefined,
-                      { weekday: 'short', day: 'numeric' }
-                    ),
+                  : `${selectedYear}-${selectedMonth}-${day} · ${new Date(`${selectedYear}-${selectedMonth}-${day}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}`,
                 entries,
                 () => push({ day })
               )
@@ -404,10 +395,7 @@
       dayTitle =
         selectedDay === '00'
           ? monthName
-          : new Date(`${selectedYear}-${selectedMonth}-${selectedDay}T12:00:00`).toLocaleDateString(
-              undefined,
-              { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }
-            );
+          : `${selectedYear}-${selectedMonth}-${selectedDay} · ${new Date(`${selectedYear}-${selectedMonth}-${selectedDay}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long' })}`;
     root.append(heading(dayTitle, calendarSummary(dayRecords)), ...dayRecords.map(expenseRow));
     return root;
   }
@@ -882,10 +870,7 @@
         return all;
       }, {}),
       slices = Object.entries(totals).sort((a, b) => b[1] - a[1]);
-    const title = new Date(`${month}-01T12:00:00`).toLocaleDateString(undefined, {
-      month: 'long',
-      year: 'numeric'
-    });
+    const title = month;
     const panel = card(
       element('div', { class: 'label', text: 'MONTHLY SPEND BREAKDOWN' }),
       element('h2', { text: euro(total) }),
@@ -1382,7 +1367,7 @@
               element('div', { class: 'meta', text: item.message || 'No message supplied.' }),
               element('div', {
                 class: 'meta',
-                text: `${item.amount == null ? '' : `${euro(item.amount)} · `}${new Date(item.sentAt).toLocaleString()}${item.sentBy ? ` · Sent by ${item.sentBy}` : ''}`
+                text: `${item.amount == null ? '' : `${euro(item.amount)} · `}${window.isoDateTime(item.sentAt)}${item.sentBy ? ` · Sent by ${item.sentBy}` : ''}`
               })
             )
           )
@@ -1426,7 +1411,7 @@
           element('div', { class: 'meta', text: item.message }),
           element('div', {
             class: 'meta',
-            text: `${item.amount == null ? '' : `${euro(item.amount)} · `}${new Date(item.sentAt).toLocaleString()}`
+            text: `${item.amount == null ? '' : `${euro(item.amount)} · `}${window.isoDateTime(item.sentAt)}`
           })
         ),
         button('Dismiss', async () => {

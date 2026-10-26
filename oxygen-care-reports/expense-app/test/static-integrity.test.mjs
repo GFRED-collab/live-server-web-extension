@@ -336,7 +336,9 @@ test('expense views use an accessible year, month, and day calendar drill-down',
     app,
     /\[from, to, category\]\.forEach\(input => \(?input\.onchange = \(\) => resetExpenseCalendar\(draw, \{ from:/
   );
-  assert.match(app, /weekday: 'short', day: 'numeric'/);
+  // Day tiles show the ISO date (YYYY-MM-DD) with a short weekday.
+  assert.match(app, /`\$\{selectedYear\}-\$\{selectedMonth\}-\$\{day\} · /);
+  assert.match(app, /weekday: 'short' \}/);
   assert.match(styles, /\.calendar-cell/);
   assert.match(styles, /@media\(max-width:520px\)/);
   assert.match(calendar, /window\.OxygenExpenseCalendar = \{ render, reset \}/);

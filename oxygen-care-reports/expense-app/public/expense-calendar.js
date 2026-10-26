@@ -117,13 +117,7 @@
     const monthRecords = yearRecords.filter(
       expense => String(expense.date || '').slice(5, 7) === month
     );
-    const monthName =
-      month === '00'
-        ? 'Undated'
-        : new Date(`${year}-${month}-01T12:00:00`).toLocaleDateString(undefined, {
-            month: 'long',
-            year: 'numeric'
-          });
+    const monthName = month === '00' ? 'Undated' : `${year}-${month}`;
     if (!day) {
       heading(root, monthName, '', true, redraw);
       const groups = monthRecords.reduce((all, expense) => {
@@ -138,10 +132,7 @@
         const label =
           value === '00'
             ? 'Undated'
-            : new Date(`${year}-${month}-${value}T12:00:00`).toLocaleDateString(undefined, {
-                weekday: 'short',
-                day: 'numeric'
-              });
+            : `${year}-${month}-${value} · ${new Date(`${year}-${month}-${value}T12:00:00`).toLocaleDateString(undefined, { weekday: 'short' })}`;
         grid.append(tile(label, entries, { day: value }));
       }
       root.append(grid);
@@ -155,12 +146,7 @@
     const dayName =
       day === '00'
         ? monthName
-        : new Date(`${year}-${month}-${day}T12:00:00`).toLocaleDateString(undefined, {
-            weekday: 'long',
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric'
-          });
+        : `${year}-${month}-${day} · ${new Date(`${year}-${month}-${day}T12:00:00`).toLocaleDateString(undefined, { weekday: 'long' })}`;
     heading(root, dayName, summary(dayRecords), true, redraw);
     return { level: 'expenses', records: dayRecords };
   }

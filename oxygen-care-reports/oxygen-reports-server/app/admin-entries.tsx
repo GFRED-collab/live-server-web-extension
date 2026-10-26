@@ -1,4 +1,5 @@
 'use client';
+import { isoDateTime } from '../lib/dates';
 import { FormEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { entryDefinitions } from '../lib/entry-definitions';
 import { brandPrintWindow } from './print-layout';
@@ -37,11 +38,7 @@ export function printHistory(item: History, label: string) {
   doc.body.append(heading);
   const note = doc.createElement('p');
   note.textContent =
-    item.operation +
-    ' on ' +
-    new Date(item.recordedAt).toLocaleString('en-IE') +
-    ' · Reason: ' +
-    item.reason;
+    item.operation + ' on ' + isoDateTime(item.recordedAt) + ' · Reason: ' + item.reason;
   doc.body.append(note);
   const walk = (value: unknown, name: string) => {
     if (Array.isArray(value)) {
@@ -370,7 +367,7 @@ export default function AdminEntries({ sidebar }: { sidebar: ReactNode }) {
             getKey={h => h.id}
             title={h => `${def.label} · ${h.operation}`}
             details={h => [
-              ['Recorded', new Date(h.recordedAt).toLocaleString('en-IE')],
+              ['Recorded', isoDateTime(h.recordedAt)],
               ['Action', h.operation],
               ['Reason', h.reason]
             ]}
@@ -378,7 +375,7 @@ export default function AdminEntries({ sidebar }: { sidebar: ReactNode }) {
             disabled={busy}
             paging={{ page, hasMore, onPage: setPage }}
             badge={h => <span className="entry-badge">{h.operation}</span>}
-            line={h => [new Date(h.recordedAt).toLocaleString('en-IE'), h.reason]}
+            line={h => [isoDateTime(h.recordedAt), h.reason]}
             actions={h => (
               <button
                 onClick={() => {

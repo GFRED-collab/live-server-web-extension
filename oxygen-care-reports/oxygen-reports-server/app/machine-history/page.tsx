@@ -1,4 +1,5 @@
 'use client';
+import { isoDateTime } from '../../lib/dates';
 import { useEffect, useState } from 'react';
 import DeviceAttachments from '../device-attachments';
 import { brandPrintWindow } from '../print-layout';
@@ -27,7 +28,7 @@ const shown = (value: unknown) =>
       : String(value);
 const when = (value: unknown) => {
   const date = new Date(String(value || ''));
-  return Number.isFinite(date.getTime()) ? date.toLocaleString('en-IE') : shown(value);
+  return Number.isFinite(date.getTime()) ? isoDateTime(date) : shown(value);
 };
 function Details({ item, fields }: { item: Item; fields: Array<[string, string]> }) {
   return (

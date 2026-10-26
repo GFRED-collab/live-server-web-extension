@@ -1,5 +1,6 @@
 'use client';
 
+import { isoDate, isoDateTime } from '../lib/dates';
 import './filter.css';
 import DeviceAttachments from './device-attachments';
 import './shell.css';
@@ -970,7 +971,7 @@ export default function HomePage() {
         clientName: report.clientName,
         userIds: report.userIds,
         rowCount: report.rowCount,
-        uploadedAt: new Date(report.uploadedAt).toLocaleString()
+        uploadedAt: isoDateTime(report.uploadedAt)
       }))
     );
     setRecords(
@@ -1031,7 +1032,7 @@ export default function HomePage() {
     setStockMovements(
       stock.movements.map(movement => ({
         id: movement.id,
-        time: new Date(movement.createdAt).toLocaleString(),
+        time: isoDateTime(movement.createdAt),
         type: movement.movement === 'assigned' ? 'Assigned' : 'Fitted',
         partId: movement.partId,
         engineerId: movement.engineerId,
@@ -2350,7 +2351,7 @@ export default function HomePage() {
       ...reportFields.map(field => recordValue(record, field))
     ]);
     popup.document.write(
-      `<!doctype html><title>Irish Hospital Supplies filtered report</title><style>body{font-family:Arial,sans-serif;color:#183f4b;padding:28px}h1{margin:0}p{color:#63818a}table{width:100%;border-collapse:collapse;margin-top:20px;font-size:12px}th,td{padding:8px;border-bottom:1px solid #cfeaf2;text-align:left;vertical-align:top}th{color:#277b91}@media print{body{padding:0}}</style><h1>Irish Hospital Supplies Reports</h1><p>Filtered report · ${filteredRecords.length} records · ${new Date().toLocaleDateString()}</p><table><thead><tr>${headings.map(heading => `<th>${escape(heading)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(value => `<td>${escape(value || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`
+      `<!doctype html><title>Irish Hospital Supplies filtered report</title><style>body{font-family:Arial,sans-serif;color:#183f4b;padding:28px}h1{margin:0}p{color:#63818a}table{width:100%;border-collapse:collapse;margin-top:20px;font-size:12px}th,td{padding:8px;border-bottom:1px solid #cfeaf2;text-align:left;vertical-align:top}th{color:#277b91}@media print{body{padding:0}}</style><h1>Irish Hospital Supplies Reports</h1><p>Filtered report · ${filteredRecords.length} records · ${isoDate(new Date())}</p><table><thead><tr>${headings.map(heading => `<th>${escape(heading)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${row.map(value => `<td>${escape(value || '—')}</td>`).join('')}</tr>`).join('')}</tbody></table>`
     );
     popup.document.close();
     brandPrintWindow(popup);
@@ -2959,9 +2960,7 @@ export default function HomePage() {
           <div className="calendar-heading">
             <div>
               <p className="eyebrow">APPOINTMENTS</p>
-              <h1>
-                {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-              </h1>
+              <h1>{isoDate(calendarMonth).slice(0, 7)}</h1>
               <p className="muted">Select a date to add an appointment.</p>
             </div>
             <div>
@@ -3048,11 +3047,9 @@ export default function HomePage() {
                 <div>
                   <p className="eyebrow">NEW APPOINTMENT</p>
                   <h2 id="appointment-modal-title">
+                    {selectedAppointmentDate} ·{' '}
                     {new Date(`${selectedAppointmentDate}T12:00:00`).toLocaleDateString(undefined, {
-                      weekday: 'long',
-                      day: 'numeric',
-                      month: 'long',
-                      year: 'numeric'
+                      weekday: 'long'
                     })}
                   </h2>
                 </div>
@@ -3147,10 +3144,7 @@ export default function HomePage() {
                 appointment.responseStatus === 'rejected' ? 'Reason for rejecting' : 'Reply note',
                 appointment.responseNote
               ],
-              [
-                'Replied',
-                appointment.respondedAt ? new Date(appointment.respondedAt).toLocaleString() : ''
-              ],
+              ['Replied', appointment.respondedAt ? isoDateTime(appointment.respondedAt) : ''],
               ['Notes', appointment.notes]
             ]}
             badge={appointment => <ResponseBadge status={appointment.responseStatus} />}
@@ -3454,7 +3448,7 @@ export default function HomePage() {
                   <strong>{saved.signerName}</strong>
                   <span>
                     {role === 'engineer' ? 'Engineer' : 'Client representative'} ·{' '}
-                    {new Date(saved.signedAt).toLocaleString()}
+                    {isoDateTime(saved.signedAt)}
                   </span>
                 </article>
               ) : (
@@ -3828,12 +3822,7 @@ export default function HomePage() {
                     <div className="visit-list">
                       {contractDetail.visits.map(visit => (
                         <article key={visit.id}>
-                          <time>
-                            {new Date(`${visit.serviceDate}T12:00:00`).toLocaleDateString(
-                              undefined,
-                              { year: 'numeric', month: 'long', day: 'numeric' }
-                            )}
-                          </time>
+                          <time>{isoDate(visit.serviceDate)}</time>
                           <div>
                             <strong>{visit.title}</strong>
                             <p>{visit.summary || 'No visit summary yet.'}</p>

@@ -1,4 +1,5 @@
 'use client';
+import { isoDateTime } from '../lib/dates';
 import { FormEvent, useEffect, useState } from 'react';
 
 type Contract = { id: string; name: string; contractNumber: string };
@@ -171,7 +172,7 @@ export function CustomerCalloutRequests({
                 <td>{r.description}</td>
                 <td>{deviceLabel(r.deviceId) || '—'}</td>
                 <td>{r.priority === 'urgent' ? 'Urgent' : 'Normal'}</td>
-                <td>{new Date(r.createdAt).toLocaleString('en-IE')}</td>
+                <td>{isoDateTime(r.createdAt)}</td>
               </tr>
             ))}
           </tbody>

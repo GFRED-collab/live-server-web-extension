@@ -19,7 +19,8 @@ function testTransport() {
 let transport: ReturnType<typeof nodemailer.createTransport> | null = null;
 
 export async function sendSignInCode(to: string, code: string) {
-  const from = process.env.MAIL_FROM || 'Irish Hospital Supplies Reports <no-reply@kobalinesystems.com>';
+  const from =
+    process.env.MAIL_FROM || 'Irish Hospital Supplies Reports <no-reply@kobalinesystems.com>';
   const subject = `${code} is your Irish Hospital Supplies sign-in code`;
   const text = [
     `Your Irish Hospital Supplies sign-in code is ${code}.`,

@@ -198,13 +198,7 @@
           new Intl.NumberFormat(undefined, { style: 'currency', currency: 'EUR' }).format(
             Number(value) || 0
           );
-        const day = value =>
-          value
-            ? new Date(value.length === 10 ? `${value}T12:00:00` : value).toLocaleDateString(
-                undefined,
-                { day: 'numeric', month: 'short', year: 'numeric' }
-              )
-            : '—';
+        const day = value => window.isoDate(value) || '—';
         const make = (tag, attributes = {}, ...children) => {
           const node = document.createElement(tag);
           for (const [key, value] of Object.entries(attributes))
@@ -297,7 +291,7 @@
               ['Employee code', user.employeeCode || ''],
               ['Department', user.department || ''],
               ['Payment date', item.paymentDate || ''],
-              ['Sent', item.sentAt || ''],
+              ['Sent', window.isoDateTime(item.sentAt)],
               ['Sent by', item.sentBy || ''],
               ['Message', item.message || ''],
               ['Reimbursed total', item.amount ?? '', item.currency || 'EUR'],

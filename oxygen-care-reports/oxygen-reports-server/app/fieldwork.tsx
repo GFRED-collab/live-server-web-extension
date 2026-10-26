@@ -1,4 +1,5 @@
 'use client';
+import { isoDate, isoDateTime } from '../lib/dates';
 import { FormEvent, PointerEvent, ReactNode, useEffect, useRef, useState } from 'react';
 import { brandPrintWindow } from './print-layout';
 import { CalloutRequests } from './callout-requests';
@@ -278,8 +279,8 @@ function DocketSignOff({
         {docket.engineerName}
       </p>
       <p>
-        {docket.startedAt ? new Date(docket.startedAt).toLocaleString('en-IE') : 'Not recorded'} –{' '}
-        {docket.endedAt ? new Date(docket.endedAt).toLocaleString('en-IE') : 'Not recorded'}
+        {docket.startedAt ? isoDateTime(docket.startedAt) : 'Not recorded'} –{' '}
+        {docket.endedAt ? isoDateTime(docket.endedAt) : 'Not recorded'}
       </p>
       <p>{docket.workDescription}</p>
       {error && (
@@ -573,21 +574,13 @@ export default function Fieldwork({
         ['Device', docket.deviceName],
         ['Serial number', docket.serialNumber],
         ['Engineer', docket.engineerName],
-        [
-          'Time started',
-          docket.startedAt ? new Date(docket.startedAt).toLocaleString('en-IE') : 'Not recorded'
-        ],
-        [
-          'Time ended',
-          docket.endedAt ? new Date(docket.endedAt).toLocaleString('en-IE') : 'Not recorded'
-        ],
+        ['Time started', docket.startedAt ? isoDateTime(docket.startedAt) : 'Not recorded'],
+        ['Time ended', docket.endedAt ? isoDateTime(docket.endedAt) : 'Not recorded'],
         ['Work completed', docket.workDescription],
         ['Customer name', docket.signerName],
         [
           'Signed',
-          correctionPending
-            ? 'Awaiting fresh customer sign-off'
-            : new Date(docket.signedAt).toLocaleString('en-IE')
+          correctionPending ? 'Awaiting fresh customer sign-off' : isoDateTime(docket.signedAt)
         ]
       ]) {
         const dt = doc.createElement('dt'),
@@ -882,7 +875,7 @@ export default function Fieldwork({
             getKey={c => c.id}
             title={c => `Call-out · ${c.clientName}`}
             details={c => [
-              ['Logged', new Date(c.createdAt).toLocaleString('en-IE')],
+              ['Logged', isoDateTime(c.createdAt)],
               ['Client', c.clientName],
               ['Location', c.location],
               ['Device', c.deviceName],
@@ -895,7 +888,7 @@ export default function Fieldwork({
             disabled={busy}
             badge={c => (c.status === 'open' ? <span className="callout-bubble">New</span> : null)}
             line={c => [
-              new Date(c.createdAt).toLocaleDateString('en-IE'),
+              isoDate(c.createdAt),
               c.clientName,
               c.deviceName && `${c.deviceName} ${c.serialNumber || ''}`.trim(),
               c.description,
@@ -937,22 +930,18 @@ export default function Fieldwork({
               ['Device', d.deviceName],
               ['Serial number', d.serialNumber],
               ['Engineer', d.engineerName],
-              ['Time started', d.startedAt ? new Date(d.startedAt).toLocaleString('en-IE') : ''],
-              ['Time ended', d.endedAt ? new Date(d.endedAt).toLocaleString('en-IE') : ''],
+              ['Time started', d.startedAt ? isoDateTime(d.startedAt) : ''],
+              ['Time ended', d.endedAt ? isoDateTime(d.endedAt) : ''],
               ['Work completed', d.workDescription],
               ['Customer', d.signerName],
               [
                 'Signed',
-                d.correctionPending
-                  ? 'Awaiting fresh customer sign-off'
-                  : new Date(d.signedAt).toLocaleString('en-IE')
+                d.correctionPending ? 'Awaiting fresh customer sign-off' : isoDateTime(d.signedAt)
               ]
             ]}
             line={d => [
               d.entryNumber,
-              d.correctionPending
-                ? 'Awaiting fresh customer sign-off'
-                : new Date(d.signedAt).toLocaleString('en-IE'),
+              d.correctionPending ? 'Awaiting fresh customer sign-off' : isoDateTime(d.signedAt),
               d.clientName,
               d.deviceName && `${d.deviceName} ${d.serialNumber || ''}`.trim(),
               `Customer: ${d.signerName}`,

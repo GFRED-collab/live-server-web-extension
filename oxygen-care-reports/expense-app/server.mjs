@@ -796,7 +796,7 @@ function expenseClosed(expense) {
   return typeof date === 'string' && date < expenseCutoffDate;
 }
 const closedMessage = () =>
-  `Expenses dated before ${new Date(`${expenseCutoffDate}T12:00:00Z`).toLocaleDateString('en-IE', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })} are closed. Contact a Super User if this needs to change.`;
+  `Expenses dated before ${expenseCutoffDate} are closed. Contact a Super User if this needs to change.`;
 // Department Heads may approve an expense only once its month has ended: from the 1st of the
 // following month (Irish time). Super Users are not limited.
 function approvalOpensOn(expense) {
