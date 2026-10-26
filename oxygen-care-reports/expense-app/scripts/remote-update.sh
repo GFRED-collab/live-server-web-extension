@@ -134,6 +134,7 @@ install -m 0644 "$STAGE_DIR/server.mjs" "$APP_DIR/server.mjs"
 install -d -m 0755 "$APP_DIR/scripts"
 install -m 0644 "$STAGE_DIR/scripts/rapidocr_text.py" "$APP_DIR/scripts/rapidocr_text.py"
 install -m 0644 "$STAGE_DIR/scripts/paddleocr_text.py" "$APP_DIR/scripts/paddleocr_text.py"
+install -m 0644 "$STAGE_DIR/scripts/maintenance-cleanup.mjs" "$APP_DIR/scripts/maintenance-cleanup.mjs"
 install -m 0644 "$STAGE_DIR/package.json" "$APP_DIR/package.json"
 install -m 0644 "$STAGE_DIR/package-lock.json" "$APP_DIR/package-lock.json"
 (cd "$APP_DIR" && npm ci --omit=dev --no-audit --no-fund)
