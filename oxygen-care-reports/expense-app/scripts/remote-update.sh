@@ -10,8 +10,8 @@ SYSTEMD_OVERRIDE="$SYSTEMD_OVERRIDE_DIR/security.conf"
 NGINX_SITE="/etc/nginx/sites-available/$APP_NAME"
 NGINX_RATE_LIMIT="/etc/nginx/conf.d/${APP_NAME}-rate-limit.conf"
 TAILSCALE_HOST="expenses.fynbos-spectrum.ts.net"
-# Public address served through Cloudflare Tunnel.
-PUBLIC_HOST="expenses.kobalinesystems.com"
+# Public addresses served through Cloudflare Tunnel.
+PUBLIC_HOSTS=(expenses.kobalinesystems.com expenses.kobaline.com)
 # RapidOCR lives outside the release directory so backups and rollbacks leave it alone.
 RAPIDOCR_VENV="/home/serveradmin/oxygen-care-expenses-rapidocr"
 PADDLEOCR_VENV="/home/serveradmin/oxygen-care-expenses-paddleocr"
@@ -190,7 +190,7 @@ NGINX_RATE
 cat >"$STAGE_DIR/nginx-site.conf" <<NGINX_SITE
 server {
     listen 127.0.0.1:8080;
-    server_name $TAILSCALE_HOST $PUBLIC_HOST;
+    server_name $TAILSCALE_HOST ${PUBLIC_HOSTS[*]};
     # Cloudflare Tunnel connects from this machine and passes the visitor's address in
     # CF-Connecting-IP; use it so rate limits apply per visitor, not to everyone at once.
     set_real_ip_from 127.0.0.1;
