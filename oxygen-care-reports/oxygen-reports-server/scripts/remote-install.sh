@@ -12,8 +12,8 @@ NGINX_SITE="/etc/nginx/sites-available/$APP_NAME"
 NGINX_LIMITS="/etc/nginx/conf.d/${APP_NAME}-limits.conf"
 TAILSCALE_HOST="expenses.fynbos-spectrum.ts.net"
 TAILSCALE_PORT="8443"
-# Public address served through Cloudflare Tunnel, accepted alongside the Tailscale one.
-PUBLIC_HOST="reports.kobalinesystems.com"
+# Public addresses served through Cloudflare Tunnel, accepted alongside the Tailscale one.
+PUBLIC_HOSTS=(reports.kobalinesystems.com reports.kobaline.com)
 APP_PORT="3002"
 PROXY_PORT="8081"
 DB_NAME="oxygen_care_reports"
@@ -55,9 +55,18 @@ ALTER ROLE oxygen_reports WITH LOGIN PASSWORD :'db_password';
 SQL
   if ! sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname='$DB_NAME'" | grep -q 1; then sudo -u postgres createdb --owner="$DB_USER" "$DB_NAME"; fi
 fi
-# Older settings files predate the public domain: add it without touching anything else.
-if ! sudo grep -q '^APP_EXTRA_ORIGINS=' "$ENV_FILE"; then
-  echo "APP_EXTRA_ORIGINS=https://$PUBLIC_HOST" | sudo tee -a "$ENV_FILE" >/dev/null
+# Every public address must be in APP_EXTRA_ORIGINS: add any that are missing, keep the rest.
+CURRENT_ORIGINS="$(sudo sed -n 's/^APP_EXTRA_ORIGINS=//p' "$ENV_FILE" | tail -n 1 | tr -d "'\"")"
+WANTED_ORIGINS="$CURRENT_ORIGINS"
+for host in "${PUBLIC_HOSTS[@]}"; do
+  case ",$WANTED_ORIGINS," in
+    *",https://$host,"*) ;;
+    *) WANTED_ORIGINS="${WANTED_ORIGINS:+$WANTED_ORIGINS,}https://$host" ;;
+  esac
+done
+if [[ "$WANTED_ORIGINS" != "$CURRENT_ORIGINS" ]]; then
+  sudo sed -i '/^APP_EXTRA_ORIGINS=/d' "$ENV_FILE"
+  echo "APP_EXTRA_ORIGINS=$WANTED_ORIGINS" | sudo tee -a "$ENV_FILE" >/dev/null
 fi
 # Two-step sign-in: the key that encrypts staff authenticator keys. It is created once and must
 # never change, or every staff member would have to set up their authenticator again.
@@ -146,7 +155,7 @@ NGINX_LIMITS
 cat >"$STAGE_DIR/nginx-site.conf" <<NGINX_SITE
 server {
     listen 127.0.0.1:$PROXY_PORT;
-    server_name $TAILSCALE_HOST $PUBLIC_HOST;
+    server_name $TAILSCALE_HOST ${PUBLIC_HOSTS[*]};
     client_max_body_size 20m;
     server_tokens off;
     # Cloudflare Tunnel connects from this machine and passes the visitor's address in

@@ -11,8 +11,8 @@ DATA_DIR=/var/lib/occ-cloud
 ENV_FILE=/etc/occ-cloud/occ-cloud.env
 APP_PORT=3003
 HTTPS_PORT=8444
-# Public address served through Cloudflare Tunnel, accepted alongside the Tailscale one.
-PUBLIC_HOST="cloud.kobalinesystems.com"
+# Public addresses served through Cloudflare Tunnel, accepted alongside the Tailscale one.
+PUBLIC_HOSTS=(cloud.kobalinesystems.com cloud.kobaline.com)
 TAILSCALE_HOST=expenses.fynbos-spectrum.ts.net
 for tool in node tailscale curl ss openssl; do command -v "$tool" >/dev/null || { echo "$tool is required."; exit 1; }; done
 node --input-type=module -e "import {DatabaseSync} from 'node:sqlite'; const d=new DatabaseSync(':memory:');d.close()"
@@ -36,9 +36,18 @@ TRUST_PROXY=1
 ENV
   sudo install -o root -g "$APP_USER" -m 0640 "$STAGE_DIR/occ-cloud.env" "$ENV_FILE"
 fi
-# Older settings files predate the public domain: add it without touching anything else.
-if ! sudo grep -q '^APP_EXTRA_ORIGINS=' "$ENV_FILE"; then
-  echo "APP_EXTRA_ORIGINS=https://$PUBLIC_HOST" | sudo tee -a "$ENV_FILE" >/dev/null
+# Every public address must be in APP_EXTRA_ORIGINS: add any that are missing, keep the rest.
+CURRENT_ORIGINS="$(sudo sed -n 's/^APP_EXTRA_ORIGINS=//p' "$ENV_FILE" | tail -n 1 | tr -d "'\"")"
+WANTED_ORIGINS="$CURRENT_ORIGINS"
+for host in "${PUBLIC_HOSTS[@]}"; do
+  case ",$WANTED_ORIGINS," in
+    *",https://$host,"*) ;;
+    *) WANTED_ORIGINS="${WANTED_ORIGINS:+$WANTED_ORIGINS,}https://$host" ;;
+  esac
+done
+if [[ "$WANTED_ORIGINS" != "$CURRENT_ORIGINS" ]]; then
+  sudo sed -i '/^APP_EXTRA_ORIGINS=/d' "$ENV_FILE"
+  echo "APP_EXTRA_ORIGINS=$WANTED_ORIGINS" | sudo tee -a "$ENV_FILE" >/dev/null
 fi
 # Authenticator keys are stored encrypted with MFA_ENCRYPTION_KEY. Create it once; never change or remove it,
 # or everyone has to set up their authenticator again. Keep a copy of this file with the data backups.
