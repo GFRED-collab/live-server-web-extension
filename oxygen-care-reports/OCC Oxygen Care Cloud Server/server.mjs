@@ -32,10 +32,18 @@ async function passwordHash(password,minimum=15){ensure(typeof password==='strin
 async function passwordMatches(password,stored){if(typeof password!=='string'||password.length>128)return false;const [format,salt,key]=stored.split(':');if(!['scrypt','scrypt-v2'].includes(format)||!key||!/^[a-f0-9]{128}$/.test(key))return false;const actual=await derive(password,salt,64,format==='scrypt-v2'?strongScrypt:undefined);return timingSafeEqual(actual,Buffer.from(key,'hex'));}
 
 const rootDir=dirname(fileURLToPath(import.meta.url));
+// Each install shows one organisation's brand (OCC_BRAND). Installs share code, never data.
+export const brands={
+  ihs:{key:'ihs',name:'Irish Hospital Supplies Cloud',short:'IHS Cloud',mark:'IHS',company:'Irish Hospital Supplies',sync:'IHS Sync',title:'IHS Cloud · Irish Hospital Supplies',logo:'irish-hospital-supplies-logo.png',logoType:'image/png',logoWidth:1200,logoHeight:437,blend:false},
+  'oxygen-care':{key:'oxygen-care',name:'Oxygen Care Cloud',short:'OCC',mark:'OCC',company:'Oxygen Care',sync:'OCC Sync',title:'OCC · Oxygen Care Cloud',logo:'oxygen-care-logo.jpg',logoType:'image/jpeg',logoWidth:1280,logoHeight:491,blend:true}
+};
+const htmlEscape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
 export function createApp(options={}){
   const dataDir=resolve(options.dataDir||process.env.OCC_DATA_DIR||join(rootDir,'data'));
   const production=options.production??process.env.NODE_ENV==='production';
+  const brand=brands[options.brand??process.env.OCC_BRAND??'ihs'];
+  ensure(brand,500,`OCC_BRAND must be one of: ${Object.keys(brands).join(', ')}.`);
   const origin=options.origin||process.env.APP_ORIGIN||'http://127.0.0.1:3003';
   const originUrl=new URL(origin);
   ensure(origin===originUrl.origin,500,'APP_ORIGIN must be an origin without a path.');
@@ -111,7 +119,7 @@ export function createApp(options={}){
   function replaceGrants(folderId,grants){run('DELETE FROM grants WHERE folder_id=?',folderId);for(const [id,role]of Object.entries(grants))run('INSERT INTO grants VALUES(?,?,?)',folderId,id,role);}
   function validUserGrants(input){ensure(input&&typeof input==='object'&&!Array.isArray(input),400,'Invalid folder permissions.');for(const [id,role]of Object.entries(input)){const f=get('SELECT parent FROM folders WHERE id=?',id);ensure(f&&f.parent===null&&roles.includes(role),400,'Choose a top-level folder and valid role.');}return input;}
   function workspace(s){const fs=all('SELECT * FROM folders ORDER BY modified DESC').filter(f=>permits(s,f.id));const ids=new Set(fs.map(f=>f.id));const sharing=s.account==='super'||fs.some(f=>permits(s,f.id,'manage'));return {user:publicUser(s),csrf:s.csrf,limits:{maxFileBytes:maxFile,quotaBytes:quota},folders:fs.map(f=>({...f,permission:permission(s,f.id),grants:Object.fromEntries(all('SELECT user_id,role FROM grants WHERE folder_id=?',rootFolder(f.id).id).map(g=>[g.user_id,g.role]))})),files:[...all("SELECT id,name,folder,size,mime,owner,modified,'host' source,NULL path,0 reference FROM files"),...all("SELECT id,name,folder,0 size,'' mime,owner,modified,source,path,1 reference FROM file_references")].sort((a,b)=>b.modified-a.modified).filter(f=>ids.has(f.folder)).map(f=>({...f,ext:f.name.includes('.')?f.name.split('.').pop().toLowerCase():'',date:new Date(f.modified).toISOString().slice(0,10),url:f.reference?null:`/api/files/${f.id}/content?inline=1`})),users:all('SELECT id,name,email,account,active,must_change,mfa_enabled_at FROM users ORDER BY name').filter(u=>s.account==='super'||u.active).map(u=>{const safe=publicUser(u);if(!sharing&&u.id!==s.user_id)delete safe.email;return safe;})};}
-  const sync=createSyncApi({db,get,all,run,transaction,ensure,json,body,name,audit,dataDir,maxFile,quota,permits,permission,requireFolder,requireFile,detectMime,
+  const sync=createSyncApi({db,get,all,run,transaction,ensure,json,body,name,audit,dataDir,brand,maxFile,quota,permits,permission,requireFolder,requireFile,detectMime,
     acquireUpload:id=>{ensure(uploads<2&&!uploaders.has(id),429,'Another upload is in progress. Try again shortly.');uploads++;uploaders.add(id);},
     releaseUpload:id=>{uploads--;uploaders.delete(id);}});
   const updates=createUpdatesApi({db,get,all,run,transaction,ensure,json,body,session,audit,requireFile:(s,id)=>{const ref=get('SELECT *,1 reference FROM file_references WHERE id=?',id);if(ref){requireFolder(s,ref.folder);return ref;}return requireFile(s,id);},permits});
@@ -119,7 +127,7 @@ export function createApp(options={}){
   const calendar=createCalendarApi({db,get,all,run,transaction,ensure,json,body,session,audit});
   // Sessions start only after the second sign-in step (see sign-in-api.mjs).
   function startSession(u,detail={}){run('DELETE FROM sessions WHERE created<? OR last_seen<?',now()-43200000,now()-1800000);run('DELETE FROM sessions WHERE token_hash IN (SELECT token_hash FROM sessions WHERE user_id=? ORDER BY created DESC LIMIT -1 OFFSET 9)',u.id);const token=random(),csrf=random();run('INSERT INTO sessions VALUES(?,?,?,?,?)',hash(token),u.id,csrf,now(),now());audit(u.id,'login.success',u.id,detail);return {csrf,cookie:cookie(token)};}
-  const signIn=createSignInApi({db,get,all,run,transaction,ensure,json,body,audit,checkOrigin,startSession,publicUser,dataDir,production,mfaKey:options.mfaKey});
+  const signIn=createSignInApi({db,get,all,run,transaction,ensure,json,body,audit,checkOrigin,startSession,publicUser,dataDir,production,mfaKey:options.mfaKey,brand});
   const server=http.createServer(async(req,res)=>{
     res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('Cache-Control','no-store');
     res.setHeader('X-Frame-Options','SAMEORIGIN');res.setHeader('Cross-Origin-Resource-Policy','same-origin');res.setHeader('Cross-Origin-Opener-Policy','same-origin');res.setHeader('X-DNS-Prefetch-Control','off');res.setHeader('X-Permitted-Cross-Domain-Policies','none');
@@ -175,7 +183,7 @@ export function createApp(options={}){
           if(id){ensure(old,404,'Reference not found.');requireFolder(s,old.folder,'manage');ensure(data.modified===old.modified,409,'This reference changed. Refresh before editing.');}
           if(method==='DELETE'){run('DELETE FROM file_references WHERE id=?',id);audit(s.user_id,'reference.deleted',id);return json(res,200,{ok:true});}
           const folder=data.folder,n=name(data.name);requireFolder(s,folder,old?'manage':'upload');
-          ensure(['occ','existing'].includes(data.source),400,'Choose IHS Sync or Existing file.');
+          ensure(['occ','existing'].includes(data.source),400,`Choose ${brand.sync} or Existing file.`);
           ensure(typeof data.path==='string'&&data.path.length<=2048&&!/[\x00-\x1f\x7f]/.test(data.path),400,'Enter a valid drive path.');
           const path=data.path.trim();
           ensure(/^(?:[A-Za-z]:[\\/]|\\\\[^\\/]+[\\/][^\\/]+|\/[^\/])/.test(path),400,'Enter an absolute local, mapped-drive or network-share path.');
@@ -211,7 +219,10 @@ export function createApp(options={}){
         fail(404,'This operation is unavailable.');
       }
       ensure(method==='GET'||method==='HEAD',405,'Method not allowed.');
-      const assets={'/':['index.html','text/html; charset=utf-8'],'/index.html':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/styles.css':['styles.css','text/css; charset=utf-8'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/irish-hospital-supplies-logo.png':['irish-hospital-supplies-logo.png','image/png']};const asset=assets[route];ensure(asset,404,'Page not found.');const content=readFileSync(join(rootDir,'public',asset[0]));res.writeHead(200,{'Content-Type':asset[1]});res.end(method==='HEAD'?undefined:content);
+      const assets={'/':['index.html','text/html; charset=utf-8'],'/index.html':['index.html','text/html; charset=utf-8'],'/app.js':['app.js','text/javascript; charset=utf-8'],'/styles.css':['styles.css','text/css; charset=utf-8'],'/favicon.svg':['favicon.svg','image/svg+xml'],'/brand-logo':[brand.logo,brand.logoType]};const asset=assets[route];ensure(asset,404,'Page not found.');let content=readFileSync(join(rootDir,'public',asset[0]));
+      // The page carries this install's brand: its title, description and the details app.js shows.
+      if(asset[0]==='index.html')content=content.toString().replaceAll('%BRAND_TITLE%',htmlEscape(brand.title)).replaceAll('%BRAND_NAME%',htmlEscape(brand.name)).replace('%BRAND_JSON%',htmlEscape(JSON.stringify(brand)));
+      res.writeHead(200,{'Content-Type':asset[1]});res.end(method==='HEAD'?undefined:content);
     }catch(error){if(res.destroyed)return;if(res.headersSent){res.destroy();return}const duplicate=error.code==='ERR_SQLITE_ERROR'&&/UNIQUE constraint/.test(error.message);const foreignKey=/FOREIGN KEY constraint/.test(error.message);const status=error.status||(duplicate?409:foreignKey?409:500);if(status===500)console.error('OCC request failed:',error.message);json(res,status,{error:duplicate?'An item with this name or email already exists.':foreignKey?'The item changed. Refresh and try again.':status===500?'The request could not be completed.':error.message,...(error.code&&error.status?{code:error.code}:{})});}
   });
   server.maxHeadersCount=100;server.maxRequestsPerSocket=1000;server.setTimeout(60000);
