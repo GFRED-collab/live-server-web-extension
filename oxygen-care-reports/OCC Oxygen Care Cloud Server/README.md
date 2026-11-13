@@ -55,12 +55,24 @@ This is a single-process application: use one application instance with its own 
 
 Passwords use salted scrypt hashes. Sessions use hashed opaque tokens in the database and HTTP-only cookies, with Secure cookies in production. State-changing requests require the configured same-origin request and CSRF token. File content requests re-check access. Sign-in throttling and audit records persist across restarts. `TRUST_PROXY=1` is set only behind the local Tailscale proxy; omit it otherwise. Internal audit events live in the database; no audit UI is added.
 
+## Two installs, two organisations
+
+The same code runs as two separate installs on the server. They share no accounts, files, settings or encryption keys:
+
+| Install | Brand | Service and data | Addresses |
+| --- | --- | --- | --- |
+| `ihs` (default) | Irish Hospital Supplies Cloud | `occ-cloud`, port 3003, `/var/lib/occ-cloud`, `/etc/occ-cloud/occ-cloud.env` | cloud.kobalinesystems.com, cloud.kobaline.com, Tailscale port 8444 |
+| `oxygen-care` | Oxygen Care Cloud | `occ-cloud-oxygen`, port 3004, `/var/lib/occ-cloud-oxygen`, `/etc/occ-cloud-oxygen/occ-cloud-oxygen.env` | occ.kobaline.ie, Tailscale port 8445 |
+
+`OCC_BRAND` in the settings file (`ihs` or `oxygen-care`) chooses the name, logo and authenticator label; the deploy sets it. Update an install with `bash deploy-server.sh` (Irish Hospital Supplies) or `bash deploy-server.sh oxygen-care`. A change to the code reaches an install when that install is deployed. Back up with `sudo bash backup-server.sh` or `sudo bash backup-server.sh oxygen-care`. A new install starts empty: create its first Super User with the setup key the deploy prints.
+
 ## Back up and move to a host
 
 On the test server, run:
 
 ```sh
-sudo bash /opt/occ-cloud/current/scripts/backup-server.sh
+sudo bash /opt/occ-cloud/current/scripts/backup-server.sh            # Irish Hospital Supplies
+sudo bash /opt/occ-cloud-oxygen/current/scripts/backup-server.sh oxygen-care
 ```
 
 The backup script briefly stops OCC for a consistent snapshot of metadata and blobs, writes a mode-600 archive and checksum, then restarts it. It does not stop other applications. Copy the archive, checksum and this source package to the new host over an authenticated connection. Keep backups private; they contain uploaded files and account password hashes. Backups are manual in this version; arrange scheduled backups and retention before production use.

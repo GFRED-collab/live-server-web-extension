@@ -17,7 +17,7 @@ const recoveryHash=code=>createHash('sha256').update('recovery:'+normalise(code)
 const newRecoveryCodes=()=>Array.from({length:10},()=>{const raw=Array.from({length:8},()=>recoveryAlphabet[randomInt(recoveryAlphabet.length)]).join('');return raw.slice(0,4)+'-'+raw.slice(4);});
 
 export function createSignInApi(c){
-  const {db,get,all,run,transaction,ensure,json,body,audit,checkOrigin,startSession,publicUser,dataDir,production}=c;
+  const {db,get,all,run,transaction,ensure,json,body,audit,checkOrigin,startSession,publicUser,dataDir,production,brand}=c;
   const hash=value=>createHash('sha256').update(value).digest('hex');
   transaction(()=>{
     const columns=new Set(all('PRAGMA table_info(users)').map(x=>x.name));
@@ -44,7 +44,7 @@ export function createSignInApi(c){
     const token=randomBytes(32).toString('base64url');let result={step:'totp'},pending=null;
     if(!u.mfa_secret){
       const secret=randomBytes(20),text=base32(secret);pending=encrypt(secret);
-      const url=`otpauth://totp/${encodeURIComponent('Irish Hospital Supplies Cloud:'+u.email)}?secret=${text}&issuer=${encodeURIComponent('Irish Hospital Supplies Cloud')}&algorithm=SHA1&digits=6&period=30`;
+      const url=`otpauth://totp/${encodeURIComponent(brand.name+':'+u.email)}?secret=${text}&issuer=${encodeURIComponent(brand.name)}&algorithm=SHA1&digits=6&period=30`;
       const qr=qrcode(0,'M');qr.addData(url);qr.make();
       result={step:'totp_setup',key:text.match(/.{1,4}/g).join(' '),otpauthUrl:url,qrSvg:qr.createSvgTag({cellSize:4,margin:4,scalable:true})};
     }
